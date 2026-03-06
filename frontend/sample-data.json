@@ -1,0 +1,14 @@
+[
+  {"device":"Accu-Chek Guide Me","record_id":101,"datetime_sl":"2026-03-01 06:30:00","glucose_mg_dl":92,"glucose_mmol_L":5.1},
+  {"device":"Accu-Chek Guide Me","record_id":102,"datetime_sl":"2026-03-01 12:55:00","glucose_mg_dl":146,"glucose_mmol_L":8.1},
+  {"device":"Accu-Chek Guide Me","record_id":103,"datetime_sl":"2026-03-01 21:40:00","glucose_mg_dl":171,"glucose_mmol_L":9.5},
+  {"device":"Accu-Chek Guide Me","record_id":104,"datetime_sl":"2026-03-02 06:45:00","glucose_mg_dl":88,"glucose_mmol_L":4.9},
+  {"device":"Accu-Chek Guide Me","record_id":105,"datetime_sl":"2026-03-02 12:38:00","glucose_mg_dl":139,"glucose_mmol_L":7.7},
+  {"device":"Accu-Chek Guide Me","record_id":106,"datetime_sl":"2026-03-02 20:12:00","glucose_mg_dl":162,"glucose_mmol_L":9.0},
+  {"device":"Accu-Chek Guide Me","record_id":107,"datetime_sl":"2026-03-03 07:02:00","glucose_mg_dl":95,"glucose_mmol_L":5.3},
+  {"device":"Accu-Chek Guide Me","record_id":108,"datetime_sl":"2026-03-03 13:06:00","glucose_mg_dl":154,"glucose_mmol_L":8.5},
+  {"device":"Accu-Chek Guide Me","record_id":109,"datetime_sl":"2026-03-03 22:15:00","glucose_mg_dl":182,"glucose_mmol_L":10.1},
+  {"device":"Accu-Chek Guide Me","record_id":110,"datetime_sl":"2026-03-04 06:40:00","glucose_mg_dl":90,"glucose_mmol_L":5.0},
+  {"device":"Accu-Chek Guide Me","record_id":111,"datetime_sl":"2026-03-04 12:42:00","glucose_mg_dl":148,"glucose_mmol_L":8.2},
+  {"device":"Accu-Chek Guide Me","record_id":112,"datetime_sl":"2026-03-04 21:23:00","glucose_mg_dl":194,"glucose_mmol_L":10.8}
+]

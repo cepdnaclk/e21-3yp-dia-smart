@@ -2,6 +2,7 @@ const API_BASE = "http://localhost:3000";
 
 let combinedChart;
 let glucoseDateChart;
+let dosageTimelineChart;
 
 function safeGet(elementId) {
   return document.getElementById(elementId);
@@ -129,21 +130,116 @@ function evaluateGlucoseStatus(glucose) {
 
 function bindInteractions() {
   const glucoseCard = safeGet("glucose-card");
-  if (!glucoseCard) return;
+  if (glucoseCard) {
+    glucoseCard.setAttribute("role", "button");
+    glucoseCard.setAttribute("tabindex", "0");
 
-  glucoseCard.setAttribute("role", "button");
-  glucoseCard.setAttribute("tabindex", "0");
-
-  glucoseCard.addEventListener("click", () => {
-    window.location.href = "glucometer.html";
-  });
-
-  glucoseCard.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
+    glucoseCard.addEventListener("click", () => {
       window.location.href = "glucometer.html";
+    });
+
+    glucoseCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.href = "glucometer.html";
+      }
+    });
+  }
+
+  const dosageCard = safeGet("dosage-card");
+  if (dosageCard) {
+    dosageCard.setAttribute("role", "button");
+    dosageCard.setAttribute("tabindex", "0");
+
+    dosageCard.addEventListener("click", () => {
+      window.location.href = "dosage.html";
+    });
+
+    dosageCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.href = "dosage.html";
+      }
+    });
+  }
+
+  const startCaptureBtn = safeGet("start-dose-capture-btn");
+  if (startCaptureBtn) {
+    startCaptureBtn.addEventListener("click", triggerDoseCapture);
+  }
+}
+
+async function triggerDoseCapture() {
+  const startCaptureBtn = safeGet("start-dose-capture-btn");
+  if (startCaptureBtn) {
+    startCaptureBtn.disabled = true;
+    startCaptureBtn.textContent = "Starting...";
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage/capture`, {
+      method: "POST"
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.error || "Failed to start capture");
     }
-  });
+
+    setStatusBadge("dosage-status", { label: "Capturing", type: "warn" });
+  } catch (err) {
+    console.error("Error starting dose capture:", err);
+    setStatusBadge("dosage-status", { label: "Start failed", type: "crit" });
+  } finally {
+    if (startCaptureBtn) {
+      startCaptureBtn.disabled = false;
+      startCaptureBtn.textContent = "Start Dose Capture";
+    }
+  }
+}
+
+async function loadDosage() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage`);
+    if (!res.ok) {
+      throw new Error("Failed to load dosage timeline");
+    }
+
+    const data = await res.json();
+    const doseValueEl = safeGet("dosage-value");
+    const doseTimeEl = safeGet("dosage-time");
+
+    if (Array.isArray(data) && data.length > 0) {
+      const latest = data[0];
+
+      if (doseValueEl) {
+        doseValueEl.textContent =
+          latest?.dose_amount === null || latest?.dose_amount === undefined
+            ? "—"
+            : String(latest.dose_amount);
+      }
+
+      if (doseTimeEl) {
+        if (latest?.injection_time) {
+          const d = new Date(latest.injection_time);
+          const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          const dateStr = d.toLocaleDateString([], { month: "short", day: "numeric" });
+          doseTimeEl.textContent = `${timeStr} on ${dateStr}`;
+        } else {
+          doseTimeEl.textContent = "Time: unavailable";
+        }
+      }
+
+      setStatusBadge("dosage-status", { label: "Logged", type: "ok" });
+      return;
+    }
+
+    if (doseValueEl) doseValueEl.textContent = "—";
+    if (doseTimeEl) doseTimeEl.textContent = "Time: Awaiting detection...";
+    setStatusBadge("dosage-status", { label: "No data", type: "unknown" });
+  } catch (err) {
+    console.error("Error fetching dosage:", err);
+    setStatusBadge("dosage-status", { label: "Error", type: "crit" });
+  }
 }
 
 async function loadLatest() {
@@ -490,11 +586,124 @@ async function loadChart() {
   }
 }
 
+async function loadDosageChart() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage`);
+    if (!res.ok) {
+      throw new Error("Failed to load dosage timeline");
+    }
+
+    const rows = await res.json();
+    const parsedRows = (Array.isArray(rows) ? rows : [])
+      .map((r) => ({
+        date: new Date(r.injection_time || r.created_at),
+        dose: r.dose_amount
+      }))
+      .filter((r) => !Number.isNaN(r.date.getTime()) && r.dose !== null && r.dose !== undefined);
+
+    const dosageRangeEl = safeGet("dosage-history-range");
+    if (dosageRangeEl) {
+      if (parsedRows.length === 0) {
+        dosageRangeEl.textContent = "No dosage points yet";
+      } else {
+        const first = parsedRows[parsedRows.length - 1].date;
+        const last = parsedRows[0].date;
+        const datePart = `${first.toLocaleDateString()} - ${last.toLocaleDateString()}`;
+        dosageRangeEl.textContent = `Showing ${parsedRows.length} dosage points - ${datePart}`;
+      }
+    }
+
+    const labels = parsedRows
+      .slice()
+      .reverse()
+      .map((r) => `${r.date.toLocaleDateString()} ${r.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+    const values = parsedRows
+      .slice()
+      .reverse()
+      .map((r) => Number(r.dose));
+
+    const dosageCtx = document.getElementById("dosageTimelineChart");
+    if (!dosageCtx) return;
+
+    if (!dosageTimelineChart) {
+      dosageTimelineChart = new Chart(dosageCtx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Dosage (Units)",
+              data: values,
+              borderColor: "#f97316",
+              backgroundColor: "rgba(249, 115, 22, 0.16)",
+              tension: 0.2,
+              pointRadius: 2,
+              pointHoverRadius: 3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: "#e5e7eb",
+                usePointStyle: true,
+                boxWidth: 8
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: "rgba(30, 64, 175, 0.35)"
+              },
+              ticks: {
+                color: "#9ca3af",
+                autoSkip: true,
+                maxTicksLimit: 10,
+                maxRotation: 40,
+                minRotation: 20
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Dosage (Units)",
+                color: "#e5e7eb"
+              },
+              grid: {
+                color: "rgba(55, 65, 81, 0.65)"
+              },
+              ticks: {
+                color: "#9ca3af"
+              }
+            }
+          }
+        }
+      });
+    } else {
+      dosageTimelineChart.data.labels = labels;
+      dosageTimelineChart.data.datasets[0].data = values;
+      dosageTimelineChart.update();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 // Initial load
 bindInteractions();
 loadLatest();
 loadChart();
+loadDosage();
+loadDosageChart();
 
 // Auto refresh
 setInterval(loadLatest, 5000);
 setInterval(loadChart, 15000);
+setInterval(loadDosage, 3000);
+setInterval(loadDosageChart, 15000);

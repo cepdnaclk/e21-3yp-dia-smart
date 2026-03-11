@@ -437,6 +437,7 @@
           <span class="live-dot"></span>
           <span>LIVE LINKED</span>
         </div>
+        <button id="start-dose-capture-btn" class="pill-soft" type="button">Start Dose Capture</button>
         <span id="last-updated" class="last-updated">Last updated: —</span>
       </div>
     </header>
@@ -502,25 +503,7 @@
           </div>
         </article>
 
-        <!-- Insulin level (pen) -->
-        <article class="card">
-          <div class="card-header">
-            <div class="card-title">
-              Pen level
-              <span class="pill-label">Smart cap</span>
-            </div>
-            <span id="insulin-level-status" class="status-badge unknown">No data</span>
-          </div>
-          <div class="value-row">
-            <div>
-              <span id="insulin-level-value" class="metric-value">—</span>
-              <span class="metric-unit">units est.</span>
-            </div>
-          </div>
-          <div class="metric-sub">
-            Remaining units estimated from dial + inventory.
-          </div>
-        </article>
+        
 
         <!-- Glucose value -->
         <article id="glucose-card" class="card clickable-card" title="Open full glucometer log">
@@ -547,6 +530,29 @@
             Click card to open full date-time reading log.
           </div>
         </article>
+        <!-- Dosage value -->
+        <div id="dosage-card" class="card clickable-card" title="Open full dosage log">
+        <div class="card-header">
+          <div class="card-title">
+            LAST DOSE <span class="badge">AI VISION NODE</span>
+          </div>
+          <span id="dosage-status" class="status-badge unknown">No data</span>
+        </div>
+        
+        <div class="card-value-row">
+          <span class="value" id="dosage-value">—</span>
+          <span class="unit">Units</span>
+        </div>
+        
+        <div class="card-desc">
+          Injected insulin dose detected via camera.
+          <br/>
+          <span id="dosage-time" style="color: #9ca3af; font-size: 0.85rem;">Time: Awaiting detection...</span>
+        </div>
+        <div class="metric-sub">
+          Click card to open full dosage log.
+        </div>
+      </div>
       </section>
 
       <section class="chart-section">
@@ -569,6 +575,15 @@
             <canvas id="glucoseDateChart"></canvas>
           </div>
         </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2 class="chart-title">Dosage Timeline</h2>
+            <span id="dosage-history-range" class="chart-meta">Awaiting data...</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="dosageTimelineChart"></canvas>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -585,3 +600,5 @@
   <script src="dashboard.js"></script>
 </body>
 </html>
+
+

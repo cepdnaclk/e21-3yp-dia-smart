@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs/promises');
 const path = require('path');
+const { spawn } = require('child_process');
 const pool = require('./db');
 
 const app = express();
@@ -11,6 +12,15 @@ app.use(express.json());
 const DATA_DIR = path.join(__dirname, 'data');
 const GLUCO_RAW_FILE = path.join(DATA_DIR, 'glucometer_raw.jsonl');
 const SENSOR_RAW_FILE = path.join(DATA_DIR, 'sensor_raw.jsonl');
+const DOSAGE_RAW_FILE = path.join(DATA_DIR, 'dosage_raw.jsonl');
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+const DOSE_CAPTURE_SCRIPT = path.join(
+  PROJECT_ROOT,
+  'code',
+  'dosage_detection',
+  'poc',
+  'dose_detection_video_poc.py'
+);
 const FORCE_FILE_ONLY = ['1', 'true', 'yes', 'on'].includes(
   String(process.env.GLUCO_FILE_ONLY || '').toLowerCase()
 );
@@ -82,6 +92,15 @@ async function persistRawSensorEvent(eventPayload) {
 
 async function readRawSensorEvents() {
   return readJsonLines(SENSOR_RAW_FILE);
+}
+
+async function persistRawDosageEvent(eventPayload) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.appendFile(DOSAGE_RAW_FILE, `${JSON.stringify(eventPayload)}\n`, 'utf8');
+}
+
+async function readRawDosageEvents() {
+  return readJsonLines(DOSAGE_RAW_FILE);
 }
 
 function chooseLatestNonNull(events, key) {
@@ -615,6 +634,142 @@ app.get('/api/debug/ingest-status', async (_req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Debug status failed' });
+  }
+});
+
+/* ===============================
+   POST - Trigger Dosage Video Capture
+================================= */
+app.post('/api/dosage/capture', async (_req, res) => {
+  try {
+    await fs.access(DOSE_CAPTURE_SCRIPT);
+  } catch (_err) {
+    return res.status(404).json({
+      error: 'Dose capture script not found',
+      script_path: DOSE_CAPTURE_SCRIPT
+    });
+  }
+
+  const pythonBin = process.env.DOSE_PYTHON_BIN || 'python';
+
+  try {
+    const child = spawn(pythonBin, [DOSE_CAPTURE_SCRIPT], {
+      cwd: PROJECT_ROOT,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false
+    });
+
+    let responded = false;
+
+    child.once('error', (err) => {
+      if (responded) return;
+      responded = true;
+      res.status(500).json({
+        error: 'Failed to launch dose capture process',
+        details: err && err.message ? err.message : 'unknown'
+      });
+    });
+
+    setTimeout(() => {
+      if (responded) return;
+      responded = true;
+      child.unref();
+      res.status(202).json({
+        message: 'Dose capture script started',
+        script_path: DOSE_CAPTURE_SCRIPT,
+        python_bin: pythonBin
+      });
+    }, 250);
+  } catch (err) {
+    res.status(500).json({
+      error: 'Failed to start dose capture process',
+      details: err && err.message ? err.message : 'unknown'
+    });
+  }
+});
+
+/* ===============================
+   POST - Insert AI Dosage Data
+================================= */
+app.post('/api/dosage', async (req, res) => {
+  // The Python script sends: { type: "insulin_dose", value: 15, timestamp: "..." }
+  const { value, timestamp } = req.body;
+
+  if (value === undefined || value === null) {
+    return res.status(400).json({ error: 'Missing dose value' });
+  }
+
+  // Use the exact time Gemini recorded the video frame
+  const injectionTime = timestamp ? new Date(timestamp) : new Date();
+  const payload = {
+    dose_amount: Number(value),
+    injection_time: injectionTime.toISOString(),
+    received_at: new Date().toISOString()
+  };
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO dosage_timeline (dose_amount, injection_time) 
+       VALUES ($1, $2) RETURNING *`,
+      [value, injectionTime]
+    );
+
+    await persistRawDosageEvent({
+      ...payload,
+      ...(result.rows[0] || {})
+    });
+    
+    console.log(`[Dia-Smart AI] Successfully logged ${value} Units at ${injectionTime.toLocaleTimeString()}`);
+    res.status(201).json({ message: "Dosage logged successfully", reading: result.rows[0] });
+    
+  } catch (err) {
+    console.error("Database error saving dosage:", err);
+    try {
+      await persistRawDosageEvent(payload);
+      res.status(201).json({
+        message: "Dosage logged to file fallback",
+        reading: payload,
+        source: "file-fallback"
+      });
+    } catch (fileErr) {
+      console.error("File fallback error saving dosage:", fileErr);
+      res.status(500).json({ error: 'Failed to save dosage to database and file fallback' });
+    }
+  }
+});
+
+/* ===============================
+   GET - Dosage Timeline
+================================= */
+app.get('/api/dosage', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM dosage_timeline ORDER BY injection_time DESC LIMIT 100`
+    );
+    if (Array.isArray(result.rows) && result.rows.length > 0) {
+      return res.json(result.rows);
+    }
+
+    const fallbackRows = await readRawDosageEvents();
+    const sorted = fallbackRows
+      .slice()
+      .sort((a, b) => new Date(b.injection_time || b.received_at) - new Date(a.injection_time || a.received_at))
+      .slice(0, 100);
+    return res.json(sorted);
+  } catch (err) {
+    console.error("Database error fetching dosage:", err);
+    try {
+      const fallbackRows = await readRawDosageEvents();
+      const sorted = fallbackRows
+        .slice()
+        .sort((a, b) => new Date(b.injection_time || b.received_at) - new Date(a.injection_time || a.received_at))
+        .slice(0, 100);
+      res.json(sorted);
+    } catch (fileErr) {
+      console.error("File fallback error fetching dosage:", fileErr);
+      res.status(500).json({ error: 'Failed to fetch dosage timeline' });
+    }
   }
 });
 

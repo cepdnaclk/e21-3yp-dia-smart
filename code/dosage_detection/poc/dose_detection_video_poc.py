@@ -1,14 +1,24 @@
 import cv2
 import time
 import os
+import requests
 from google import genai
+from dotenv import load_dotenv
+
+# Load the hidden variables from the .env file
+load_dotenv()
 
 # ==========================================
 # 1. SETUP GOOGLE GEMINI API (NEW SDK)
 # ==========================================
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL API KEY (Starts with AIzaSy...)
-client = genai.Client(api_key="REPLACE THIS WITH YOUR ACTUAL API KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+BACKEND_DOSAGE_URL = os.environ.get("BACKEND_DOSAGE_URL", "http://localhost:3000/api/dosage")
 
+if not GEMINI_API_KEY:
+    raise RuntimeError("Missing GEMINI_API_KEY. Set it in code/dosage_detection/poc/.env")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
 # ==========================================
 # 2. VIDEO ANALYSIS FUNCTION
 # ==========================================
@@ -57,20 +67,38 @@ def analyze_video(filepath):
         print("\n--- AI THOUGHT PROCESS ---")
         print(response.text.strip())
         print("--------------------------\n")
-        
+
         # Extract the final dose
         if "FINAL_DOSE_RESULT:" in response.text:
             final_dose = response.text.split("FINAL_DOSE_RESULT:")[1].strip()
-            # Clean up any extra characters just in case
             final_dose = ''.join(filter(str.isdigit, final_dose))
             
             print("=====================================")
             print(f"✅ DETECTED INJECTED DOSE: {final_dose} Units")
             print("=====================================\n")
+            
+            # --- NEW API INTEGRATION CODE ---
+            print("📡 Transmitting data to Dia-Smart Backend...")
+            try:
+                payload = {
+                    "type": "insulin_dose",
+                    "value": int(final_dose),
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                }
+                
+                # Send the POST request to your local Express server
+                api_response = requests.post(BACKEND_DOSAGE_URL, json=payload)
+                
+                if api_response.status_code == 200 or api_response.status_code == 201:
+                    print("✅ Successfully synced with database!")
+                else:
+                    print(f"⚠️ Backend rejected data. Status: {api_response.status_code}")
+            except Exception as e:
+                print(f"❌ Failed to connect to backend. Is Express running? Error: {e}")
+            # --------------------------------
+            
         else:
             print("⚠️ Could not extract the final dose format from the AI's response.")
-            
-        print("Ready for next scan. Press SPACE to record again.")
         
         # Clean up the file from Google's servers
         client.files.delete(name=video_file.name)

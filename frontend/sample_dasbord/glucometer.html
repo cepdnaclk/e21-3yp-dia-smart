@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dia-Smart | Glucometer Log</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020617;
+      --card: #020617;
+      --text: #e5e7eb;
+      --soft: #94a3b8;
+      --line: rgba(148, 163, 184, 0.26);
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --crit: #ef4444;
+      --unknown: #64748b;
+      --accent: #0ea5e9;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 56%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.14), transparent 56%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.95));
+      box-shadow: 0 22px 50px rgba(2, 6, 23, 0.8);
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    h1 { margin: 0; font-size: 22px; font-weight: 700; }
+
+    .sub { color: var(--soft); font-size: 13px; margin-top: 4px; }
+
+    .back-link {
+      color: #bae6fd;
+      text-decoration: none;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      background: rgba(14, 165, 233, 0.12);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 60%), var(--card);
+    }
+
+    .stat-label { font-size: 11px; color: var(--soft); text-transform: uppercase; letter-spacing: .08em; }
+    .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: auto;
+      background: rgba(2, 6, 23, 0.6);
+      max-height: 66vh;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #0b1228;
+      color: #cbd5e1;
+      text-align: left;
+      font-size: 12px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    tbody td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+
+    .sev {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .sev.ok { background: rgba(34, 197, 94, .16); color: #bbf7d0; border-color: rgba(34, 197, 94, .45); }
+    .sev.warn { background: rgba(245, 158, 11, .16); color: #fde68a; border-color: rgba(245, 158, 11, .5); }
+    .sev.crit { background: rgba(239, 68, 68, .16); color: #fecaca; border-color: rgba(239, 68, 68, .5); }
+    .sev.unknown { background: rgba(100, 116, 139, .16); color: #cbd5e1; border-color: rgba(100, 116, 139, .5); }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: 1fr; }
+      .app { padding: 12px; }
+      h1 { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Glucometer Full Reading Log</h1>
+        <div class="sub">Date, time, glucose reading, and severity classification from ESP uploads.</div>
+      </div>
+      <a class="back-link" href="index.html">Back to Dashboard</a>
+    </header>
+
+    <section class="stats">
+      <article class="stat">
+        <div class="stat-label">Total Records</div>
+        <div id="stat-total" class="stat-value">0</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">Latest Reading</div>
+        <div id="stat-latest" class="stat-value">—</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">High / Severe High</div>
+        <div id="stat-high" class="stat-value">0</div>
+      </article>
+      <article class="stat">
+        <div class="stat-label">In Target</div>
+        <div id="stat-target" class="stat-value">0</div>
+      </article>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Reading (mg/dL)</th>
+            <th>Severity</th>
+            <th>Device</th>
+            <th>Record ID</th>
+          </tr>
+        </thead>
+        <tbody id="log-table-body">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <script src="glucometer.js"></script>
+</body>
+</html>

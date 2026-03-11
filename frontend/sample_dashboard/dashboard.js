@@ -129,21 +129,99 @@ function evaluateGlucoseStatus(glucose) {
 
 function bindInteractions() {
   const glucoseCard = safeGet("glucose-card");
-  if (!glucoseCard) return;
+  if (glucoseCard) {
+    glucoseCard.setAttribute("role", "button");
+    glucoseCard.setAttribute("tabindex", "0");
 
-  glucoseCard.setAttribute("role", "button");
-  glucoseCard.setAttribute("tabindex", "0");
-
-  glucoseCard.addEventListener("click", () => {
-    window.location.href = "glucometer.html";
-  });
-
-  glucoseCard.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
+    glucoseCard.addEventListener("click", () => {
       window.location.href = "glucometer.html";
+    });
+
+    glucoseCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.href = "glucometer.html";
+      }
+    });
+  }
+
+  const startCaptureBtn = safeGet("start-dose-capture-btn");
+  if (startCaptureBtn) {
+    startCaptureBtn.addEventListener("click", triggerDoseCapture);
+  }
+}
+
+async function triggerDoseCapture() {
+  const startCaptureBtn = safeGet("start-dose-capture-btn");
+  if (startCaptureBtn) {
+    startCaptureBtn.disabled = true;
+    startCaptureBtn.textContent = "Starting...";
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage/capture`, {
+      method: "POST"
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.error || "Failed to start capture");
     }
-  });
+
+    setStatusBadge("dosage-status", { label: "Capturing", type: "warn" });
+  } catch (err) {
+    console.error("Error starting dose capture:", err);
+    setStatusBadge("dosage-status", { label: "Start failed", type: "crit" });
+  } finally {
+    if (startCaptureBtn) {
+      startCaptureBtn.disabled = false;
+      startCaptureBtn.textContent = "Start Dose Capture";
+    }
+  }
+}
+
+async function loadDosage() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage`);
+    if (!res.ok) {
+      throw new Error("Failed to load dosage timeline");
+    }
+
+    const data = await res.json();
+    const doseValueEl = safeGet("dosage-value");
+    const doseTimeEl = safeGet("dosage-time");
+
+    if (Array.isArray(data) && data.length > 0) {
+      const latest = data[0];
+
+      if (doseValueEl) {
+        doseValueEl.textContent =
+          latest?.dose_amount === null || latest?.dose_amount === undefined
+            ? "—"
+            : String(latest.dose_amount);
+      }
+
+      if (doseTimeEl) {
+        if (latest?.injection_time) {
+          const d = new Date(latest.injection_time);
+          const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          const dateStr = d.toLocaleDateString([], { month: "short", day: "numeric" });
+          doseTimeEl.textContent = `${timeStr} on ${dateStr}`;
+        } else {
+          doseTimeEl.textContent = "Time: unavailable";
+        }
+      }
+
+      setStatusBadge("dosage-status", { label: "Logged", type: "ok" });
+      return;
+    }
+
+    if (doseValueEl) doseValueEl.textContent = "—";
+    if (doseTimeEl) doseTimeEl.textContent = "Time: Awaiting detection...";
+    setStatusBadge("dosage-status", { label: "No data", type: "unknown" });
+  } catch (err) {
+    console.error("Error fetching dosage:", err);
+    setStatusBadge("dosage-status", { label: "Error", type: "crit" });
+  }
 }
 
 async function loadLatest() {
@@ -494,7 +572,9 @@ async function loadChart() {
 bindInteractions();
 loadLatest();
 loadChart();
+loadDosage();
 
 // Auto refresh
 setInterval(loadLatest, 5000);
 setInterval(loadChart, 15000);
+setInterval(loadDosage, 3000);

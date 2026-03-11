@@ -437,6 +437,7 @@
           <span class="live-dot"></span>
           <span>LIVE LINKED</span>
         </div>
+        <button id="start-dose-capture-btn" class="pill-soft" type="button">Start Dose Capture</button>
         <span id="last-updated" class="last-updated">Last updated: —</span>
       </div>
     </header>
@@ -547,6 +548,26 @@
             Click card to open full date-time reading log.
           </div>
         </article>
+        <!-- Dosage value -->
+        <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            LAST DOSE <span class="badge">AI VISION NODE</span>
+          </div>
+          <span id="dosage-status" class="status-badge unknown">No data</span>
+        </div>
+        
+        <div class="card-value-row">
+          <span class="value" id="dosage-value">—</span>
+          <span class="unit">Units</span>
+        </div>
+        
+        <div class="card-desc">
+          Injected insulin dose detected via camera.
+          <br/>
+          <span id="dosage-time" style="color: #9ca3af; font-size: 0.85rem;">Time: Awaiting detection...</span>
+        </div>
+      </div>
       </section>
 
       <section class="chart-section">
@@ -585,3 +606,5 @@
   <script src="dashboard.js"></script>
 </body>
 </html>
+
+

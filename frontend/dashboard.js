@@ -126,6 +126,34 @@ function evaluateGlucoseStatus(glucose) {
   return { label: "In target", type: "ok" };
 }
 
+async function loadDosage() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage`);
+    if (!res.ok) throw new Error("Failed to load dosage timeline");
+    
+    const data = await res.json();
+    const doseValueEl = safeGet("dosage-value");
+    const doseTimeEl = safeGet("dosage-time"); // Ensure this matches your HTML
+
+    if (data && data.length > 0) {
+      const latest = data[0]; // The 18 Units reading
+      
+      if (doseValueEl) doseValueEl.textContent = latest.dose_amount;
+      
+      if (doseTimeEl) {
+        const d = new Date(latest.injection_time);
+        // Clean format: "10:30 PM (Mar 11)"
+        const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        doseTimeEl.textContent = `${timeStr} on ${dateStr}`;
+      }
+      
+      setStatusBadge("dosage-status", { label: "Logged", type: "ok" });
+    }
+  } catch (err) {
+    console.error("Error fetching dosage:", err);
+  }
+}
 async function loadLatest() {
   try {
     const res = await fetch(`${API_BASE}/api/latest`);
@@ -362,7 +390,9 @@ async function loadChart() {
 // Initial load
 loadLatest();
 loadChart();
+loadDosage();
 
 // Auto refresh
 setInterval(loadLatest, 5000);
 setInterval(loadChart, 15000);
+setInterval(loadDosage, 3000);

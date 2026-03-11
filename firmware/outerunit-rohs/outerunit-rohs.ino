@@ -11,7 +11,7 @@
 // =======================
 const char* ssid = "Sanjeev";
 const char* password = "Sanjeevan2002";
-const char* serverUrl = "http://192.168.1.170:3000/api/readings";
+const char* serverUrl = "http://10.116.204.122:3000/api/readings";
 
 // =======================
 // Global Sensor Variables

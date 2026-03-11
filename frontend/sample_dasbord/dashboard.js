@@ -1,6 +1,7 @@
 const API_BASE = "http://localhost:3000";
 
 let combinedChart;
+let glucoseDateChart;
 
 function safeGet(elementId) {
   return document.getElementById(elementId);
@@ -126,9 +127,28 @@ function evaluateGlucoseStatus(glucose) {
   return { label: "In target", type: "ok" };
 }
 
+function bindInteractions() {
+  const glucoseCard = safeGet("glucose-card");
+  if (!glucoseCard) return;
+
+  glucoseCard.setAttribute("role", "button");
+  glucoseCard.setAttribute("tabindex", "0");
+
+  glucoseCard.addEventListener("click", () => {
+    window.location.href = "glucometer.html";
+  });
+
+  glucoseCard.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      window.location.href = "glucometer.html";
+    }
+  });
+}
+
 async function loadLatest() {
   try {
-    const res = await fetch(`${API_BASE}/api/latest`);
+    const res = await fetch(`${API_BASE}/api/latest-summary?source=file`);
     if (!res.ok) {
       throw new Error("Failed to load latest");
     }
@@ -178,11 +198,21 @@ async function loadLatest() {
     // Last updated
     const updatedEl = safeGet("last-updated");
     if (updatedEl) {
-      if (data?.created_at) {
-        const d = new Date(data.created_at);
+      if (data?.latest_event_at) {
+        const d = new Date(data.latest_event_at);
         updatedEl.textContent = `Last updated: ${d.toLocaleString()}`;
       } else {
         updatedEl.textContent = "Last updated: —";
+      }
+    }
+
+    const glucoseSyncedAtEl = safeGet("glucose-synced-at");
+    if (glucoseSyncedAtEl) {
+      if (data?.glucose_synced_at) {
+        const g = new Date(data.glucose_synced_at);
+        glucoseSyncedAtEl.textContent = `Last sync: ${g.toLocaleString()}`;
+      } else {
+        glucoseSyncedAtEl.textContent = "Last sync: Awaiting glucometer upload";
       }
     }
   } catch (err) {
@@ -192,7 +222,7 @@ async function loadLatest() {
 
 async function loadChart() {
   try {
-    const res = await fetch(`${API_BASE}/api/history`);
+    const res = await fetch(`${API_BASE}/api/history?source=file&limit=2000`);
     if (!res.ok) {
       throw new Error("Failed to load history");
     }
@@ -202,25 +232,57 @@ async function loadChart() {
       return;
     }
 
-    const labels = data.map((r) =>
-      new Date(r.created_at).toLocaleTimeString([], {
+    const parsedRows = data
+      .map((r) => ({
+        createdAt: r.created_at,
+        date: new Date(r.created_at),
+        temperature: r.temperature,
+        glucose: r.glucose_value,
+        inventory: r.insulin_inventory_weight
+      }))
+      .filter((r) => !Number.isNaN(r.date.getTime()));
+
+    if (parsedRows.length === 0) {
+      return;
+    }
+
+    const labels = parsedRows.map((r) =>
+      r.date.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit"
       })
     );
-    const temps = data.map((r) => r.temperature);
-    const glucose = data.map((r) => r.glucose_value);
-    const inventory = data.map((r) => r.insulin_inventory_weight);
+    const temps = parsedRows.map((r) => r.temperature);
+    const glucose = parsedRows.map((r) => r.glucose);
+    const inventory = parsedRows.map((r) => r.inventory);
+
+    const glucoseRows = parsedRows.filter((r) => r.glucose !== null && r.glucose !== undefined);
+    const glucoseDateLabels = glucoseRows.map((r) =>
+      `${r.date.toLocaleDateString()} ${r.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+    );
+    const glucoseDateValues = glucoseRows.map((r) => r.glucose);
 
     const rangeEl = safeGet("history-range");
     if (rangeEl) {
-      const first = new Date(data[0].created_at);
-      const last = new Date(data[data.length - 1].created_at);
+      const first = parsedRows[0].date;
+      const last = parsedRows[parsedRows.length - 1].date;
       const sameDay = first.toDateString() === last.toDateString();
       const datePart = sameDay
         ? first.toLocaleDateString()
-        : `${first.toLocaleDateString()} → ${last.toLocaleDateString()}`;
-      rangeEl.textContent = `Showing ${data.length} points • ${datePart}`;
+        : `${first.toLocaleDateString()} - ${last.toLocaleDateString()}`;
+      rangeEl.textContent = `Showing ${parsedRows.length} points • ${datePart}`;
+    }
+
+    const glucoseRangeEl = safeGet("glucose-history-range");
+    if (glucoseRangeEl) {
+      if (glucoseRows.length === 0) {
+        glucoseRangeEl.textContent = "No glucose points yet";
+      } else {
+        const first = glucoseRows[0].date;
+        const last = glucoseRows[glucoseRows.length - 1].date;
+        const datePart = `${first.toLocaleDateString()} - ${last.toLocaleDateString()}`;
+        glucoseRangeEl.textContent = `Showing ${glucoseRows.length} glucose points • ${datePart}`;
+      }
     }
 
     const ctx = document.getElementById("combinedChart");
@@ -354,12 +416,82 @@ async function loadChart() {
       combinedChart.data.datasets[2].data = inventory;
       combinedChart.update();
     }
+
+    const glucoseCtx = document.getElementById("glucoseDateChart");
+    if (!glucoseCtx) return;
+
+    if (!glucoseDateChart) {
+      glucoseDateChart = new Chart(glucoseCtx, {
+        type: "line",
+        data: {
+          labels: glucoseDateLabels,
+          datasets: [
+            {
+              label: "Glucose (mg/dL)",
+              data: glucoseDateValues,
+              borderColor: "#22c55e",
+              backgroundColor: "rgba(34, 197, 94, 0.15)",
+              tension: 0.2,
+              pointRadius: 2,
+              pointHoverRadius: 3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: "#e5e7eb",
+                usePointStyle: true,
+                boxWidth: 8
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: "rgba(30, 64, 175, 0.35)"
+              },
+              ticks: {
+                color: "#9ca3af",
+                autoSkip: true,
+                maxTicksLimit: 10,
+                maxRotation: 40,
+                minRotation: 20
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Glucose (mg/dL)",
+                color: "#e5e7eb"
+              },
+              grid: {
+                color: "rgba(55, 65, 81, 0.65)"
+              },
+              ticks: {
+                color: "#9ca3af"
+              }
+            }
+          }
+        }
+      });
+    } else {
+      glucoseDateChart.data.labels = glucoseDateLabels;
+      glucoseDateChart.data.datasets[0].data = glucoseDateValues;
+      glucoseDateChart.update();
+    }
   } catch (err) {
     console.error(err);
   }
 }
 
 // Initial load
+bindInteractions();
 loadLatest();
 loadChart();
 

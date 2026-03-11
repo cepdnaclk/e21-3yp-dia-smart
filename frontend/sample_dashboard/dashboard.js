@@ -2,6 +2,7 @@ const API_BASE = "http://localhost:3000";
 
 let combinedChart;
 let glucoseDateChart;
+let dosageTimelineChart;
 
 function safeGet(elementId) {
   return document.getElementById(elementId);
@@ -585,13 +586,124 @@ async function loadChart() {
   }
 }
 
+async function loadDosageChart() {
+  try {
+    const res = await fetch(`${API_BASE}/api/dosage`);
+    if (!res.ok) {
+      throw new Error("Failed to load dosage timeline");
+    }
+
+    const rows = await res.json();
+    const parsedRows = (Array.isArray(rows) ? rows : [])
+      .map((r) => ({
+        date: new Date(r.injection_time || r.created_at),
+        dose: r.dose_amount
+      }))
+      .filter((r) => !Number.isNaN(r.date.getTime()) && r.dose !== null && r.dose !== undefined);
+
+    const dosageRangeEl = safeGet("dosage-history-range");
+    if (dosageRangeEl) {
+      if (parsedRows.length === 0) {
+        dosageRangeEl.textContent = "No dosage points yet";
+      } else {
+        const first = parsedRows[parsedRows.length - 1].date;
+        const last = parsedRows[0].date;
+        const datePart = `${first.toLocaleDateString()} - ${last.toLocaleDateString()}`;
+        dosageRangeEl.textContent = `Showing ${parsedRows.length} dosage points - ${datePart}`;
+      }
+    }
+
+    const labels = parsedRows
+      .slice()
+      .reverse()
+      .map((r) => `${r.date.toLocaleDateString()} ${r.date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+    const values = parsedRows
+      .slice()
+      .reverse()
+      .map((r) => Number(r.dose));
+
+    const dosageCtx = document.getElementById("dosageTimelineChart");
+    if (!dosageCtx) return;
+
+    if (!dosageTimelineChart) {
+      dosageTimelineChart = new Chart(dosageCtx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Dosage (Units)",
+              data: values,
+              borderColor: "#f97316",
+              backgroundColor: "rgba(249, 115, 22, 0.16)",
+              tension: 0.2,
+              pointRadius: 2,
+              pointHoverRadius: 3,
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: {
+                color: "#e5e7eb",
+                usePointStyle: true,
+                boxWidth: 8
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: "rgba(30, 64, 175, 0.35)"
+              },
+              ticks: {
+                color: "#9ca3af",
+                autoSkip: true,
+                maxTicksLimit: 10,
+                maxRotation: 40,
+                minRotation: 20
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Dosage (Units)",
+                color: "#e5e7eb"
+              },
+              grid: {
+                color: "rgba(55, 65, 81, 0.65)"
+              },
+              ticks: {
+                color: "#9ca3af"
+              }
+            }
+          }
+        }
+      });
+    } else {
+      dosageTimelineChart.data.labels = labels;
+      dosageTimelineChart.data.datasets[0].data = values;
+      dosageTimelineChart.update();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 // Initial load
 bindInteractions();
 loadLatest();
 loadChart();
 loadDosage();
+loadDosageChart();
 
 // Auto refresh
 setInterval(loadLatest, 5000);
 setInterval(loadChart, 15000);
 setInterval(loadDosage, 3000);
+setInterval(loadDosageChart, 15000);

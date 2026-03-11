@@ -224,6 +224,19 @@
       overflow: hidden;
     }
 
+    .clickable-card {
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .clickable-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow:
+        inset 0 0 0 1px rgba(15, 23, 42, 0.8),
+        0 16px 48px rgba(14, 165, 233, 0.2);
+    }
+
     .card::before {
       content: "";
       position: absolute;
@@ -510,7 +523,7 @@
         </article>
 
         <!-- Glucose value -->
-        <article class="card">
+        <article id="glucose-card" class="card clickable-card" title="Open full glucometer log">
           <div class="card-header">
             <div class="card-title">
               Glucose
@@ -527,6 +540,12 @@
           <div class="metric-sub">
             Latest synced capillary blood glucose reading.
           </div>
+          <div id="glucose-synced-at" class="metric-sub">
+            Last sync: Awaiting glucometer upload
+          </div>
+          <div class="metric-sub">
+            Click card to open full date-time reading log.
+          </div>
         </article>
       </section>
 
@@ -538,6 +557,16 @@
           </div>
           <div class="chart-wrapper">
             <canvas id="combinedChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h2 class="chart-title">Glucose Timeline</h2>
+            <span id="glucose-history-range" class="chart-meta">Awaiting data…</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="glucoseDateChart"></canvas>
           </div>
         </div>
       </section>

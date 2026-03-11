@@ -145,6 +145,23 @@ function bindInteractions() {
     });
   }
 
+  const dosageCard = safeGet("dosage-card");
+  if (dosageCard) {
+    dosageCard.setAttribute("role", "button");
+    dosageCard.setAttribute("tabindex", "0");
+
+    dosageCard.addEventListener("click", () => {
+      window.location.href = "dosage.html";
+    });
+
+    dosageCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.location.href = "dosage.html";
+      }
+    });
+  }
+
   const startCaptureBtn = safeGet("start-dose-capture-btn");
   if (startCaptureBtn) {
     startCaptureBtn.addEventListener("click", triggerDoseCapture);

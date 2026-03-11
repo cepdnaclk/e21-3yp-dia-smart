@@ -503,25 +503,7 @@
           </div>
         </article>
 
-        <!-- Insulin level (pen) -->
-        <article class="card">
-          <div class="card-header">
-            <div class="card-title">
-              Pen level
-              <span class="pill-label">Smart cap</span>
-            </div>
-            <span id="insulin-level-status" class="status-badge unknown">No data</span>
-          </div>
-          <div class="value-row">
-            <div>
-              <span id="insulin-level-value" class="metric-value">—</span>
-              <span class="metric-unit">units est.</span>
-            </div>
-          </div>
-          <div class="metric-sub">
-            Remaining units estimated from dial + inventory.
-          </div>
-        </article>
+        
 
         <!-- Glucose value -->
         <article id="glucose-card" class="card clickable-card" title="Open full glucometer log">
@@ -549,7 +531,7 @@
           </div>
         </article>
         <!-- Dosage value -->
-        <div class="card">
+        <div id="dosage-card" class="card clickable-card" title="Open full dosage log">
         <div class="card-header">
           <div class="card-title">
             LAST DOSE <span class="badge">AI VISION NODE</span>
@@ -566,6 +548,9 @@
           Injected insulin dose detected via camera.
           <br/>
           <span id="dosage-time" style="color: #9ca3af; font-size: 0.85rem;">Time: Awaiting detection...</span>
+        </div>
+        <div class="metric-sub">
+          Click card to open full dosage log.
         </div>
       </div>
       </section>

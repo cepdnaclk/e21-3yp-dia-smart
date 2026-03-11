@@ -12,7 +12,13 @@ load_dotenv()
 # 1. SETUP GOOGLE GEMINI API (NEW SDK)
 # ==========================================
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL API KEY (Starts with AIzaSy...)
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+BACKEND_DOSAGE_URL = os.environ.get("BACKEND_DOSAGE_URL", "http://localhost:3000/api/dosage")
+
+if not GEMINI_API_KEY:
+    raise RuntimeError("Missing GEMINI_API_KEY. Set it in code/dosage_detection/poc/.env")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
 # ==========================================
 # 2. VIDEO ANALYSIS FUNCTION
 # ==========================================
@@ -74,8 +80,6 @@ def analyze_video(filepath):
             # --- NEW API INTEGRATION CODE ---
             print("📡 Transmitting data to Dia-Smart Backend...")
             try:
-                # Replace port 3000 with whatever port your Express server uses!
-                backend_url = "http://localhost:3000/api/dosage"                
                 payload = {
                     "type": "insulin_dose",
                     "value": int(final_dose),
@@ -83,7 +87,7 @@ def analyze_video(filepath):
                 }
                 
                 # Send the POST request to your local Express server
-                api_response = requests.post(backend_url, json=payload)
+                api_response = requests.post(BACKEND_DOSAGE_URL, json=payload)
                 
                 if api_response.status_code == 200 or api_response.status_code == 201:
                     print("✅ Successfully synced with database!")

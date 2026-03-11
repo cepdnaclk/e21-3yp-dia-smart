@@ -12,6 +12,7 @@ app.use(express.json());
 const DATA_DIR = path.join(__dirname, 'data');
 const GLUCO_RAW_FILE = path.join(DATA_DIR, 'glucometer_raw.jsonl');
 const SENSOR_RAW_FILE = path.join(DATA_DIR, 'sensor_raw.jsonl');
+const DOSAGE_RAW_FILE = path.join(DATA_DIR, 'dosage_raw.jsonl');
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const DOSE_CAPTURE_SCRIPT = path.join(
   PROJECT_ROOT,
@@ -91,6 +92,15 @@ async function persistRawSensorEvent(eventPayload) {
 
 async function readRawSensorEvents() {
   return readJsonLines(SENSOR_RAW_FILE);
+}
+
+async function persistRawDosageEvent(eventPayload) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.appendFile(DOSAGE_RAW_FILE, `${JSON.stringify(eventPayload)}\n`, 'utf8');
+}
+
+async function readRawDosageEvents() {
+  return readJsonLines(DOSAGE_RAW_FILE);
 }
 
 function chooseLatestNonNull(events, key) {
@@ -692,6 +702,11 @@ app.post('/api/dosage', async (req, res) => {
 
   // Use the exact time Gemini recorded the video frame
   const injectionTime = timestamp ? new Date(timestamp) : new Date();
+  const payload = {
+    dose_amount: Number(value),
+    injection_time: injectionTime.toISOString(),
+    received_at: new Date().toISOString()
+  };
 
   try {
     const result = await pool.query(
@@ -699,13 +714,28 @@ app.post('/api/dosage', async (req, res) => {
        VALUES ($1, $2) RETURNING *`,
       [value, injectionTime]
     );
+
+    await persistRawDosageEvent({
+      ...payload,
+      ...(result.rows[0] || {})
+    });
     
     console.log(`[Dia-Smart AI] Successfully logged ${value} Units at ${injectionTime.toLocaleTimeString()}`);
     res.status(201).json({ message: "Dosage logged successfully", reading: result.rows[0] });
     
   } catch (err) {
     console.error("Database error saving dosage:", err);
-    res.status(500).json({ error: 'Failed to save dosage to database' });
+    try {
+      await persistRawDosageEvent(payload);
+      res.status(201).json({
+        message: "Dosage logged to file fallback",
+        reading: payload,
+        source: "file-fallback"
+      });
+    } catch (fileErr) {
+      console.error("File fallback error saving dosage:", fileErr);
+      res.status(500).json({ error: 'Failed to save dosage to database and file fallback' });
+    }
   }
 });
 
@@ -717,10 +747,29 @@ app.get('/api/dosage', async (req, res) => {
     const result = await pool.query(
       `SELECT * FROM dosage_timeline ORDER BY injection_time DESC LIMIT 100`
     );
-    res.json(result.rows);
+    if (Array.isArray(result.rows) && result.rows.length > 0) {
+      return res.json(result.rows);
+    }
+
+    const fallbackRows = await readRawDosageEvents();
+    const sorted = fallbackRows
+      .slice()
+      .sort((a, b) => new Date(b.injection_time || b.received_at) - new Date(a.injection_time || a.received_at))
+      .slice(0, 100);
+    return res.json(sorted);
   } catch (err) {
     console.error("Database error fetching dosage:", err);
-    res.status(500).json({ error: 'Failed to fetch dosage timeline' });
+    try {
+      const fallbackRows = await readRawDosageEvents();
+      const sorted = fallbackRows
+        .slice()
+        .sort((a, b) => new Date(b.injection_time || b.received_at) - new Date(a.injection_time || a.received_at))
+        .slice(0, 100);
+      res.json(sorted);
+    } catch (fileErr) {
+      console.error("File fallback error fetching dosage:", fileErr);
+      res.status(500).json({ error: 'Failed to fetch dosage timeline' });
+    }
   }
 });
 

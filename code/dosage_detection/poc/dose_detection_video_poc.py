@@ -7,7 +7,7 @@ from google import genai
 # 1. SETUP GOOGLE GEMINI API (NEW SDK)
 # ==========================================
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL API KEY (Starts with AIzaSy...)
-client = genai.Client(api_key="AIzaSyCbOx00s5yfut9w1VcmuKdMbNwnluTrNCY")
+client = genai.Client(api_key="REPLACE THIS WITH YOUR ACTUAL API KEY")
 
 # ==========================================
 # 2. VIDEO ANALYSIS FUNCTION

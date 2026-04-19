@@ -6,7 +6,16 @@ const { spawn } = require('child_process');
 const pool = require('./db');
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : true
+})); 
+   
 app.use(express.json());
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -773,6 +782,8 @@ app.get('/api/dosage', async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+const PORT = Number(process.env.PORT || 3000);
+
+app.listen(PORT, () => {
+  console.log("Server running on port ${PORT}");
 });

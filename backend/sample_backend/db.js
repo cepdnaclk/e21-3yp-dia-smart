@@ -32,12 +32,19 @@ function loadLocalEnv() {
 
 loadLocalEnv();
 
-const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'diasmart1',
-  password: process.env.PGPASSWORD || '',
-  port: Number(process.env.PGPORT || 5432),
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false
+    })
+  : new Pool({
+      user: process.env.PGUSER || 'postgres',
+      host: process.env.PGHOST || 'localhost',
+      database: process.env.PGDATABASE || 'diasmart1',
+      password: process.env.PGPASSWORD || '',
+      port: Number(process.env.PGPORT || 5432),
+    });
 
 module.exports = pool;

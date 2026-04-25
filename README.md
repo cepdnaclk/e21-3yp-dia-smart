@@ -22,9 +22,15 @@ Diabetes management requires precise coordination between blood sugar testing an
 Dia-Smart separates the **Storage** from the **User Interface**, creating a distributed system that monitors the patient at every step:
 
 ### 1. 🧠 Smart Insulin Pen Cap (Dosage Tracker)
-A retrofit smart cap that clips onto standard insulin pens to automatically log injection data.
-* **Inertial Sensing:** Uses an **MPU6050 Gyroscope** to detect the exact angle of dosage dialing ($15^\circ \approx 1 \text{ Unit}$), distinguishing between dialing up and correcting down.
-* **Injection Detection:** Accelerometer-based gesture recognition detects the specific motion of injection.
+A retrofit smart cap that clips onto standard insulin pens to automatically log insulin dosage data.
+
+* **Magnetic Encoder Sensing:** Uses an **AS5600 magnetic rotary encoder** to measure the rotation of the insulin pen dial. A small magnet is attached to the rotating dial, and the encoder detects the angular position as the dose is selected.
+
+* **Dosage Estimation:** The ESP32-based dosage node processes the angular rotation data and estimates the selected insulin dose based on the dial movement.
+
+* **BLE Data Transmission:** The detected dosage value is transmitted to the main hub using **Bluetooth Low Energy (BLE)** and stored in the backend dosage timeline for monitoring and history tracking.
+
+* **Prototype Advantage:** This magnetic encoder approach replaces the earlier gyroscope/camera-based ideas with a simpler, lower-cost, and more reliable method suitable for the current prototype stage.
 
 ### 2. 🔌 Gluco-Fetcher (Universal Bridge)
 A retrofit module that upgrades non-smart glucometers (specifically **Mega Check TD-4257**) into IoT devices.

@@ -162,39 +162,6 @@ function bindInteractions() {
       }
     });
   }
-
-  const startCaptureBtn = safeGet("start-dose-capture-btn");
-  if (startCaptureBtn) {
-    startCaptureBtn.addEventListener("click", triggerDoseCapture);
-  }
-}
-
-async function triggerDoseCapture() {
-  const startCaptureBtn = safeGet("start-dose-capture-btn");
-  if (startCaptureBtn) {
-    startCaptureBtn.disabled = true;
-    startCaptureBtn.textContent = "Starting...";
-  }
-
-  try {
-    const res = await fetch(`${API_BASE}/api/dosage/capture`, {
-      method: "POST"
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload.error || "Failed to start capture");
-    }
-
-    setStatusBadge("dosage-status", { label: "Capturing", type: "warn" });
-  } catch (err) {
-    console.error("Error starting dose capture:", err);
-    setStatusBadge("dosage-status", { label: "Start failed", type: "crit" });
-  } finally {
-    if (startCaptureBtn) {
-      startCaptureBtn.disabled = false;
-      startCaptureBtn.textContent = "Start Dose Capture";
-    }
-  }
 }
 
 async function loadDosage() {
@@ -234,7 +201,7 @@ async function loadDosage() {
     }
 
     if (doseValueEl) doseValueEl.textContent = "—";
-    if (doseTimeEl) doseTimeEl.textContent = "Time: Awaiting detection...";
+    if (doseTimeEl) doseTimeEl.textContent = "Time: Awaiting BLE dosage data...";
     setStatusBadge("dosage-status", { label: "No data", type: "unknown" });
   } catch (err) {
     console.error("Error fetching dosage:", err);

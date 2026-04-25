@@ -13,7 +13,7 @@ This one file contains all common machine-specific values:
 - Backend IP/port
 - PostgreSQL host/port/database/user/password
 - MQTT enable/broker/credentials/topic prefix
-- Runtime options (like Python binary for dose capture)
+- Runtime options and generated local configuration values
 
 Then generate all downstream config files:
 
@@ -62,25 +62,6 @@ cd frontend/rn-app
 npm install
 npm run web
 ```
-
-## 5. Dosage Video Detection Node
-Directory: `code/dosage_detection/poc`
-
-1. Create virtual environment and install:
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. Create env file:
-   ```bash
-   copy .env.example .env
-   ```
-3. Set `GEMINI_API_KEY` in `.env`.
-4. Run:
-   ```bash
-   python dose_detection_video_poc.py
-   ```
 
 Reference: [code/dosage_detection/poc/README.md](code/dosage_detection/poc/README.md)
 

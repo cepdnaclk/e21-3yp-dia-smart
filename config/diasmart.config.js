@@ -39,10 +39,6 @@ module.exports = {
     topicPrefix: 'diasmart',
   },
 
-  runtime: {
-    dosePythonBin: 'python',
-  },
-
   sensors: {
     loadCellCalibration: 245.0,
     tempSensorPin: 21,

@@ -1,6 +1,6 @@
 # Dia-Smart Sample Backend
 
-Express backend used by the sample dashboard and dosage video PoC.
+Express backend used by the dashboard, glucometer sync, sensor ingestion, and BLE dosage logging.
 
 ## Features
 - Sensor + glucometer ingestion and history APIs
@@ -28,7 +28,6 @@ Express backend used by the sample dashboard and dosage video PoC.
    - `PGUSER`, `PGHOST`, `PGDATABASE`, `PGPASSWORD`, `PGPORT`
    - Optional:
      - `GLUCO_FILE_ONLY=true` to force file-backed summary/history
-     - `DOSE_PYTHON_BIN=python` to select Python executable for capture trigger
        - MQTT bridge:
           - `MQTT_ENABLED=true`
           - `MQTT_BROKER_URL=mqtt://localhost:1883`
@@ -58,7 +57,6 @@ Backend runs on:
 - `POST /api/glucometer/batch`
 - `GET /api/dosage`
 - `POST /api/dosage`
-- `POST /api/dosage/capture` (starts Python script)
 - `POST /api/replay/raw-to-db`
 - `GET /api/mqtt/status`
 

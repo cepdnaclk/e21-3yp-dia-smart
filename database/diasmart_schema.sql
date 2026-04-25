@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS dosage_timeline (
         patient_id INTEGER REFERENCES patient(id) DEFAULT 1,
         dose_amount INTEGER NOT NULL CHECK (dose_amount > 0 AND dose_amount <= 100),
         injection_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        detection_method VARCHAR(30) DEFAULT 'ai-video',
+        detection_method VARCHAR(30) DEFAULT 'ble-dosage-sensor',
         confidence_pct REAL,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -165,6 +165,6 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO dosage_timeline (dose_amount, injection_time, detection_method)
 VALUES
-    (9, '2026-03-11 08:00:00', 'ai-video'),
-    (15, '2026-03-11 20:00:00', 'ai-video')
+    (9, '2026-03-11 08:00:00', 'ble-dosage-sensor'),
+    (15, '2026-03-11 20:00:00', 'ble-dosage-sensor')
 ON CONFLICT DO NOTHING;

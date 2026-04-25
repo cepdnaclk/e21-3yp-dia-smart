@@ -10,7 +10,6 @@ const {
   postgres,
   server,
   mqtt,
-  runtime,
   sensors,
   glucometer,
   dosageBle,
@@ -47,7 +46,6 @@ PGPASSWORD=${postgres.password}
 PORT=${server.port}
 GLUCO_FILE_ONLY=${server.fileOnlyMode ? '1' : ''}
 CORS_ORIGIN=${server.corsOrigin}
-DOSE_PYTHON_BIN=${runtime.dosePythonBin}
 MQTT_ENABLED=${mqtt.enabled ? '1' : ''}
 MQTT_BROKER_URL=${mqtt.brokerUrl}
 MQTT_USERNAME=${mqtt.username}

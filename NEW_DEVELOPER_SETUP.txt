@@ -11,7 +11,7 @@ This file contains
 - Backend IP and port
 - PostgreSQL host, port, database, user, password
 - MQTT settings (enabled, broker URL, credentials, topic prefix)
-- Runtime options (Python binary for dosage capture)
+- Runtime options and generated local configuration values
 
 After editing the one file
 1. From project root, run:

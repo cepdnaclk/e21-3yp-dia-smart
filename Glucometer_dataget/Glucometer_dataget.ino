@@ -21,6 +21,8 @@
 static BLEUUID glucoseServiceUUID("1808");
 static BLEUUID glucoseMeasurementUUID("2A18");
 static BLEUUID racpUUID("2A52");
+static BLEUUID dosageServiceUUID(DOSAGE_BLE_SERVICE_UUID);
+static BLEUUID dosageCharacteristicUUID(DOSAGE_BLE_CHARACTERISTIC_UUID);
 const uint32_t ACCU_CHEK_PIN = atoi(GLUCO_BLE_PIN);
 
 const uint32_t INNER_PACKET_MAGIC = 0x494E4E52; // 'INNR'
@@ -55,6 +57,13 @@ BLERemoteCharacteristic* glucoRacpChar = nullptr;
 bool glucoSeen = false;
 bool glucoConnected = false;
 bool doConnectGluco = false;
+
+BLEAddress* dosageAddress = nullptr;
+BLEClient* dosageClient = nullptr;
+BLERemoteCharacteristic* dosageNotifyChar = nullptr;
+bool dosageSeen = false;
+bool dosageConnected = false;
+bool doConnectDosage = false;
 
 unsigned long lastInnerNotifyMs = 0;
 unsigned long lastScanMs = 0;
@@ -137,6 +146,28 @@ void sendSensorData(float temp, const String& door, float weight, float insulin,
   int code = http.POST(json);
   http.end();
   Serial.printf("{\"upload\":\"sensors\",\"http\":%d}\n", code);
+}
+
+void sendDosageData(float dose) {
+  ensureWifiConnected();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("{\"upload\":\"dosage\",\"status\":\"wifi_not_connected\"}");
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_DOSAGE_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  String json = "{";
+  json += "\"value\":" + String(dose, 2) + ",";
+  json += "\"source\":\"esp32-c3-ble\"";
+  json += "}";
+
+  int code = http.POST(json);
+  http.end();
+  Serial.printf("{\"upload\":\"dosage\",\"http\":%d,\"dose\":%.2f}\n", code, dose);
 }
 
 void onInnerPacketReceived(const uint8_t* data, int len) {
@@ -318,15 +349,55 @@ void racpCallback(
   size_t length,
   bool isNotify
 ) {
+  (void)pBLERemoteCharacteristic;
+  (void)isNotify;
   if (length >= 4 && pData[0] == 0x06 && pData[3] == 0x01) {
     syncDownloadComplete = true;
     Serial.println("{\"system_status\":\"Download Complete\"}");
   }
 }
 
+void dosageCallback(
+  BLERemoteCharacteristic* pBLERemoteCharacteristic,
+  uint8_t* pData,
+  size_t length,
+  bool isNotify
+) {
+  (void)pBLERemoteCharacteristic;
+  (void)isNotify;
+
+  if (length == 0) return;
+
+  String payload;
+  for (size_t i = 0; i < length; i++) {
+    payload += (char)pData[i];
+  }
+
+  int split = payload.indexOf(',');
+  String doseText = split >= 0 ? payload.substring(0, split) : payload;
+  String status = split >= 0 ? payload.substring(split + 1) : "";
+  doseText.trim();
+  status.trim();
+  status.toUpperCase();
+
+  float dose = doseText.toFloat();
+  if (dose <= 0.0f) return;
+
+  if (status.length() == 0 || status == "INJECTED") {
+    g_insulin = dose;
+    Serial.printf("{\"dosage\":\"ble\",\"payload\":\"%s\",\"dose\":%.2f}\n", payload.c_str(), dose);
+    sendDosageData(dose);
+    sendSensorData(g_temperature, g_door, g_weight, g_insulin, g_glucose);
+  }
+}
+
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
-    if (!glucoSeen && advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(glucoseServiceUUID)) {
+    if (!advertisedDevice.haveServiceUUID()) {
+      return;
+    }
+
+    if (!glucoSeen && advertisedDevice.isAdvertisingService(glucoseServiceUUID)) {
       if (glucoAddress) {
         delete glucoAddress;
         glucoAddress = nullptr;
@@ -335,6 +406,17 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       glucoSeen = true;
       doConnectGluco = true;
       Serial.println("[SCAN] Glucometer found");
+    }
+
+    if (!dosageSeen && advertisedDevice.isAdvertisingService(dosageServiceUUID)) {
+      if (dosageAddress) {
+        delete dosageAddress;
+        dosageAddress = nullptr;
+      }
+      dosageAddress = new BLEAddress(advertisedDevice.getAddress());
+      dosageSeen = true;
+      doConnectDosage = true;
+      Serial.println("[SCAN] Dosage BLE device found");
     }
   }
 };
@@ -393,6 +475,36 @@ bool connectGlucometer() {
   return true;
 }
 
+bool connectDosageDevice() {
+  if (!dosageAddress) return false;
+  Serial.println("[BLE] Connecting to dosage BLE device...");
+
+  dosageClient = BLEDevice::createClient();
+  if (!dosageClient->connect(*dosageAddress)) {
+    Serial.println("[BLE] Dosage device connect failed");
+    return false;
+  }
+
+  BLERemoteService* svc = dosageClient->getService(dosageServiceUUID);
+  if (!svc) {
+    Serial.println("[BLE] Dosage service not found");
+    dosageClient->disconnect();
+    return false;
+  }
+
+  dosageNotifyChar = svc->getCharacteristic(dosageCharacteristicUUID);
+  if (!dosageNotifyChar) {
+    Serial.println("[BLE] Dosage characteristic not found");
+    dosageClient->disconnect();
+    return false;
+  }
+
+  dosageNotifyChar->registerForNotify(dosageCallback, false);
+  dosageConnected = true;
+  Serial.println("[BLE] Connected to dosage BLE device");
+  return true;
+}
+
 // =======================
 // Setup / Loop
 // =======================
@@ -438,7 +550,7 @@ void loop() {
     lastWifiEnsureMs = now;
   }
 
-  if (!glucoSeen && (now - lastScanMs > 4000)) {
+  if ((!glucoSeen || !dosageSeen) && (now - lastScanMs > 4000)) {
     scan->start(3, false);
     scan->clearResults();
     lastScanMs = now;
@@ -450,6 +562,13 @@ void loop() {
       glucoSeen = false;
     }
     doConnectGluco = false;
+  }
+
+  if (doConnectDosage && !dosageConnected) {
+    if (!connectDosageDevice()) {
+      dosageSeen = false;
+    }
+    doConnectDosage = false;
   }
 
   // Mark inner disconnected if no ESP-NOW packets for too long.
@@ -470,6 +589,13 @@ void loop() {
     doConnectGluco = false;
   }
 
+  if (dosageConnected && dosageClient && !dosageClient->isConnected()) {
+    Serial.println("[BLE] Dosage BLE device disconnected");
+    dosageConnected = false;
+    dosageSeen = false;
+    doConnectDosage = false;
+  }
+
   if (syncDownloadComplete && !syncUploadDone) {
     uploadGlucoBatch();
   }
@@ -487,6 +613,12 @@ void loop() {
       glucoSeen ? "true" : "false",
       glucoConnected ? "true" : "false",
       bufferedCount
+    );
+    Serial.printf(
+      "{\"diag\":\"dosage_ble\",\"seen\":%s,\"connected\":%s,\"last_dose\":%.2f}\n",
+      dosageSeen ? "true" : "false",
+      dosageConnected ? "true" : "false",
+      isnan(g_insulin) ? -1.0f : g_insulin
     );
     lastDiagMs = now;
   }

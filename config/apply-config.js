@@ -13,6 +13,7 @@ const {
   runtime,
   sensors,
   glucometer,
+  dosageBle,
   paths
 } = cfg;
 
@@ -51,6 +52,7 @@ const firmwareHeader = `#pragma once
 #define BACKEND_READINGS_URL \"http://${network.backendIp}:${network.backendPort}/api/readings\"
 #define BACKEND_GLUCO_BATCH_URL \"http://${network.backendIp}:${network.backendPort}/api/glucometer/batch\"
 #define BACKEND_GLUCO_SINGLE_URL \"http://${network.backendIp}:${network.backendPort}/api/glucometer\"
+#define BACKEND_DOSAGE_URL \"http://${network.backendIp}:${network.backendPort}/api/dosage\"
 #define TEMP_SENSOR_PIN ${sensors.tempSensorPin}
 #define DOOR_SENSOR_PIN ${sensors.doorSensorPin}
 #define HX711_DOUT_PIN ${sensors.hx711DoutPin}
@@ -60,6 +62,9 @@ const firmwareHeader = `#pragma once
 #define GLUCO_DEVICE_NAME \"${glucometer.deviceName}\"
 #define GLUCO_MAX_BUFFER_RECORDS ${glucometer.maxBufferRecords}
 #define GLUCO_BATCH_SIZE ${glucometer.batchSize}
+#define DOSAGE_BLE_DEVICE_NAME \"${dosageBle.deviceName}\"
+#define DOSAGE_BLE_SERVICE_UUID \"${dosageBle.serviceUuid}\"
+#define DOSAGE_BLE_CHARACTERISTIC_UUID \"${dosageBle.characteristicUuid}\"
 `;
 
 const appConfig = `export const AppConfig = {

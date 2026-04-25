@@ -57,6 +57,12 @@ module.exports = {
     deviceName: 'Accu-Chek Guide Me',
   },
 
+  dosageBle: {
+    deviceName: 'Dose_ESP32_C3',
+    serviceUuid: '12345678-1234-1234-1234-1234567890ab',
+    characteristicUuid: 'abcd1234-5678-1234-5678-abcdef123456',
+  },
+
   paths: {
     backendEnv: 'backend/sample_backend/.env',
     firmwareHeader: 'config/firmware_config.h',

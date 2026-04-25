@@ -4,20 +4,16 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "HX711.h"
+#include "../../config/firmware_config.h"
 
 // CHANGE HERE if wiring/pins differ on your inner-unit board.
-#define REED_PIN 4
-#define ONE_WIRE_BUS 21
-#define DOUT 5
-#define CLK 18
+#define REED_PIN DOOR_SENSOR_PIN
+#define ONE_WIRE_BUS TEMP_SENSOR_PIN
+#define DOUT HX711_DOUT_PIN
+#define CLK HX711_CLK_PIN
 
 // CHANGE HERE after load-cell calibration for this hardware setup.
-#define CALIBRATION_FACTOR 245.0
-
-// CHANGE HERE to your Wi-Fi used by the outer unit.
-// Inner connects only to align channel for ESP-NOW reliability.
-const char* WIFI_SSID = "ananthu73";
-const char* WIFI_PASSWORD = "123123123@@";
+#define CALIBRATION_FACTOR LOAD_CELL_CALIBRATION
 
 const uint32_t INNER_PACKET_MAGIC = 0x494E4E52; // 'INNR'
 

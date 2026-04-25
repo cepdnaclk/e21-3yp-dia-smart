@@ -1,6 +1,23 @@
 # Dia-Smart Local Setup Guide
 
-This guide is for teammates who pull this repo and want to run the integrated sample dashboard + backend + dosage video node.
+This guide is for teammates who pull this repo and want to run the integrated backend, PostgreSQL database, shared data history, and mobile dashboard.
+
+## 0. Central Configuration
+
+Edit one file only:
+
+- `config/diasmart.config.js`
+
+Then generate all downstream config files:
+
+```bash
+node config/apply-config.js
+```
+
+This updates:
+- `backend/sample_backend/.env`
+- `config/firmware_config.h`
+- `frontend/rn-app/src/config/appConfig.ts`
 
 ## 1. Backend API
 Directory: `backend/sample_backend`
@@ -9,25 +26,37 @@ Directory: `backend/sample_backend`
    ```bash
    npm install
    ```
-2. Create env file:
-   ```bash
-   copy .env.example .env
-   ```
-3. Update database credentials in `.env`.
-4. Start backend:
+2. Start backend:
    ```bash
    npm start
    ```
 
 Reference: [backend/sample_backend/README.md](backend/sample_backend/README.md)
 
-## 2. Frontend Dashboard
-Directory: `frontend/sample_dashboard`
+## 2. Database Setup
 
-Open `index.html` in browser (or serve the folder with any static server).
-Dashboard calls backend at `http://localhost:3000`.
+```bash
+psql -U postgres -f database/diasmart_schema.sql
+```
 
-## 3. Dosage Video Detection Node
+## 3. Replay Shared Git Data Into SQL
+
+After backend startup, load the repo-tracked history into PostgreSQL:
+
+```bash
+curl -X POST http://localhost:3000/api/replay/raw-to-db
+```
+
+## 4. Frontend Dashboard
+Directory: `frontend/rn-app`
+
+```bash
+cd frontend/rn-app
+npm install
+npm run web
+```
+
+## 5. Dosage Video Detection Node
 Directory: `code/dosage_detection/poc`
 
 1. Create virtual environment and install:
@@ -54,4 +83,23 @@ JSONL files in `backend/sample_backend/data` keep timeline snapshots:
 - `sensor_raw.jsonl`
 - `dosage_raw.jsonl`
 
-These can be committed when you intentionally want teammates to receive sample historical data with `git pull`.
+Commit these when you want teammates to receive the same shared history after `git pull`.
+
+## Team JSON Collaboration Flow (Current Approach)
+
+Use this exact sequence when collaborating:
+
+1. Pull latest git changes.
+2. Start backend (`npm start` in `backend/sample_backend`).
+3. Rebuild local PostgreSQL from committed JSON history:
+   ```bash
+   npm run replay:json
+   ```
+4. Test sensors/glucometer normally (backend appends to JSONL files).
+5. Check ingest counts:
+   ```bash
+   npm run status:ingest
+   ```
+6. Commit updated JSONL files and push.
+
+This ensures each developer can pull, replay, and see the full shared history.

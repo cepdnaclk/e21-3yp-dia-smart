@@ -1,0 +1,47 @@
+Dia-Smart developer continuation guide
+
+1. Edit only this file for machine/network changes:
+   config/diasmart.config.js
+
+2. After changing Wi-Fi, backend IP, or PostgreSQL settings, run:
+   node config/apply-config.js
+
+3. This regenerates:
+   - backend/sample_backend/.env
+   - config/firmware_config.h
+   - frontend/rn-app/src/config/appConfig.ts
+
+4. Database setup:
+   psql -U postgres -f database/diasmart_schema.sql
+
+5. Backend setup:
+   cd backend/sample_backend
+   npm install
+   npm start
+
+6. Shared history files are committed in:
+   - backend/sample_backend/data/glucometer_raw.jsonl
+   - backend/sample_backend/data/sensor_raw.jsonl
+   - backend/sample_backend/data/dosage_raw.jsonl
+
+9. Team rule for shared history
+ - If you add new sensor/glucometer/dosage test data, commit updated JSONL files:
+    - backend/sample_backend/data/sensor_raw.jsonl
+    - backend/sample_backend/data/glucometer_raw.jsonl
+    - backend/sample_backend/data/dosage_raw.jsonl
+ - This ensures all developers see full dashboard history after replay.
+
+10. Recommended daily workflow
+ - git pull
+ - Start backend (npm start)
+ - Replay committed JSON history (npm run replay:json)
+ - Test hardware and backend
+ - Check status (npm run status:ingest)
+ - Commit updated JSONL files
+
+7. To load shared history into PostgreSQL, run the backend and call:
+   POST http://localhost:3000/api/replay/raw-to-db
+
+8. Active firmware files:
+   - Outer unit: Glucometer_dataget/Glucometer_dataget.ino
+   - Inner unit: inoutunit/innerunit/innerunit.ino

@@ -30,6 +30,11 @@ Express backend used by the sample dashboard and dosage video PoC.
      - `GLUCO_FILE_ONLY=true` to force file-backed summary/history
      - `DOSE_PYTHON_BIN=python` to select Python executable for capture trigger
 
+Preferred setup from project root:
+```bash
+node config/apply-config.js
+```
+
 ## Run
 ```bash
 npm start
@@ -42,11 +47,13 @@ Backend runs on:
 - `GET /api/ping`
 - `GET /api/latest-summary`
 - `GET /api/history`
-- `POST /api/sensor`
+- `POST /api/readings`
 - `POST /api/glucometer`
+- `POST /api/glucometer/batch`
 - `GET /api/dosage`
 - `POST /api/dosage`
 - `POST /api/dosage/capture` (starts Python script)
+- `POST /api/replay/raw-to-db`
 
 ## Data Folder Notes
 - `data/glucometer_raw.jsonl`

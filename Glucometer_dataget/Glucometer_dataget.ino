@@ -8,15 +8,12 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <esp_now.h>
+#include "../config/firmware_config.h"
 
 // =======================
 // WiFi / Backend
 // =======================
-// Update these values for your current network and backend laptop IP.
-const char* WIFI_SSID = "ananthu73";
-const char* WIFI_PASSWORD = "123123123@@";
-const char* BACKEND_READINGS_URL = "http://10.116.204.122:3000/api/readings";
-const char* BACKEND_GLUCO_BATCH_URL = "http://10.116.204.122:3000/api/glucometer/batch";
+// Auto-generated from config/firmware_config.h
 
 // =======================
 // BLE UUIDs (Glucometer only)
@@ -24,7 +21,7 @@ const char* BACKEND_GLUCO_BATCH_URL = "http://10.116.204.122:3000/api/glucometer
 static BLEUUID glucoseServiceUUID("1808");
 static BLEUUID glucoseMeasurementUUID("2A18");
 static BLEUUID racpUUID("2A52");
-const uint32_t ACCU_CHEK_PIN = 836337;
+const uint32_t ACCU_CHEK_PIN = atoi(GLUCO_BLE_PIN);
 
 const uint32_t INNER_PACKET_MAGIC = 0x494E4E52; // 'INNR'
 
@@ -76,8 +73,8 @@ struct GlucoseRecord {
   char datetime_sl[24];
 };
 
-const int MAX_RECORDS_PER_SYNC = 400;
-const int BATCH_UPLOAD_SIZE = 12;
+const int MAX_RECORDS_PER_SYNC = GLUCO_MAX_BUFFER_RECORDS;
+const int BATCH_UPLOAD_SIZE = GLUCO_BATCH_SIZE;
 GlucoseRecord bufferedRecords[MAX_RECORDS_PER_SYNC];
 int bufferedCount = 0;
 bool syncDownloadComplete = false;

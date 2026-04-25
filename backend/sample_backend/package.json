@@ -4,7 +4,9 @@
   "main": "db.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "replay:json": "node scripts/replay-json-to-db.js",
+    "status:ingest": "node scripts/ingest-status.js"
   },
   "keywords": [],
   "author": "",

@@ -564,15 +564,28 @@ app.get('/api/readings/raw', async (_req, res) => {
 app.post('/api/replay/raw-to-db', async (_req, res) => {
   let sensorInserted = 0;
   let glucoInserted = 0;
+  let dosageInserted = 0;
+  let sensorSkipped = 0;
+  let glucoSkipped = 0;
+  let dosageSkipped = 0;
   const errors = [];
 
   try {
     const sensorEvents = await readRawSensorEvents();
     for (const e of sensorEvents) {
       try {
-        await pool.query(
+        const insertResult = await pool.query(
           `INSERT INTO readings (temperature, door_status, insulin_inventory_weight, insulin_level_value, glucose_value, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           SELECT $1, $2, $3, $4, $5, $6
+           WHERE NOT EXISTS (
+             SELECT 1 FROM readings
+             WHERE created_at = $6
+               AND temperature IS NOT DISTINCT FROM $1
+               AND door_status IS NOT DISTINCT FROM $2
+               AND insulin_inventory_weight IS NOT DISTINCT FROM $3
+               AND insulin_level_value IS NOT DISTINCT FROM $4
+               AND glucose_value IS NOT DISTINCT FROM $5
+           )`,
           [
             toNullableNumber(e.temperature),
             e.door_status || null,
@@ -582,7 +595,11 @@ app.post('/api/replay/raw-to-db', async (_req, res) => {
             e.received_at ? new Date(e.received_at) : new Date()
           ]
         );
-        sensorInserted += 1;
+        if (insertResult.rowCount > 0) {
+          sensorInserted += 1;
+        } else {
+          sensorSkipped += 1;
+        }
       } catch (err) {
         errors.push({ type: 'sensor', code: err && err.code ? err.code : 'unknown' });
       }
@@ -596,21 +613,72 @@ app.post('/api/replay/raw-to-db', async (_req, res) => {
           (e.timestamp ? new Date(e.timestamp) : null) ||
           (e.received_at ? new Date(e.received_at) : new Date());
 
-        await pool.query(
+        const insertResult = await pool.query(
           `INSERT INTO readings (glucose_value, created_at)
-           VALUES ($1, $2)`,
+           SELECT $1, $2
+           WHERE NOT EXISTS (
+             SELECT 1 FROM readings
+             WHERE created_at = $2
+               AND glucose_value IS NOT DISTINCT FROM $1
+               AND temperature IS NULL
+               AND door_status IS NULL
+               AND insulin_inventory_weight IS NULL
+               AND insulin_level_value IS NULL
+           )`,
           [toNullableNumber(e.glucose_mg_dl), measuredAt]
         );
-        glucoInserted += 1;
+        if (insertResult.rowCount > 0) {
+          glucoInserted += 1;
+        } else {
+          glucoSkipped += 1;
+        }
       } catch (err) {
         errors.push({ type: 'gluco', code: err && err.code ? err.code : 'unknown' });
+      }
+    }
+
+    const dosageEvents = await readRawDosageEvents();
+    for (const e of dosageEvents) {
+      try {
+        const doseAmount = toNullableNumber(e.dose_amount);
+        const injectionTime = e.injection_time
+          ? new Date(e.injection_time)
+          : (e.received_at ? new Date(e.received_at) : new Date());
+
+        if (doseAmount === null) {
+          dosageSkipped += 1;
+          continue;
+        }
+
+        const insertResult = await pool.query(
+          `INSERT INTO dosage_timeline (dose_amount, injection_time)
+           SELECT $1, $2
+           WHERE NOT EXISTS (
+             SELECT 1 FROM dosage_timeline
+             WHERE dose_amount = $1
+               AND injection_time = $2
+           )`,
+          [Math.round(doseAmount), injectionTime]
+        );
+
+        if (insertResult.rowCount > 0) {
+          dosageInserted += 1;
+        } else {
+          dosageSkipped += 1;
+        }
+      } catch (err) {
+        errors.push({ type: 'dosage', code: err && err.code ? err.code : 'unknown' });
       }
     }
 
     res.json({
       message: 'Replay completed',
       sensor_inserted: sensorInserted,
+      sensor_skipped_as_duplicate: sensorSkipped,
       gluco_inserted: glucoInserted,
+      gluco_skipped_as_duplicate: glucoSkipped,
+      dosage_inserted: dosageInserted,
+      dosage_skipped_as_duplicate_or_invalid: dosageSkipped,
       errors_count: errors.length,
       errors_sample: errors.slice(0, 5)
     });
@@ -624,11 +692,14 @@ app.get('/api/debug/ingest-status', async (_req, res) => {
   try {
     const sensors = await readRawSensorEvents();
     const gluco = await readRawGlucometerEvents();
+    const dosage = await readRawDosageEvents();
     res.json({
       sensors_count: sensors.length,
       gluco_count: gluco.length,
+      dosage_count: dosage.length,
       latest_sensor: sensors.length ? sensors[sensors.length - 1] : null,
       latest_gluco: gluco.length ? gluco[gluco.length - 1] : null,
+      latest_dosage: dosage.length ? dosage[dosage.length - 1] : null,
       file_mode: FORCE_FILE_ONLY
     });
   } catch (err) {

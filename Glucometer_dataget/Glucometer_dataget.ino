@@ -8,6 +8,7 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <esp_now.h>
+#include <esp_wifi.h>
 #include "../config/firmware_config.h"
 
 // =======================
@@ -57,6 +58,7 @@ BLERemoteCharacteristic* glucoRacpChar = nullptr;
 bool glucoSeen = false;
 bool glucoConnected = false;
 bool doConnectGluco = false;
+bool glucoAnyRecordReceived = false;
 
 BLEAddress* dosageAddress = nullptr;
 BLEClient* dosageClient = nullptr;
@@ -74,6 +76,7 @@ unsigned long nextGlucoRetryMs = 0;
 unsigned long lastWifiRetryMs = 0;
 unsigned long wifiConnectStartMs = 0;
 unsigned long lastSensorUploadMs = 0;
+unsigned long lastGlucoRequestMs = 0;
 
 struct GlucoseRecord {
   uint16_t record_id;
@@ -106,11 +109,14 @@ void ensureWifiConnected() {
     return;
   }
 
-  // If a previous connection attempt timed out, reset station state before retry.
+  // If a previous connection attempt timed out, keep radio stable for ESP-NOW and retry later.
   if (wifiConnectStartMs > 0 && (millis() - wifiConnectStartMs) >= 20000) {
-    Serial.println("{\"transport\":\"wifi\",\"status\":\"connect_timeout_reset\"}");
-    WiFi.disconnect(true, true);
+    Serial.println("{\"transport\":\"wifi\",\"status\":\"connect_timeout_keep_radio\"}");
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
     wifiConnectStartMs = 0;
+    return;
   }
 
   // Throttle retries so BLE scanning/notify handling is not starved.
@@ -243,6 +249,7 @@ void bufferGlucoRecord(uint16_t seqNum, const char* dt, int mgdl, float mmol) {
   r.glucose_mmol_l = mmol;
   snprintf(r.datetime_sl, sizeof(r.datetime_sl), "%s", dt);
   g_glucose = (float)mgdl;
+  glucoAnyRecordReceived = true;
 }
 
 void uploadGlucoBatch() {
@@ -357,6 +364,14 @@ void racpCallback(
   }
 }
 
+void requestAllGlucometerRecords() {
+  if (!glucoConnected || !glucoRacpChar) return;
+  uint8_t requestAll[2] = {0x01, 0x01};
+  glucoRacpChar->writeValue(requestAll, 2, true);
+  lastGlucoRequestMs = millis();
+  Serial.println("[BLE] Requested all glucometer records");
+}
+
 void dosageCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
@@ -464,13 +479,12 @@ bool connectGlucometer() {
   glucoMeasureChar->registerForNotify(glucoDataCallback, true);
   glucoRacpChar->registerForNotify(racpCallback, false);
 
-  uint8_t requestAll[2] = {0x01, 0x01};
-  glucoRacpChar->writeValue(requestAll, 2, true);
-
   glucoConnected = true;
   syncDownloadComplete = false;
   syncUploadDone = false;
+  glucoAnyRecordReceived = false;
   bufferedCount = 0;
+  requestAllGlucometerRecords();
   Serial.println("[BLE] Connected to glucometer and requested all records");
   return true;
 }
@@ -499,7 +513,7 @@ bool connectDosageDevice() {
     return false;
   }
 
-  dosageNotifyChar->registerForNotify(dosageCallback, false);
+  dosageNotifyChar->registerForNotify(dosageCallback, true);
   dosageConnected = true;
   Serial.println("[BLE] Connected to dosage BLE device");
   return true;
@@ -556,7 +570,14 @@ void loop() {
     lastScanMs = now;
   }
 
+  // Prefer glucometer sync before dosage BLE connection to reduce BLE contention.
   if (doConnectGluco && !glucoConnected && now >= nextGlucoRetryMs) {
+    if (dosageConnected && dosageClient && dosageClient->isConnected()) {
+      Serial.println("[BLE] Temporarily disconnecting dosage listener before glucometer sync");
+      dosageClient->disconnect();
+      dosageConnected = false;
+    }
+
     if (!connectGlucometer()) {
       nextGlucoRetryMs = now + 5000;
       glucoSeen = false;
@@ -564,7 +585,7 @@ void loop() {
     doConnectGluco = false;
   }
 
-  if (doConnectDosage && !dosageConnected) {
+  if (doConnectDosage && !dosageConnected && !glucoConnected && !doConnectGluco) {
     if (!connectDosageDevice()) {
       dosageSeen = false;
     }
@@ -589,6 +610,11 @@ void loop() {
     doConnectGluco = false;
   }
 
+  if (glucoConnected && !syncDownloadComplete && (now - lastGlucoRequestMs > 12000)) {
+    // Retry download request if meter connected but has not started/finished transfer.
+    requestAllGlucometerRecords();
+  }
+
   if (dosageConnected && dosageClient && !dosageClient->isConnected()) {
     Serial.println("[BLE] Dosage BLE device disconnected");
     dosageConnected = false;
@@ -598,6 +624,13 @@ void loop() {
 
   if (syncDownloadComplete && !syncUploadDone) {
     uploadGlucoBatch();
+  }
+
+  if (syncUploadDone && glucoConnected && glucoClient && glucoClient->isConnected()) {
+    Serial.println("[BLE] Glucometer sync done; disconnecting to restore dosage listener");
+    glucoClient->disconnect();
+    glucoConnected = false;
+    doConnectDosage = true;
   }
 
   if (now - lastDiagMs > 10000) {

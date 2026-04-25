@@ -6,8 +6,9 @@
 
 module.exports = {
   network: {
-    backendIp: '10.116.204.122',
+    backendIp: '10.23.165.122',
     backendPort: 3000,
+    espNowChannel: 1,
   },
 
   wifi: {

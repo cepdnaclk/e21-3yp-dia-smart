@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_err.h>
+#include <esp_wifi.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "HX711.h"
@@ -77,6 +78,10 @@ void ensureWifiForEspNow() {
     Serial.printf("[WIFI] connected ip=%s channel=%d\n", WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
     Serial.println("[WIFI] connect timeout; ESP-NOW may fail if channel mismatched");
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
+    Serial.printf("[ESPNOW] fallback fixed channel=%d\n", ESPNOW_CHANNEL);
   }
 }
 

@@ -3,16 +3,19 @@ const cors = require('cors');
 const fs = require('fs/promises');
 const path = require('path');
 const { spawn } = require('child_process');
+const mqtt = require('mqtt');
 const pool = require('./db');
 
 const app = express();
-app.use(cors());
+const CORS_ORIGIN = String(process.env.CORS_ORIGIN || '*').trim();
+app.use(cors(CORS_ORIGIN === '*' ? {} : { origin: CORS_ORIGIN }));
 app.use(express.json());
 
 const DATA_DIR = path.join(__dirname, 'data');
 const GLUCO_RAW_FILE = path.join(DATA_DIR, 'glucometer_raw.jsonl');
 const SENSOR_RAW_FILE = path.join(DATA_DIR, 'sensor_raw.jsonl');
 const DOSAGE_RAW_FILE = path.join(DATA_DIR, 'dosage_raw.jsonl');
+const HTTP_PORT = Number(process.env.PORT || 3000);
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const DOSE_CAPTURE_SCRIPT = path.join(
   PROJECT_ROOT,
@@ -24,6 +27,33 @@ const DOSE_CAPTURE_SCRIPT = path.join(
 const FORCE_FILE_ONLY = ['1', 'true', 'yes', 'on'].includes(
   String(process.env.GLUCO_FILE_ONLY || '').toLowerCase()
 );
+const MQTT_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.MQTT_ENABLED || '').toLowerCase()
+);
+const MQTT_BROKER_URL = String(process.env.MQTT_BROKER_URL || '').trim();
+const MQTT_TOPIC_PREFIX = String(process.env.MQTT_TOPIC_PREFIX || 'diasmart').trim().replace(/\/+$/, '');
+
+const MQTT_TOPICS = {
+  ingestReadings: `${MQTT_TOPIC_PREFIX}/ingest/readings`,
+  ingestGlucometer: `${MQTT_TOPIC_PREFIX}/ingest/glucometer`,
+  ingestGlucometerBatch: `${MQTT_TOPIC_PREFIX}/ingest/glucometer/batch`,
+  ingestDosage: `${MQTT_TOPIC_PREFIX}/ingest/dosage`,
+  eventsReadings: `${MQTT_TOPIC_PREFIX}/events/readings`,
+  eventsGlucometer: `${MQTT_TOPIC_PREFIX}/events/glucometer`,
+  eventsGlucometerBatch: `${MQTT_TOPIC_PREFIX}/events/glucometer/batch`,
+  eventsDosage: `${MQTT_TOPIC_PREFIX}/events/dosage`
+};
+
+const mqttState = {
+  enabled: MQTT_ENABLED,
+  broker: MQTT_BROKER_URL || null,
+  connected: false,
+  lastError: null,
+  lastMessageAt: null,
+  subscriptions: []
+};
+
+let mqttClient = null;
 
 app.get('/api/ping', (_req, res) => {
   res.status(200).json({ ok: true, service: 'samble_backend' });
@@ -51,6 +81,142 @@ function parseSriLankaDateTime(datetimeSl) {
 
 function isTruthyFlag(value) {
   return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function buildMqttConnectionOptions() {
+  const username = String(process.env.MQTT_USERNAME || '').trim();
+  const password = String(process.env.MQTT_PASSWORD || '').trim();
+  const clientId = String(process.env.MQTT_CLIENT_ID || `diasmart-backend-${Math.random().toString(16).slice(2, 10)}`).trim();
+
+  const options = {
+    clientId,
+    reconnectPeriod: 5000,
+    connectTimeout: 15000
+  };
+
+  if (username) {
+    options.username = username;
+  }
+
+  if (password) {
+    options.password = password;
+  }
+
+  return options;
+}
+
+async function forwardMqttIngestToHttp(topic, payload) {
+  const routeByTopic = {
+    [MQTT_TOPICS.ingestReadings]: '/api/readings',
+    [MQTT_TOPICS.ingestGlucometer]: '/api/glucometer',
+    [MQTT_TOPICS.ingestGlucometerBatch]: '/api/glucometer/batch',
+    [MQTT_TOPICS.ingestDosage]: '/api/dosage'
+  };
+
+  const route = routeByTopic[topic];
+  if (!route) {
+    return;
+  }
+
+  const response = await fetch(`http://127.0.0.1:${HTTP_PORT}${route}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...(payload || {}), mqtt_ingest: true })
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.warn(`[MQTT] Ingest forward failed for ${route}. status=${response.status} body=${text}`);
+  }
+}
+
+function safePublishMqtt(topic, payload) {
+  if (!mqttClient || !mqttState.connected || !topic) {
+    return;
+  }
+
+  const event = {
+    ...(payload || {}),
+    published_at: new Date().toISOString(),
+    source: 'backend'
+  };
+
+  mqttClient.publish(topic, JSON.stringify(event), { qos: 1, retain: false }, (err) => {
+    if (err) {
+      console.warn(`[MQTT] Publish failed for topic=${topic}`, err.message || err);
+    }
+  });
+}
+
+function startMqttBridge() {
+  if (!MQTT_ENABLED) {
+    console.log('[MQTT] Disabled (MQTT_ENABLED is false)');
+    return;
+  }
+
+  if (!MQTT_BROKER_URL) {
+    console.warn('[MQTT] MQTT_ENABLED=true but MQTT_BROKER_URL is empty. Bridge not started.');
+    mqttState.lastError = 'MQTT_BROKER_URL is empty';
+    return;
+  }
+
+  mqttClient = mqtt.connect(MQTT_BROKER_URL, buildMqttConnectionOptions());
+
+  mqttClient.on('connect', () => {
+    mqttState.connected = true;
+    mqttState.lastError = null;
+
+    const ingestTopics = [
+      MQTT_TOPICS.ingestReadings,
+      MQTT_TOPICS.ingestGlucometer,
+      MQTT_TOPICS.ingestGlucometerBatch,
+      MQTT_TOPICS.ingestDosage
+    ];
+
+    mqttClient.subscribe(ingestTopics, { qos: 1 }, (err) => {
+      if (err) {
+        mqttState.lastError = err.message || 'subscribe failed';
+        console.warn('[MQTT] Subscribe failed', err);
+        return;
+      }
+
+      mqttState.subscriptions = ingestTopics;
+      console.log(`[MQTT] Connected and subscribed to ${ingestTopics.length} ingest topics`);
+    });
+  });
+
+  mqttClient.on('reconnect', () => {
+    mqttState.connected = false;
+    console.log('[MQTT] Reconnecting...');
+  });
+
+  mqttClient.on('offline', () => {
+    mqttState.connected = false;
+    console.log('[MQTT] Offline');
+  });
+
+  mqttClient.on('error', (err) => {
+    mqttState.lastError = err && err.message ? err.message : 'unknown mqtt error';
+    console.warn('[MQTT] Client error', err);
+  });
+
+  mqttClient.on('message', async (topic, buffer) => {
+    mqttState.lastMessageAt = new Date().toISOString();
+
+    let payload;
+    try {
+      payload = JSON.parse(buffer.toString('utf8'));
+    } catch (_err) {
+      console.warn(`[MQTT] Dropped non-JSON payload from ${topic}`);
+      return;
+    }
+
+    try {
+      await forwardMqttIngestToHttp(topic, payload);
+    } catch (err) {
+      console.warn(`[MQTT] Forward to HTTP failed for topic=${topic}`, err.message || err);
+    }
+  });
 }
 
 async function persistRawGlucometerEvent(eventPayload) {
@@ -232,6 +398,8 @@ app.post('/api/readings', async (req, res) => {
     return res.status(500).json({ error: 'Could not persist sensor payload' });
   }
 
+  safePublishMqtt(MQTT_TOPICS.eventsReadings, rawEvent);
+
   if (FORCE_FILE_ONLY || isTruthyFlag(req.body && req.body.skip_db)) {
     return res.status(202).json({
       message: 'Sensor payload stored to file (DB intentionally skipped)',
@@ -409,6 +577,8 @@ app.post('/api/glucometer', async (req, res) => {
     return res.status(500).json({ error: 'Could not persist glucometer payload' });
   }
 
+  safePublishMqtt(MQTT_TOPICS.eventsGlucometer, rawEvent);
+
   try {
     if (FORCE_FILE_ONLY || isTruthyFlag(skip_db)) {
       return res.status(202).json({
@@ -512,6 +682,18 @@ app.post('/api/glucometer/batch', async (req, res) => {
   }
 
   const dbSaved = skipDbWrites ? false : (dbSavedCount === fileSavedCount && fileSavedCount > 0);
+
+  safePublishMqtt(MQTT_TOPICS.eventsGlucometerBatch, {
+    device: device || 'unknown',
+    sync_id: sync_id || null,
+    records_received: records.length,
+    records_saved_to_file: fileSavedCount,
+    records_saved_to_db: dbSavedCount,
+    records_skipped: skippedCount,
+    db_saved: dbSaved,
+    db_skipped: skipDbWrites,
+    db_error_codes: Array.from(dbErrorCodes)
+  });
 
   res.status(dbSaved ? 201 : 202).json({
     message: dbSaved
@@ -700,7 +882,15 @@ app.get('/api/debug/ingest-status', async (_req, res) => {
       latest_sensor: sensors.length ? sensors[sensors.length - 1] : null,
       latest_gluco: gluco.length ? gluco[gluco.length - 1] : null,
       latest_dosage: dosage.length ? dosage[dosage.length - 1] : null,
-      file_mode: FORCE_FILE_ONLY
+      file_mode: FORCE_FILE_ONLY,
+      mqtt: {
+        enabled: mqttState.enabled,
+        broker: mqttState.broker,
+        connected: mqttState.connected,
+        subscriptions: mqttState.subscriptions,
+        last_message_at: mqttState.lastMessageAt,
+        last_error: mqttState.lastError
+      }
     });
   } catch (err) {
     console.error(err);
@@ -790,6 +980,11 @@ app.post('/api/dosage', async (req, res) => {
       ...payload,
       ...(result.rows[0] || {})
     });
+
+    safePublishMqtt(MQTT_TOPICS.eventsDosage, {
+      ...payload,
+      ...(result.rows[0] || {})
+    });
     
     console.log(`[Dia-Smart AI] Successfully logged ${value} Units at ${injectionTime.toLocaleTimeString()}`);
     res.status(201).json({ message: "Dosage logged successfully", reading: result.rows[0] });
@@ -798,6 +993,12 @@ app.post('/api/dosage', async (req, res) => {
     console.error("Database error saving dosage:", err);
     try {
       await persistRawDosageEvent(payload);
+
+      safePublishMqtt(MQTT_TOPICS.eventsDosage, {
+        ...payload,
+        source: 'file-fallback'
+      });
+
       res.status(201).json({
         message: "Dosage logged to file fallback",
         reading: payload,
@@ -844,6 +1045,19 @@ app.get('/api/dosage', async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.get('/api/mqtt/status', (_req, res) => {
+  res.json({
+    enabled: mqttState.enabled,
+    broker: mqttState.broker,
+    connected: mqttState.connected,
+    subscriptions: mqttState.subscriptions,
+    last_message_at: mqttState.lastMessageAt,
+    last_error: mqttState.lastError,
+    topics: MQTT_TOPICS
+  });
+});
+
+app.listen(HTTP_PORT, () => {
+  console.log(`Server running on port ${HTTP_PORT}`);
+  startMqttBridge();
 });

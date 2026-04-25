@@ -8,6 +8,13 @@ Edit one file only:
 
 - `config/diasmart.config.js`
 
+This one file contains all common machine-specific values:
+- Wi-Fi SSID/password
+- Backend IP/port
+- PostgreSQL host/port/database/user/password
+- MQTT enable/broker/credentials/topic prefix
+- Runtime options (like Python binary for dose capture)
+
 Then generate all downstream config files:
 
 ```bash

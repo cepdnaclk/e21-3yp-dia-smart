@@ -4,7 +4,17 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const cfg = require('./diasmart.config.js');
-const { network, wifi, postgres, server, sensors, glucometer, paths } = cfg;
+const {
+  network,
+  wifi,
+  postgres,
+  server,
+  mqtt,
+  runtime,
+  sensors,
+  glucometer,
+  paths
+} = cfg;
 
 function writeFile(relPath, content) {
   const abs = path.join(ROOT, relPath);
@@ -23,6 +33,13 @@ PGPASSWORD=${postgres.password}
 PORT=${server.port}
 GLUCO_FILE_ONLY=${server.fileOnlyMode ? '1' : ''}
 CORS_ORIGIN=${server.corsOrigin}
+DOSE_PYTHON_BIN=${runtime.dosePythonBin}
+MQTT_ENABLED=${mqtt.enabled ? '1' : ''}
+MQTT_BROKER_URL=${mqtt.brokerUrl}
+MQTT_USERNAME=${mqtt.username}
+MQTT_PASSWORD=${mqtt.password}
+MQTT_CLIENT_ID=${mqtt.clientId}
+MQTT_TOPIC_PREFIX=${mqtt.topicPrefix}
 `;
 
 const firmwareHeader = `#pragma once

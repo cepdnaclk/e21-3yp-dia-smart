@@ -1,47 +1,66 @@
-Dia-Smart developer continuation guide
+Dia-Smart New Developer Setup (One-File Config Method)
 
-1. Edit only this file for machine/network changes:
-   config/diasmart.config.js
+Goal
+- Change only one file per PC, generate all required settings, then run normally.
 
-2. After changing Wi-Fi, backend IP, or PostgreSQL settings, run:
+Single file you must edit
+- config/diasmart.config.js
+
+This file contains
+- Wi-Fi SSID and password
+- Backend IP and port
+- PostgreSQL host, port, database, user, password
+- MQTT settings (enabled, broker URL, credentials, topic prefix)
+- Runtime options (Python binary for dosage capture)
+
+After editing the one file
+1. From project root, run:
    node config/apply-config.js
 
-3. This regenerates:
+2. This regenerates automatically:
    - backend/sample_backend/.env
    - config/firmware_config.h
    - frontend/rn-app/src/config/appConfig.ts
 
-4. Database setup:
-   psql -U postgres -f database/diasmart_schema.sql
-
-5. Backend setup:
+First-time setup on a new PC
+1. Install dependencies for backend:
    cd backend/sample_backend
    npm install
+
+2. Create database schema:
+   cd ../..
+   psql -U postgres -f database/diasmart_schema.sql
+
+3. Start backend:
+   cd backend/sample_backend
    npm start
 
-6. Shared history files are committed in:
-   - backend/sample_backend/data/glucometer_raw.jsonl
-   - backend/sample_backend/data/sensor_raw.jsonl
-   - backend/sample_backend/data/dosage_raw.jsonl
+4. Replay repo JSON history into local PostgreSQL:
+   npm run replay:json
 
-9. Team rule for shared history
- - If you add new sensor/glucometer/dosage test data, commit updated JSONL files:
-    - backend/sample_backend/data/sensor_raw.jsonl
-    - backend/sample_backend/data/glucometer_raw.jsonl
-    - backend/sample_backend/data/dosage_raw.jsonl
- - This ensures all developers see full dashboard history after replay.
+5. Check ingest status:
+   npm run status:ingest
 
-10. Recommended daily workflow
- - git pull
- - Start backend (npm start)
- - Replay committed JSON history (npm run replay:json)
- - Test hardware and backend
- - Check status (npm run status:ingest)
- - Commit updated JSONL files
+Daily team workflow
+1. git pull
+2. If needed, edit config/diasmart.config.js for your local PC
+3. node config/apply-config.js
+4. cd backend/sample_backend
+5. npm start
+6. npm run replay:json
+7. Test hardware and app
+8. npm run status:ingest
+9. Commit updated JSON files and push
 
-7. To load shared history into PostgreSQL, run the backend and call:
-   POST http://localhost:3000/api/replay/raw-to-db
+Shared history files to commit
+- backend/sample_backend/data/sensor_raw.jsonl
+- backend/sample_backend/data/glucometer_raw.jsonl
+- backend/sample_backend/data/dosage_raw.jsonl
 
-8. Active firmware files:
-   - Outer unit: Glucometer_dataget/Glucometer_dataget.ino
-   - Inner unit: inoutunit/innerunit/innerunit.ino
+Important rule
+- Do not manually edit backend/sample_backend/.env, config/firmware_config.h, or frontend/rn-app/src/config/appConfig.ts.
+- Always edit config/diasmart.config.js and regenerate.
+
+Active firmware files
+- Outer unit: Glucometer_dataget/Glucometer_dataget.ino
+- Inner unit: inoutunit/innerunit/innerunit.ino

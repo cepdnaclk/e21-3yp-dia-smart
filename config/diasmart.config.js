@@ -29,6 +29,19 @@ module.exports = {
     corsOrigin: '*',
   },
 
+  mqtt: {
+    enabled: false,
+    brokerUrl: 'mqtt://localhost:1883',
+    username: '',
+    password: '',
+    clientId: '',
+    topicPrefix: 'diasmart',
+  },
+
+  runtime: {
+    dosePythonBin: 'python',
+  },
+
   sensors: {
     loadCellCalibration: 245.0,
     tempSensorPin: 21,

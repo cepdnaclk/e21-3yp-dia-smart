@@ -29,6 +29,12 @@ Express backend used by the sample dashboard and dosage video PoC.
    - Optional:
      - `GLUCO_FILE_ONLY=true` to force file-backed summary/history
      - `DOSE_PYTHON_BIN=python` to select Python executable for capture trigger
+       - MQTT bridge:
+          - `MQTT_ENABLED=true`
+          - `MQTT_BROKER_URL=mqtt://localhost:1883`
+          - `MQTT_USERNAME`, `MQTT_PASSWORD` (if broker requires auth)
+          - `MQTT_CLIENT_ID` (optional)
+          - `MQTT_TOPIC_PREFIX=diasmart`
 
 Preferred setup from project root:
 ```bash
@@ -54,6 +60,24 @@ Backend runs on:
 - `POST /api/dosage`
 - `POST /api/dosage/capture` (starts Python script)
 - `POST /api/replay/raw-to-db`
+- `GET /api/mqtt/status`
+
+## MQTT Bridge (Optional)
+When enabled, backend subscribes to ingest topics and forwards payloads to existing HTTP handlers.
+
+Ingest topics:
+- `<prefix>/ingest/readings` -> `/api/readings`
+- `<prefix>/ingest/glucometer` -> `/api/glucometer`
+- `<prefix>/ingest/glucometer/batch` -> `/api/glucometer/batch`
+- `<prefix>/ingest/dosage` -> `/api/dosage`
+
+Event topics published by backend:
+- `<prefix>/events/readings`
+- `<prefix>/events/glucometer`
+- `<prefix>/events/glucometer/batch`
+- `<prefix>/events/dosage`
+
+`<prefix>` is `MQTT_TOPIC_PREFIX`.
 
 ## Data Folder Notes
 - `data/glucometer_raw.jsonl`

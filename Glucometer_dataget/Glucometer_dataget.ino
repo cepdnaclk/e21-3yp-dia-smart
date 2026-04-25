@@ -366,10 +366,15 @@ void racpCallback(
 
 void requestAllGlucometerRecords() {
   if (!glucoConnected || !glucoRacpChar) return;
-  uint8_t requestAll[2] = {0x01, 0x01};
-  glucoRacpChar->writeValue(requestAll, 2, true);
+  
+  // 0x01 = Report Stored Records, 0x06 = First/Last/Latest Record (depends on manufacturer, for Accu-Chek Guide 06 gets the last record)
+  // Note: Using 0x01 (Report stored records) 0x06 (Last record)
+  uint8_t requestLatest[2] = {0x01, 0x06};
+  
+  Serial.println("[BLE] Writing 01 06 to RACP (Request latest record)");
+  glucoRacpChar->writeValue(requestLatest, 2, true);
+  
   lastGlucoRequestMs = millis();
-  Serial.println("[BLE] Requested all glucometer records");
 }
 
 void dosageCallback(
@@ -437,11 +442,28 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 class MySecurity : public BLESecurityCallbacks {
-  uint32_t onPassKeyRequest() { return ACCU_CHEK_PIN; }
-  void onPassKeyNotify(uint32_t pass_key) {}
-  bool onConfirmPIN(uint32_t pass_key) { return true; }
-  bool onSecurityRequest() { return true; }
-  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) {}
+  uint32_t onPassKeyRequest() { 
+    Serial.println("[BLE] Security: PassKeyRequest");
+    return ACCU_CHEK_PIN; 
+  }
+  void onPassKeyNotify(uint32_t pass_key) {
+    Serial.printf("[BLE] Security: PassKeyNotify %lu\n", (unsigned long)pass_key);
+  }
+  bool onConfirmPIN(uint32_t pass_key) { 
+    Serial.printf("[BLE] Security: ConfirmPIN %lu\n", (unsigned long)pass_key);
+    return true; 
+  }
+  bool onSecurityRequest() { 
+    Serial.println("[BLE] Security: SecurityRequest");
+    return true; 
+  }
+  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) { 
+    if(cmpl.success) {
+      Serial.println("[BLE] Security: Auth Complete Success");
+    } else {
+      Serial.printf("[BLE] Security: Auth Failed reason=%x\n", cmpl.fail_reason);
+    }
+  }
 };
 
 // =======================
@@ -457,8 +479,14 @@ bool connectGlucometer() {
     return false;
   }
 
+  Serial.println("[BLE] Initiating encryption...");
   esp_ble_set_encryption(glucoAddress->getNative(), ESP_BLE_SEC_ENCRYPT_MITM);
-  delay(2000);
+  
+  // Wait comfortably for authentication so it does not hang
+  // Usually bonding takes a few seconds or a user pin prompt
+  for(int i = 0; i < 40; i++) {
+    delay(100);
+  }
 
   BLERemoteService* svc = glucoClient->getService(glucoseServiceUUID);
   if (!svc) {
@@ -476,16 +504,19 @@ bool connectGlucometer() {
     return false;
   }
 
-  glucoMeasureChar->registerForNotify(glucoDataCallback, true);
-  glucoRacpChar->registerForNotify(racpCallback, false);
+  Serial.println("[BLE] Subscribing to Notifications (2A18) and Indications (2A52)...");
+  glucoMeasureChar->registerForNotify(glucoDataCallback, true);  // true = notify
+  glucoRacpChar->registerForNotify(racpCallback, false);        // false = indicate
 
   glucoConnected = true;
   syncDownloadComplete = false;
   syncUploadDone = false;
   glucoAnyRecordReceived = false;
   bufferedCount = 0;
+  
+  // Give it one more moment after subscribing, before requesting records (prevents dropping packet)
+  delay(1000);
   requestAllGlucometerRecords();
-  Serial.println("[BLE] Connected to glucometer and requested all records");
   return true;
 }
 

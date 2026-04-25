@@ -27,10 +27,6 @@ float currentDose = 0.0f;
 float lockedDose = 0.0f;
 
 unsigned long lastButtonDebounceMs = 0;
-
-enum State { SETTING, INJECTING };
-State state = SETTING;
-
 int lastButtonState = HIGH;
 
 void sendBLE(float dose, const String& status) {
@@ -81,13 +77,11 @@ void loop() {
   int currentButtonState = digitalRead(BUTTON_PIN);
 
   if (
-    state == SETTING &&
     currentButtonState == LOW &&
     lastButtonState == HIGH &&
-    (millis() - lastButtonDebounceMs) > 50
+    (millis() - lastButtonDebounceMs) > 100 // 100ms debounce
   ) {
     lastButtonDebounceMs = millis();
-    state = INJECTING;
 
     lockedDose = fabs(currentDose);
 
@@ -95,14 +89,12 @@ void loop() {
     Serial.printf("Injected Dose: %.2f units\n", lockedDose);
 
     sendBLE(lockedDose, "INJECTED");
-  }
 
-  if (state == INJECTING && fabs(currentDose) <= 0.5f) {
-    Serial.println(">>> MECHANISM RETURNED TO ZERO. READY FOR NEXT DOSE. <<<\n");
-
-    state = SETTING;
+    // Instantly reset the dial accumulator for the next run
     totalRotation = 0.0f;
     currentDose = 0.0f;
+    
+    Serial.println(">>> DIAL RESET. READY FOR NEXT DOSE. <<<\n");
   }
 
   lastAngle = angle;

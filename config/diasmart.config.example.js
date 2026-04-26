@@ -40,6 +40,11 @@ module.exports = {
         corsOrigin: 'http://localhost:3000',
     },
 
+    security: {
+        jwtSecret: 'CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_AT_LEAST_32_CHARS',
+        jwtExpiresIn: '8h',
+    },
+
     mqtt: {
         enabled: false,
         brokerUrl: 'mqtt://localhost:1883',

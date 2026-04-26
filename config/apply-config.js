@@ -22,6 +22,7 @@ const {
   wifi,
   postgres,
   server,
+  security,
   mqtt,
   sensors,
   glucometer,
@@ -58,8 +59,11 @@ PGDATABASE=${postgres.database}
 PGUSER=${postgres.user}
 PGPASSWORD=${postgres.password}
 PORT=${server.port}
+NODE_ENV=development
 GLUCO_FILE_ONLY=${server.fileOnlyMode ? '1' : ''}
 CORS_ORIGIN=${server.corsOrigin}
+JWT_SECRET=${security.jwtSecret}
+JWT_EXPIRES_IN=${security.jwtExpiresIn}
 MQTT_ENABLED=${mqtt.enabled ? '1' : ''}
 MQTT_BROKER_URL=${mqtt.brokerUrl}
 MQTT_USERNAME=${mqtt.username}

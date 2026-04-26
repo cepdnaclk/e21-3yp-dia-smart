@@ -3,6 +3,7 @@ const cors = require('cors');
 const fs = require('fs/promises');
 const path = require('path');
 const mqtt = require('mqtt');
+const jwt = require('jsonwebtoken');
 const pool = require('./db');
 
 const app = express();
@@ -15,6 +16,9 @@ const GLUCO_RAW_FILE = path.join(DATA_DIR, 'glucometer_raw.jsonl');
 const SENSOR_RAW_FILE = path.join(DATA_DIR, 'sensor_raw.jsonl');
 const DOSAGE_RAW_FILE = path.join(DATA_DIR, 'dosage_raw.jsonl');
 const HTTP_PORT = Number(process.env.PORT || 3000);
+const JWT_SECRET = String(process.env.JWT_SECRET || '').trim();
+const JWT_EXPIRES_IN = String(process.env.JWT_EXPIRES_IN || '8h').trim();
+const JWT_ISSUER = 'diasmart-backend';
 const FORCE_FILE_ONLY = ['1', 'true', 'yes', 'on'].includes(
   String(process.env.GLUCO_FILE_ONLY || '').toLowerCase()
 );
@@ -48,6 +52,175 @@ let mqttClient = null;
 
 app.get('/api/ping', (_req, res) => {
   res.status(200).json({ ok: true, service: 'samble_backend' });
+});
+
+function sanitizeUser(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    display_name: row.display_name,
+    patient_id: row.patient_id
+  };
+}
+
+function validateJwtConfig() {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    return 'JWT_SECRET is missing or too short. Use at least 32 characters.';
+  }
+
+  return null;
+}
+
+async function findUserByEmailAndPassword(email, password) {
+  const result = await pool.query(
+    `SELECT id, email, role, display_name, patient_id, is_active
+     FROM app_users
+     WHERE lower(email) = lower($1)
+       AND is_active = TRUE
+       AND password_hash = crypt($2, password_hash)
+     LIMIT 1`,
+    [email, password]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getActiveUserById(userId) {
+  const result = await pool.query(
+    `SELECT id, email, role, display_name, patient_id, is_active
+     FROM app_users
+     WHERE id = $1
+       AND is_active = TRUE
+     LIMIT 1`,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+}
+
+function requireAuth(req, res, next) {
+  (async () => {
+    const authHeader = req.headers.authorization || '';
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+
+    const token = authHeader.slice('Bearer '.length).trim();
+
+    if (!token) {
+      return res.status(401).json({ error: 'Missing token' });
+    }
+
+    let decoded;
+
+    try {
+      decoded = jwt.verify(token, JWT_SECRET, {
+        issuer: JWT_ISSUER
+      });
+    } catch (_err) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const user = await getActiveUserById(decoded.sub);
+
+    if (!user) {
+      return res.status(401).json({ error: 'User is inactive or no longer exists' });
+    }
+
+    req.user = sanitizeUser(user);
+    return next();
+  })().catch(next);
+}
+
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role permission' });
+    }
+
+    return next();
+  };
+}
+
+const allowDashboardUsers = requireRole('patient', 'caregiver', 'doctor');
+
+/* ===============================
+   POST - User Login
+================================= */
+app.post('/api/auth/login', async (req, res) => {
+  const jwtConfigError = validateJwtConfig();
+
+  if (jwtConfigError) {
+    return res.status(500).json({ error: jwtConfigError });
+  }
+
+  const { email, password } = req.body || {};
+
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  const cleanEmail = email.trim();
+
+  if (!cleanEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    const userRow = await findUserByEmailAndPassword(cleanEmail, password);
+
+    if (!userRow) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    await pool.query(
+      `UPDATE app_users
+       SET last_login_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [userRow.id]
+    );
+
+    const user = sanitizeUser(userRow);
+
+    const token = jwt.sign(
+      {
+        role: user.role,
+        email: user.email,
+        patient_id: user.patient_id
+      },
+      JWT_SECRET,
+      {
+        subject: String(user.id),
+        expiresIn: JWT_EXPIRES_IN,
+        issuer: JWT_ISSUER
+      }
+    );
+
+    return res.json({
+      message: 'Login successful',
+      token,
+      user
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+
+    return res.status(500).json({
+      error: 'Login failed. Check database connection and app_users table.'
+    });
+  }
+});
+
+/* ===============================
+   GET - Current Logged User
+================================= */
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ user: req.user });
 });
 
 function toNullableNumber(value) {
@@ -425,7 +598,7 @@ app.post('/api/readings', async (req, res) => {
 /* ===============================
    GET - All Readings
 ================================= */
-app.get('/api/readings', async (req, res) => {
+app.get('/api/readings', requireAuth, allowDashboardUsers, async (req, res) => {
 
   const result = await pool.query(
     `SELECT * FROM readings ORDER BY created_at DESC LIMIT 100`
@@ -435,7 +608,7 @@ app.get('/api/readings', async (req, res) => {
 });
 
 // Get latest reading
-app.get('/api/latest', async (req, res) => {
+app.get('/api/latest', requireAuth, allowDashboardUsers, async (req, res) => {
   const result = await pool.query(
     `SELECT * FROM readings
      ORDER BY created_at DESC
@@ -445,7 +618,7 @@ app.get('/api/latest', async (req, res) => {
 });
 
 // Get latest non-null value for each signal (safe for mixed sensor update rates)
-app.get('/api/latest-summary', async (req, res) => {
+app.get('/api/latest-summary', requireAuth, allowDashboardUsers, async (req, res) => {
   if (String(req.query.source || '').toLowerCase() === 'file') {
     try {
       return res.json(await buildSummaryFromFiles());
@@ -485,7 +658,7 @@ app.get('/api/latest-summary', async (req, res) => {
 });
 
 // Get readings for graph
-app.get('/api/history', async (req, res) => {
+app.get('/api/history', requireAuth, allowDashboardUsers, async (req, res) => {
   const limitRaw = req.query.limit;
   const parsedLimit = Number(limitRaw);
   const limit = !limitRaw || Number.isNaN(parsedLimit) || parsedLimit <= 0
@@ -974,7 +1147,7 @@ app.post('/api/dosage', async (req, res) => {
 /* ===============================
    GET - Dosage Timeline
 ================================= */
-app.get('/api/dosage', async (req, res) => {
+app.get('/api/dosage', requireAuth, allowDashboardUsers, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT * FROM dosage_timeline ORDER BY injection_time DESC LIMIT 100`

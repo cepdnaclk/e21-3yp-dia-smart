@@ -5,7 +5,9 @@
 #include <BLESecurity.h>
 
 #include <WiFi.h>
+#include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <PubSubClient.h>
 #include <time.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
@@ -92,10 +94,94 @@ int bufferedCount = 0;
 bool syncDownloadComplete = false;
 bool syncUploadDone = false;
 uint32_t syncSequence = 0;
+unsigned long lastMqttRetryMs = 0;
+char mqttClientIdBuffer[64] = {0};
+WiFiClient mqttNetClient;
+PubSubClient mqttClient(mqttNetClient);
 
 // =======================
 // Helpers
 // =======================
+bool isMqttEnabled() {
+  return MQTT_ENABLED == 1;
+}
+
+String mqttTopic(const char* leaf) {
+  String topic = String(MQTT_TOPIC_PREFIX);
+  topic.trim();
+  while (topic.endsWith("/")) {
+    topic.remove(topic.length() - 1);
+  }
+  topic += "/";
+  topic += leaf;
+  return topic;
+}
+
+const char* getMqttClientId() {
+  if (mqttClientIdBuffer[0] != '\0') {
+    return mqttClientIdBuffer;
+  }
+
+  String configured = String(MQTT_CLIENT_ID);
+  configured.trim();
+  if (configured.length() == 0) {
+    configured = String("diasmart-outer-") + WiFi.macAddress();
+    configured.replace(":", "");
+  }
+
+  configured.toCharArray(mqttClientIdBuffer, sizeof(mqttClientIdBuffer));
+  return mqttClientIdBuffer;
+}
+
+void configureMqttClient() {
+  mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+  mqttClient.setBufferSize(4096);
+}
+
+void ensureMqttConnected() {
+  if (!isMqttEnabled()) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (mqttClient.connected()) return;
+  if (millis() - lastMqttRetryMs < 5000) return;
+
+  lastMqttRetryMs = millis();
+  bool connected = false;
+
+  if (String(MQTT_USERNAME).length() > 0) {
+    connected = mqttClient.connect(getMqttClientId(), MQTT_USERNAME, MQTT_PASSWORD);
+  } else {
+    connected = mqttClient.connect(getMqttClientId());
+  }
+
+  if (connected) {
+    Serial.printf(
+      "{\"transport\":\"mqtt\",\"status\":\"connected\",\"broker\":\"%s\",\"port\":%d,\"client_id\":\"%s\"}\n",
+      MQTT_BROKER_HOST,
+      MQTT_BROKER_PORT,
+      getMqttClientId()
+    );
+  } else {
+    Serial.printf("{\"transport\":\"mqtt\",\"status\":\"connect_failed\",\"state\":%d}\n", mqttClient.state());
+  }
+}
+
+bool publishMqttJson(const char* topicLeaf, const String& payload) {
+  ensureMqttConnected();
+  if (!mqttClient.connected()) {
+    return false;
+  }
+
+  String topic = mqttTopic(topicLeaf);
+  bool published = mqttClient.publish(topic.c_str(), payload.c_str());
+  Serial.printf(
+    "{\"transport\":\"mqtt\",\"topic\":\"%s\",\"published\":%s,\"bytes\":%u}\n",
+    topic.c_str(),
+    published ? "true" : "false",
+    (unsigned)payload.length()
+  );
+  return published;
+}
+
 void ensureWifiConnected() {
   wl_status_t st = WiFi.status();
   if (st == WL_CONNECTED) {
@@ -135,20 +221,34 @@ void sendSensorData(float temp, const String& door, float weight, float insulin,
   ensureWifiConnected();
   if (WiFi.status() != WL_CONNECTED) return;
 
-  HTTPClient http;
-  http.setTimeout(12000);
-  http.begin(BACKEND_READINGS_URL);
-  http.addHeader("Content-Type", "application/json");
-
   String json = "{";
   json += "\"temperature\":" + (isnan(temp) ? String("null") : String(temp, 2)) + ",";
   json += "\"door_status\":\"" + (door.length() ? door : String("CLOSED")) + "\",";
   json += "\"insulin_inventory_weight\":" + (isnan(weight) ? String("null") : String(weight, 2)) + ",";
   json += "\"insulin_level_value\":" + (isnan(insulin) ? String("null") : String(insulin, 2)) + ",";
   json += "\"glucose_value\":" + (isnan(glucose) ? String("null") : String(glucose, 2)) + ",";
+  json += "\"source\":\"outer-hub\",";
+  json += "\"inner_rx_count\":" + String(innerRxCount) + ",";
+  json += "\"inner_last_seq\":" + String(lastInnerSeq) + ",";
   json += "\"skip_db\":true";
   json += "}";
 
+  bool mqttPublished = publishMqttJson("ingest/readings", json);
+  if (mqttPublished) {
+    Serial.printf(
+      "{\"upload\":\"sensors\",\"mqtt\":true,\"door\":\"%s\",\"temp\":%.2f,\"weight\":%.2f,\"inner_seq\":%lu}\n",
+      door.length() ? door.c_str() : "CLOSED",
+      isnan(temp) ? -999.0f : temp,
+      isnan(weight) ? -1.0f : weight,
+      (unsigned long)lastInnerSeq
+    );
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_READINGS_URL);
+  http.addHeader("Content-Type", "application/json");
   int code = http.POST(json);
   http.end();
   Serial.printf("{\"upload\":\"sensors\",\"http\":%d}\n", code);
@@ -161,19 +261,25 @@ void sendDosageData(float dose) {
     return;
   }
 
+  int roundedDose = (int)roundf(dose);
+  String json = "{";
+  json += "\"value\":" + String(roundedDose) + ",";
+  json += "\"source\":\"esp32-c3-ble\"";
+  json += "}";
+
+  bool mqttPublished = publishMqttJson("ingest/dosage", json);
+  if (mqttPublished) {
+    Serial.printf("{\"upload\":\"dosage\",\"mqtt\":true,\"dose\":%d,\"raw\":%.2f}\n", roundedDose, dose);
+    return;
+  }
+
   HTTPClient http;
   http.setTimeout(12000);
   http.begin(BACKEND_DOSAGE_URL);
   http.addHeader("Content-Type", "application/json");
-
-  String json = "{";
-  json += "\"value\":" + String(dose, 2) + ",";
-  json += "\"source\":\"esp32-c3-ble\"";
-  json += "}";
-
   int code = http.POST(json);
   http.end();
-  Serial.printf("{\"upload\":\"dosage\",\"http\":%d,\"dose\":%.2f}\n", code, dose);
+  Serial.printf("{\"upload\":\"dosage\",\"http\":%d,\"dose\":%d,\"raw\":%.2f}\n", code, roundedDose, dose);
 }
 
 void onInnerPacketReceived(const uint8_t* data, int len) {
@@ -279,6 +385,13 @@ void uploadGlucoBatch() {
       payload += "}";
     }
     payload += "]}";
+
+    bool mqttPublished = publishMqttJson("ingest/glucometer/batch", payload);
+    if (mqttPublished) {
+      Serial.printf("{\"upload\":\"gluco_batch\",\"chunk\":%d,\"mqtt\":true}\n", (start / BATCH_UPLOAD_SIZE) + 1);
+      uploaded += (end - start);
+      continue;
+    }
 
     HTTPClient http;
     http.setTimeout(30000);
@@ -569,7 +682,9 @@ void setup() {
   } else {
     Serial.println("[WIFI] initial connect timeout; continuing with retries");
   }
+  configureMqttClient();
   ensureWifiConnected();
+  ensureMqttConnected();
   initEspNowReceiver();
 
   BLEDevice::init("Dia-Smart-Hub");
@@ -593,6 +708,13 @@ void loop() {
   if (now - lastWifiEnsureMs > 10000) {
     ensureWifiConnected();
     lastWifiEnsureMs = now;
+  }
+
+  if (isMqttEnabled()) {
+    ensureMqttConnected();
+    if (mqttClient.connected()) {
+      mqttClient.loop();
+    }
   }
 
   if ((!glucoSeen || !dosageSeen) && (now - lastScanMs > 4000)) {
@@ -666,9 +788,10 @@ void loop() {
 
   if (now - lastDiagMs > 10000) {
     Serial.printf(
-      "{\"diag\":\"outer\",\"wifiStatus\":%d,\"wifiChannel\":%d,\"innerSeen\":%s,\"innerConnected\":%s,\"innerAgeMs\":%lu,\"innerRxCount\":%lu,\"lastInnerSeq\":%lu,\"glucoSeen\":%s,\"glucoConnected\":%s,\"buffered\":%d}\n",
+      "{\"diag\":\"outer\",\"wifiStatus\":%d,\"wifiChannel\":%d,\"mqttConnected\":%s,\"innerSeen\":%s,\"innerConnected\":%s,\"innerAgeMs\":%lu,\"innerRxCount\":%lu,\"lastInnerSeq\":%lu,\"glucoSeen\":%s,\"glucoConnected\":%s,\"buffered\":%d}\n",
       (int)WiFi.status(),
       WiFi.channel(),
+      mqttClient.connected() ? "true" : "false",
       innerSeen ? "true" : "false", // seen via ESP-NOW packets
       innerConnected ? "true" : "false", // recent packet within timeout
       now - lastInnerNotifyMs,

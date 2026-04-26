@@ -6,14 +6,14 @@
 
 module.exports = {
   network: {
-    backendIp: '10.23.165.122',
+    backendIp: '192.168.1.187',
     backendPort: 3000,
     espNowChannel: 1,
   },
 
   wifi: {
-    ssid: 'ananthu73',
-    password: '123123123@@',
+    ssid: 'SLT-4G-74699C',
+    password: 'Arnikan18',
   },
 
   postgres: {
@@ -21,7 +21,7 @@ module.exports = {
     port: 5432,
     database: 'diasmart',
     user: 'postgres',
-    password: 'postgres',
+    password: 'Arnikan18',
   },
 
   server: {
@@ -31,8 +31,9 @@ module.exports = {
   },
 
   mqtt: {
-    enabled: false,
-    brokerUrl: 'mqtt://localhost:1883',
+    enabled: true,
+    brokerUrl: 'mqtt://192.168.1.187:1883',
+    backendBrokerUrl: 'mqtt://127.0.0.1:1883',
     username: '',
     password: '',
     clientId: '',

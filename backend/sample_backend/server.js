@@ -269,6 +269,23 @@ async function readRawDosageEvents() {
   return readJsonLines(DOSAGE_RAW_FILE);
 }
 
+function normalizeDoseAmount(value) {
+  const parsed = toNullableNumber(value);
+  if (parsed === null || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed);
+}
+
+async function ensureDosageColumnUsesIntegers() {
+  await pool.query(`
+    ALTER TABLE dosage_timeline
+    ALTER COLUMN dose_amount TYPE INTEGER
+    USING ROUND(dose_amount)::INTEGER
+  `);
+}
+
 function chooseLatestNonNull(events, key) {
   for (let i = events.length - 1; i >= 0; i -= 1) {
     const value = events[i] && events[i][key];
@@ -390,6 +407,13 @@ app.post('/api/readings', async (req, res) => {
     glucose_value: toNullableNumber(glucose_value),
     received_at: new Date().toISOString()
   };
+
+  console.log(
+    `[READINGS] source=${req.body && req.body.source ? req.body.source : 'unknown'} ` +
+    `door=${rawEvent.door_status || 'null'} temp=${rawEvent.temperature ?? 'null'} ` +
+    `weight=${rawEvent.insulin_inventory_weight ?? 'null'} insulin=${rawEvent.insulin_level_value ?? 'null'} ` +
+    `glucose=${rawEvent.glucose_value ?? 'null'}`
+  );
 
   try {
     await persistRawSensorEvent(rawEvent);
@@ -822,7 +846,7 @@ app.post('/api/replay/raw-to-db', async (_req, res) => {
     const dosageEvents = await readRawDosageEvents();
     for (const e of dosageEvents) {
       try {
-        const doseAmount = toNullableNumber(e.dose_amount);
+        const doseAmount = normalizeDoseAmount(e.dose_amount);
         const injectionTime = e.injection_time
           ? new Date(e.injection_time)
           : (e.received_at ? new Date(e.received_at) : new Date());
@@ -840,7 +864,7 @@ app.post('/api/replay/raw-to-db', async (_req, res) => {
              WHERE dose_amount = $1
                AND injection_time = $2
            )`,
-          [Math.round(doseAmount), injectionTime]
+          [doseAmount, injectionTime]
         );
 
         if (insertResult.rowCount > 0) {
@@ -956,15 +980,16 @@ app.post('/api/dosage/capture', async (_req, res) => {
 app.post('/api/dosage', async (req, res) => {
   // The Python script sends: { type: "insulin_dose", value: 15, timestamp: "..." }
   const { value, timestamp } = req.body;
+  const doseAmount = normalizeDoseAmount(value);
 
-  if (value === undefined || value === null) {
-    return res.status(400).json({ error: 'Missing dose value' });
+  if (doseAmount === null) {
+    return res.status(400).json({ error: 'Missing or invalid dose value' });
   }
 
   // Use the exact time Gemini recorded the video frame
   const injectionTime = timestamp ? new Date(timestamp) : new Date();
   const payload = {
-    dose_amount: Number(value),
+    dose_amount: doseAmount,
     injection_time: injectionTime.toISOString(),
     received_at: new Date().toISOString()
   };
@@ -973,7 +998,7 @@ app.post('/api/dosage', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO dosage_timeline (dose_amount, injection_time) 
        VALUES ($1, $2) RETURNING *`,
-      [value, injectionTime]
+      [doseAmount, injectionTime]
     );
 
     await persistRawDosageEvent({
@@ -986,7 +1011,7 @@ app.post('/api/dosage', async (req, res) => {
       ...(result.rows[0] || {})
     });
     
-    console.log(`[Dia-Smart AI] Successfully logged ${value} Units at ${injectionTime.toLocaleTimeString()}`);
+    console.log(`[Dia-Smart AI] Successfully logged ${doseAmount} Units at ${injectionTime.toLocaleTimeString()}`);
     res.status(201).json({ message: "Dosage logged successfully", reading: result.rows[0] });
     
   } catch (err) {
@@ -1057,7 +1082,14 @@ app.get('/api/mqtt/status', (_req, res) => {
   });
 });
 
-app.listen(HTTP_PORT, () => {
-  console.log(`Server running on port ${HTTP_PORT}`);
-  startMqttBridge();
-});
+ensureDosageColumnUsesIntegers()
+  .then(() => {
+    app.listen(HTTP_PORT, () => {
+      console.log(`Server running on port ${HTTP_PORT}`);
+      startMqttBridge();
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to prepare dosage schema:', err);
+    process.exit(1);
+  });

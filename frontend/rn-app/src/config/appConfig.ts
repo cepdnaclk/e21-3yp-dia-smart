@@ -1,6 +1,6 @@
 export const AppConfig = {
-  apiBaseUrl: 'http://10.23.165.122:3000',
-  backendIp: '10.23.165.122',
+  apiBaseUrl: 'http://192.168.1.187:3000',
+  backendIp: '192.168.1.187',
   backendPort: 3000,
 } as const;
 

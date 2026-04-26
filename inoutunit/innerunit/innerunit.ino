@@ -37,6 +37,13 @@ bool espNowPeerAdded = false;
 const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 unsigned long lastWifiRetryMs = 0;
 
+void lockEspNowFallbackChannel(const char* reason) {
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+  Serial.printf("[ESPNOW] fixed channel=%d reason=%s\n", ESPNOW_CHANNEL, reason);
+}
+
 void initEspNow() {
   esp_err_t initErr = esp_now_init();
   if (initErr != ESP_OK) {
@@ -78,16 +85,14 @@ void ensureWifiForEspNow() {
     Serial.printf("[WIFI] connected ip=%s channel=%d\n", WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
     Serial.println("[WIFI] connect timeout; ESP-NOW may fail if channel mismatched");
-    esp_wifi_set_promiscuous(true);
-    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    esp_wifi_set_promiscuous(false);
-    Serial.printf("[ESPNOW] fallback fixed channel=%d\n", ESPNOW_CHANNEL);
+    lockEspNowFallbackChannel("wifi_timeout");
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Inner unit booting...");
+  Serial.printf("[BOOT] target espnow channel=%d\n", ESPNOW_CHANNEL);
 
   pinMode(REED_PIN, INPUT_PULLUP);
   sensors.begin();

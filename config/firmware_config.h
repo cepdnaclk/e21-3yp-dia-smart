@@ -1,13 +1,20 @@
 #pragma once
 
-#define WIFI_SSID "ananthu73"
-#define WIFI_PASSWORD "123123123@@"
-#define BACKEND_IP "10.23.165.122"
+#define WIFI_SSID "SLT-4G-74699C"
+#define WIFI_PASSWORD "Arnikan18"
+#define BACKEND_IP "192.168.1.187"
 #define BACKEND_PORT 3000
-#define BACKEND_READINGS_URL "http://10.23.165.122:3000/api/readings"
-#define BACKEND_GLUCO_BATCH_URL "http://10.23.165.122:3000/api/glucometer/batch"
-#define BACKEND_GLUCO_SINGLE_URL "http://10.23.165.122:3000/api/glucometer"
-#define BACKEND_DOSAGE_URL "http://10.23.165.122:3000/api/dosage"
+#define BACKEND_READINGS_URL "http://192.168.1.187:3000/api/readings"
+#define BACKEND_GLUCO_BATCH_URL "http://192.168.1.187:3000/api/glucometer/batch"
+#define BACKEND_GLUCO_SINGLE_URL "http://192.168.1.187:3000/api/glucometer"
+#define BACKEND_DOSAGE_URL "http://192.168.1.187:3000/api/dosage"
+#define MQTT_ENABLED 1
+#define MQTT_BROKER_HOST "192.168.1.187"
+#define MQTT_BROKER_PORT 1883
+#define MQTT_USERNAME ""
+#define MQTT_PASSWORD ""
+#define MQTT_CLIENT_ID ""
+#define MQTT_TOPIC_PREFIX "diasmart"
 #define ESPNOW_CHANNEL 1
 #define TEMP_SENSOR_PIN 21
 #define DOOR_SENSOR_PIN 4

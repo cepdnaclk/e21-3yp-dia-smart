@@ -1,1 +1,34 @@
 
+# ===============================
+# Dependencies
+# ===============================
+node_modules/
+**/node_modules/
+
+# ===============================
+# Environment / secrets
+# ===============================
+.env
+.env.*
+!.env.example
+backend/sample_backend/.env
+
+# ===============================
+# Dia-Smart local generated config
+# ===============================
+config/diasmart.config.js
+config/firmware_config.h
+frontend/rn-app/src/config/appConfig.ts
+
+# ===============================
+# Runtime data / logs
+# ===============================
+backend/sample_backend/data/*.jsonl
+*.log
+
+# ===============================
+# OS / editor files
+# ===============================
+.DS_Store
+Thumbs.db
+.vscode/

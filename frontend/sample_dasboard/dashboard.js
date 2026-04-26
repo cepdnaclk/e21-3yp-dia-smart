@@ -8,6 +8,26 @@ function safeGet(elementId) {
   return document.getElementById(elementId);
 }
 
+function apiFetch(path, options) {
+  return window.diasmartAuth.authFetch(`${API_BASE}${path}`, options);
+}
+
+function bindAuthUi() {
+  const user = window.diasmartAuth.getUser();
+
+  const userEl = safeGet("current-user");
+  if (userEl && user) {
+    userEl.textContent = `Signed in: ${user.display_name || user.email} (${user.role})`;
+  }
+
+  const logoutBtn = safeGet("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      window.diasmartAuth.logout();
+    });
+  }
+}
+
 function formatNumber(value, decimals = 1) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "—";
@@ -166,7 +186,7 @@ function bindInteractions() {
 
 async function loadDosage() {
   try {
-    const res = await fetch(`${API_BASE}/api/dosage`);
+    const res = await apiFetch("/api/dosage");
     if (!res.ok) {
       throw new Error("Failed to load dosage timeline");
     }
@@ -211,7 +231,7 @@ async function loadDosage() {
 
 async function loadLatest() {
   try {
-    const res = await fetch(`${API_BASE}/api/latest-summary?source=file`);
+    const res = await apiFetch("/api/latest-summary?source=file");
     if (!res.ok) {
       throw new Error("Failed to load latest");
     }
@@ -285,7 +305,7 @@ async function loadLatest() {
 
 async function loadChart() {
   try {
-    const res = await fetch(`${API_BASE}/api/history?source=file&limit=2000`);
+    const res = await apiFetch("/api/history?source=file&limit=2000");
     if (!res.ok) {
       throw new Error("Failed to load history");
     }
@@ -555,7 +575,7 @@ async function loadChart() {
 
 async function loadDosageChart() {
   try {
-    const res = await fetch(`${API_BASE}/api/dosage`);
+    const res = await apiFetch("/api/dosage");
     if (!res.ok) {
       throw new Error("Failed to load dosage timeline");
     }
@@ -662,15 +682,21 @@ async function loadDosageChart() {
   }
 }
 
-// Initial load
-bindInteractions();
-loadLatest();
-loadChart();
-loadDosage();
-loadDosageChart();
+function startDashboard() {
+  bindAuthUi();
+  bindInteractions();
 
-// Auto refresh
-setInterval(loadLatest, 5000);
-setInterval(loadChart, 15000);
-setInterval(loadDosage, 3000);
-setInterval(loadDosageChart, 15000);
+  loadLatest();
+  loadChart();
+  loadDosage();
+  loadDosageChart();
+
+  setInterval(loadLatest, 5000);
+  setInterval(loadChart, 15000);
+  setInterval(loadDosage, 3000);
+  setInterval(loadDosageChart, 15000);
+}
+
+if (window.diasmartAuth.requireLogin()) {
+  startDashboard();
+}

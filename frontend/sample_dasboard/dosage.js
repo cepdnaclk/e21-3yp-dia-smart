@@ -4,6 +4,10 @@ function safeGet(id) {
   return document.getElementById(id);
 }
 
+function apiFetch(path, options) {
+  return window.diasmartAuth.authFetch(`${API_BASE}${path}`, options);
+}
+
 function formatDose(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "-";
@@ -98,7 +102,7 @@ function renderTable(records) {
 
 async function loadDosageLog() {
   try {
-    const res = await fetch(`${API_BASE}/api/dosage`);
+    const res = await apiFetch("/api/dosage");
     if (!res.ok) throw new Error("Failed to load dosage timeline");
 
     const data = await res.json();
@@ -115,5 +119,7 @@ async function loadDosageLog() {
   }
 }
 
-loadDosageLog();
-setInterval(loadDosageLog, 10000);
+if (window.diasmartAuth.requireLogin()) {
+  loadDosageLog();
+  setInterval(loadDosageLog, 10000);
+}

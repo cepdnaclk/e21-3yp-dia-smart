@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,7 +22,9 @@
       --accent: #0ea5e9;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -55,9 +58,17 @@
       margin-bottom: 12px;
     }
 
-    h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
 
-    .sub { color: var(--soft); font-size: 13px; margin-top: 4px; }
+    .sub {
+      color: var(--soft);
+      font-size: 13px;
+      margin-top: 4px;
+    }
 
     .back-link {
       color: #bae6fd;
@@ -84,8 +95,18 @@
       background: radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 60%), var(--card);
     }
 
-    .stat-label { font-size: 11px; color: var(--soft); text-transform: uppercase; letter-spacing: .08em; }
-    .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .stat-label {
+      font-size: 11px;
+      color: var(--soft);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
 
     .table-wrap {
       border: 1px solid var(--line);
@@ -130,22 +151,52 @@
       display: inline-block;
     }
 
-    .sev.ok { background: rgba(34, 197, 94, .16); color: #bbf7d0; border-color: rgba(34, 197, 94, .45); }
-    .sev.warn { background: rgba(245, 158, 11, .16); color: #fde68a; border-color: rgba(245, 158, 11, .5); }
-    .sev.crit { background: rgba(239, 68, 68, .16); color: #fecaca; border-color: rgba(239, 68, 68, .5); }
-    .sev.unknown { background: rgba(100, 116, 139, .16); color: #cbd5e1; border-color: rgba(100, 116, 139, .5); }
+    .sev.ok {
+      background: rgba(34, 197, 94, .16);
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, .45);
+    }
+
+    .sev.warn {
+      background: rgba(245, 158, 11, .16);
+      color: #fde68a;
+      border-color: rgba(245, 158, 11, .5);
+    }
+
+    .sev.crit {
+      background: rgba(239, 68, 68, .16);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, .5);
+    }
+
+    .sev.unknown {
+      background: rgba(100, 116, 139, .16);
+      color: #cbd5e1;
+      border-color: rgba(100, 116, 139, .5);
+    }
 
     @media (max-width: 900px) {
-      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 640px) {
-      .stats { grid-template-columns: 1fr; }
-      .app { padding: 12px; }
-      h1 { font-size: 18px; }
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .app {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="app">
     <header>
@@ -189,12 +240,16 @@
           </tr>
         </thead>
         <tbody id="log-table-body">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr>
+            <td colspan="7">Loading...</td>
+          </tr>
         </tbody>
       </table>
     </section>
   </div>
 
+  <script src="auth.js"></script>
   <script src="glucometer.js"></script>
 </body>
+
 </html>

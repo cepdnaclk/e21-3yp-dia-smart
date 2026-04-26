@@ -4,6 +4,10 @@ function safeGet(id) {
   return document.getElementById(id);
 }
 
+function apiFetch(path, options) {
+  return window.diasmartAuth.authFetch(`${API_BASE}${path}`, options);
+}
+
 function severityFromGlucose(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return { label: "No data", type: "unknown" };
@@ -93,7 +97,7 @@ function renderTable(records) {
 async function fetchRecords() {
   // Prefer raw uploaded records so date/time from glucometer is preserved.
   try {
-    const rawRes = await fetch(`${API_BASE}/api/glucometer/raw`);
+    const rawRes = await apiFetch("/api/glucometer/raw");
     if (rawRes.ok) {
       const raw = await rawRes.json();
       if (Array.isArray(raw) && raw.length) {
@@ -113,7 +117,7 @@ async function fetchRecords() {
   }
 
   // Fallback to history endpoint.
-  const historyRes = await fetch(`${API_BASE}/api/history`);
+  const historyRes = await apiFetch("/api/history");
   if (!historyRes.ok) throw new Error("Failed to load history");
   const rows = await historyRes.json();
 
@@ -142,5 +146,7 @@ async function loadGlucometerLog() {
   }
 }
 
-loadGlucometerLog();
-setInterval(loadGlucometerLog, 15000);
+if (window.diasmartAuth.requireLogin()) {
+  loadGlucometerLog();
+  setInterval(loadGlucometerLog, 15000);
+}

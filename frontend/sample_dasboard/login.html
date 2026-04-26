@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Dia-Smart Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+        :root {
+            --bg: #020617;
+            --card: #0f172a;
+            --accent: #0ea5e9;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --danger: #ef4444;
+            --border: rgba(148, 163, 184, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.12), transparent 55%),
+                var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 26px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background: rgba(14, 165, 233, 0.14);
+            border: 1px solid rgba(14, 165, 233, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #7dd3fc;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        .sub {
+            margin: 0 0 22px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 13px;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 13px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(2, 6, 23, 0.8);
+            color: var(--text);
+            outline: none;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            border-color: rgba(14, 165, 233, 0.8);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+        }
+
+        button {
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            display: none;
+            margin-top: 14px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+            font-size: 13px;
+        }
+
+        .hint {
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        code {
+            color: #bae6fd;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="login-card">
+        <div class="logo">DS</div>
+        <h1>Dia-Smart Login</h1>
+        <p class="sub">Sign in to access the patient monitoring dashboard.</p>
+
+        <form id="login-form">
+            <label for="email">Email</label>
+            <input id="email" type="email" autocomplete="username" value="patient@diasmart.com" required />
+
+            <label for="password">Password</label>
+            <input id="password" type="password" autocomplete="current-password" value="Patient1234" required />
+
+            <button id="login-btn" type="submit">Sign in</button>
+        </form>
+
+        <div id="error-box" class="error"></div>
+
+        <p class="hint">
+            Demo accounts:<br />
+            Patient: <code>patient@diasmart.com</code> / <code>Patient1234</code><br />
+            Caregiver: <code>caregiver@diasmart.com</code> / <code>Care1234</code><br />
+            Doctor: <code>doctor@diasmart.com</code> / <code>Doctor1234</code>
+        </p>
+    </main>
+
+    <script src="auth.js"></script>
+    <script>
+        const form = document.getElementById("login-form");
+        const loginBtn = document.getElementById("login-btn");
+        const errorBox = document.getElementById("error-box");
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.style.display = "block";
+        }
+
+        function getNextPage() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get("next") || "index.html";
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            errorBox.style.display = "none";
+            loginBtn.disabled = true;
+            loginBtn.textContent = "Signing in...";
+
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+
+            try {
+                await window.diasmartAuth.login(email, password);
+                window.location.href = getNextPage();
+            } catch (err) {
+                showError(err.message || "Login failed");
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = "Sign in";
+            }
+        });
+    </script>
+</body>
+
+</html>

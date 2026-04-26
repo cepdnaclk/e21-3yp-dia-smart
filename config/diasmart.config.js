@@ -33,6 +33,7 @@ module.exports = {
   mqtt: {
     enabled: true,
     brokerUrl: 'mqtt://192.168.1.187:1883',
+    backendBrokerUrl: 'mqtt://127.0.0.1:1883',
     username: '',
     password: '',
     clientId: '',

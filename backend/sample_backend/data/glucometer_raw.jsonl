@@ -399,3 +399,6 @@
 {"device":"Accu-Chek Guide Me","record_id":351,"datetime_sl":"2026-03-03 14:12:04","glucose_mg_dl":159,"glucose_mmol_L":8.8,"timestamp":null,"sync_id":"sync-1-10995","received_at":"2026-03-09T10:02:42.410Z"}
 {"device":"Accu-Chek Guide Me","record_id":355,"datetime_sl":"2026-04-16 20:04:53","glucose_mg_dl":110,"glucose_mmol_L":6.1,"timestamp":null,"sync_id":"sync-1","received_at":"2026-04-25T20:28:55.805Z"}
 {"device":"Accu-Chek Guide Me","record_id":355,"datetime_sl":"2026-04-16 20:04:53","glucose_mg_dl":110,"glucose_mmol_L":6.1,"timestamp":null,"sync_id":"sync-1","received_at":"2026-04-26T06:34:27.878Z"}
+{"device":"Accu-Chek Guide Me","record_id":355,"datetime_sl":"2026-04-16 20:04:53","glucose_mg_dl":110,"glucose_mmol_L":6.1,"timestamp":null,"sync_id":"sync-1","received_at":"2026-04-26T08:00:36.309Z"}
+{"device":"Accu-Chek Guide Me","record_id":355,"datetime_sl":"2026-04-16 20:04:53","glucose_mg_dl":110,"glucose_mmol_L":6.1,"timestamp":null,"sync_id":"sync-1","received_at":"2026-04-26T08:23:40.495Z"}
+{"device":"Accu-Chek Guide Me","record_id":355,"datetime_sl":"2026-04-16 20:04:53","glucose_mg_dl":110,"glucose_mmol_L":6.1,"timestamp":null,"sync_id":"sync-1","received_at":"2026-04-26T09:19:48.070Z"}

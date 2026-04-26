@@ -6,6 +6,7 @@
 
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <HTTPClient.h>
 #include <PubSubClient.h>
 #include <time.h>
 #include <esp_now.h>
@@ -105,17 +106,10 @@ bool isMqttEnabled() {
   return MQTT_ENABLED == 1;
 }
 
-void lockEspNowFallbackChannel(const char* reason) {
-  esp_wifi_set_promiscuous(true);
-  esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-  esp_wifi_set_promiscuous(false);
-  Serial.printf("{\"transport\":\"espnow\",\"status\":\"fixed_channel\",\"channel\":%d,\"reason\":\"%s\"}\n", ESPNOW_CHANNEL, reason);
-}
-
 String mqttTopic(const char* leaf) {
   String topic = String(MQTT_TOPIC_PREFIX);
-  topic.replace("//", "/");
-  if (topic.endsWith("/")) {
+  topic.trim();
+  while (topic.endsWith("/")) {
     topic.remove(topic.length() - 1);
   }
   topic += "/";
@@ -167,19 +161,15 @@ void ensureMqttConnected() {
       getMqttClientId()
     );
   } else {
-    Serial.printf(
-      "{\"transport\":\"mqtt\",\"status\":\"connect_failed\",\"state\":%d}\n",
-      mqttClient.state()
-    );
+    Serial.printf("{\"transport\":\"mqtt\",\"status\":\"connect_failed\",\"state\":%d}\n", mqttClient.state());
   }
 }
 
 bool publishMqttJson(const char* topicLeaf, const String& payload) {
-  ensureWifiConnected();
-  if (WiFi.status() != WL_CONNECTED) return false;
-
   ensureMqttConnected();
-  if (!mqttClient.connected()) return false;
+  if (!mqttClient.connected()) {
+    return false;
+  }
 
   String topic = mqttTopic(topicLeaf);
   bool published = mqttClient.publish(topic.c_str(), payload.c_str());
@@ -208,7 +198,9 @@ void ensureWifiConnected() {
   // If a previous connection attempt timed out, keep radio stable for ESP-NOW and retry later.
   if (wifiConnectStartMs > 0 && (millis() - wifiConnectStartMs) >= 20000) {
     Serial.println("{\"transport\":\"wifi\",\"status\":\"connect_timeout_keep_radio\"}");
-    lockEspNowFallbackChannel("wifi_timeout");
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
     wifiConnectStartMs = 0;
     return;
   }
@@ -226,6 +218,9 @@ void ensureWifiConnected() {
 }
 
 void sendSensorData(float temp, const String& door, float weight, float insulin, float glucose) {
+  ensureWifiConnected();
+  if (WiFi.status() != WL_CONNECTED) return;
+
   String json = "{";
   json += "\"temperature\":" + (isnan(temp) ? String("null") : String(temp, 2)) + ",";
   json += "\"door_status\":\"" + (door.length() ? door : String("CLOSED")) + "\",";
@@ -234,29 +229,57 @@ void sendSensorData(float temp, const String& door, float weight, float insulin,
   json += "\"glucose_value\":" + (isnan(glucose) ? String("null") : String(glucose, 2)) + ",";
   json += "\"source\":\"outer-hub\",";
   json += "\"inner_rx_count\":" + String(innerRxCount) + ",";
-  json += "\"inner_last_seq\":" + String(lastInnerSeq);
+  json += "\"inner_last_seq\":" + String(lastInnerSeq) + ",";
+  json += "\"skip_db\":true";
   json += "}";
 
-  bool published = publishMqttJson("ingest/readings", json);
-  Serial.printf(
-    "{\"upload\":\"sensors\",\"mqtt\":%s,\"door\":\"%s\",\"temp\":%.2f,\"weight\":%.2f,\"inner_seq\":%lu}\n",
-    published ? "true" : "false",
-    door.length() ? door.c_str() : "CLOSED",
-    isnan(temp) ? -999.0f : temp,
-    isnan(weight) ? -1.0f : weight,
-    (unsigned long)lastInnerSeq
-  );
+  bool mqttPublished = publishMqttJson("ingest/readings", json);
+  if (mqttPublished) {
+    Serial.printf(
+      "{\"upload\":\"sensors\",\"mqtt\":true,\"door\":\"%s\",\"temp\":%.2f,\"weight\":%.2f,\"inner_seq\":%lu}\n",
+      door.length() ? door.c_str() : "CLOSED",
+      isnan(temp) ? -999.0f : temp,
+      isnan(weight) ? -1.0f : weight,
+      (unsigned long)lastInnerSeq
+    );
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_READINGS_URL);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.POST(json);
+  http.end();
+  Serial.printf("{\"upload\":\"sensors\",\"http\":%d}\n", code);
 }
 
 void sendDosageData(float dose) {
+  ensureWifiConnected();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("{\"upload\":\"dosage\",\"status\":\"wifi_not_connected\"}");
+    return;
+  }
+
   int roundedDose = (int)roundf(dose);
   String json = "{";
   json += "\"value\":" + String(roundedDose) + ",";
   json += "\"source\":\"esp32-c3-ble\"";
   json += "}";
 
-  bool published = publishMqttJson("ingest/dosage", json);
-  Serial.printf("{\"upload\":\"dosage\",\"mqtt\":%s,\"dose\":%d,\"raw\":%.2f}\n", published ? "true" : "false", roundedDose, dose);
+  bool mqttPublished = publishMqttJson("ingest/dosage", json);
+  if (mqttPublished) {
+    Serial.printf("{\"upload\":\"dosage\",\"mqtt\":true,\"dose\":%d,\"raw\":%.2f}\n", roundedDose, dose);
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_DOSAGE_URL);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.POST(json);
+  http.end();
+  Serial.printf("{\"upload\":\"dosage\",\"http\":%d,\"dose\":%d,\"raw\":%.2f}\n", code, roundedDose, dose);
 }
 
 void onInnerPacketReceived(const uint8_t* data, int len) {
@@ -336,7 +359,8 @@ void bufferGlucoRecord(uint16_t seqNum, const char* dt, int mgdl, float mmol) {
 }
 
 void uploadGlucoBatch() {
-  if (bufferedCount == 0) return;
+  ensureWifiConnected();
+  if (WiFi.status() != WL_CONNECTED || bufferedCount == 0) return;
 
   String syncId = String("sync-") + String(++syncSequence);
   int uploaded = 0;
@@ -362,9 +386,22 @@ void uploadGlucoBatch() {
     }
     payload += "]}";
 
-    bool published = publishMqttJson("ingest/glucometer/batch", payload);
-    Serial.printf("{\"upload\":\"gluco_batch\",\"chunk\":%d,\"mqtt\":%s}\n", (start / BATCH_UPLOAD_SIZE) + 1, published ? "true" : "false");
-    if (!published) {
+    bool mqttPublished = publishMqttJson("ingest/glucometer/batch", payload);
+    if (mqttPublished) {
+      Serial.printf("{\"upload\":\"gluco_batch\",\"chunk\":%d,\"mqtt\":true}\n", (start / BATCH_UPLOAD_SIZE) + 1);
+      uploaded += (end - start);
+      continue;
+    }
+
+    HTTPClient http;
+    http.setTimeout(30000);
+    http.begin(BACKEND_GLUCO_BATCH_URL);
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(payload);
+    http.end();
+
+    Serial.printf("{\"upload\":\"gluco_batch\",\"chunk\":%d,\"http\":%d}\n", (start / BATCH_UPLOAD_SIZE) + 1, code);
+    if (code < 200 || code >= 300) {
       return;
     }
     uploaded += (end - start);
@@ -644,7 +681,6 @@ void setup() {
     Serial.printf("[WIFI] connected ip=%s channel=%d\n", WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
     Serial.println("[WIFI] initial connect timeout; continuing with retries");
-    lockEspNowFallbackChannel("startup_wifi_timeout");
   }
   configureMqttClient();
   ensureWifiConnected();

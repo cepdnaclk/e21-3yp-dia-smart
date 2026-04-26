@@ -12,3 +12,17 @@
 {"dose_amount":11,"injection_time":"2026-04-25T20:26:25.573Z","received_at":"2026-04-25T20:26:25.573Z"}
 {"dose_amount":10.95,"injection_time":"2026-04-25T20:34:10.663Z","received_at":"2026-04-25T20:34:10.663Z"}
 {"dose_amount":8.35,"injection_time":"2026-04-25T20:34:59.400Z","received_at":"2026-04-25T20:34:59.400Z"}
+{"dose_amount":8.94,"injection_time":"2026-04-26T05:12:24.200Z","received_at":"2026-04-26T05:12:24.200Z"}
+{"dose_amount":32.94,"injection_time":"2026-04-26T05:12:43.023Z","received_at":"2026-04-26T05:12:43.023Z"}
+{"dose_amount":23.79,"injection_time":"2026-04-26T05:25:13.962Z","received_at":"2026-04-26T05:25:13.962Z"}
+{"dose_amount":6.23,"injection_time":"2026-04-26T05:28:19.954Z","received_at":"2026-04-26T05:28:19.954Z"}
+{"dose_amount":8.95,"injection_time":"2026-04-26T05:40:31.450Z","received_at":"2026-04-26T05:40:31.450Z"}
+{"dose_amount":24.97,"injection_time":"2026-04-26T05:40:49.925Z","received_at":"2026-04-26T05:40:49.925Z"}
+{"dose_amount":20,"injection_time":"2026-04-26T05:47:29.444Z","received_at":"2026-04-26T05:47:29.444Z","id":3,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T05:47:29.445Z"}
+{"dose_amount":16,"injection_time":"2026-04-26T05:48:01.969Z","received_at":"2026-04-26T05:48:01.969Z","id":4,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T05:48:01.970Z"}
+{"dose_amount":15,"injection_time":"2026-04-26T05:48:41.396Z","received_at":"2026-04-26T05:48:41.396Z","id":5,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T05:48:41.397Z"}
+{"dose_amount":4,"injection_time":"2026-04-26T05:48:51.257Z","received_at":"2026-04-26T05:48:51.257Z","id":6,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T05:48:51.258Z"}
+{"dose_amount":6,"injection_time":"2026-04-26T05:54:29.053Z","received_at":"2026-04-26T05:54:29.053Z","id":7,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T05:54:29.055Z"}
+{"dose_amount":4,"injection_time":"2026-04-26T06:01:08.055Z","received_at":"2026-04-26T06:01:08.055Z","id":8,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T06:01:08.055Z"}
+{"dose_amount":10,"injection_time":"2026-04-26T06:06:18.509Z","received_at":"2026-04-26T06:06:18.509Z","id":9,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T06:06:18.509Z"}
+{"dose_amount":17,"injection_time":"2026-04-26T06:42:46.206Z","received_at":"2026-04-26T06:42:46.207Z","id":10,"patient_id":1,"detection_method":"ai-video","confidence_pct":null,"notes":null,"created_at":"2026-04-26T06:42:46.208Z"}

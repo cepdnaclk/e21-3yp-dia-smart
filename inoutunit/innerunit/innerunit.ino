@@ -1,23 +1,20 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_err.h>
+#include <esp_wifi.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "HX711.h"
+#include "../../config/firmware_config.h"
 
 // CHANGE HERE if wiring/pins differ on your inner-unit board.
-#define REED_PIN 4
-#define ONE_WIRE_BUS 21
-#define DOUT 5
-#define CLK 18
+#define REED_PIN DOOR_SENSOR_PIN
+#define ONE_WIRE_BUS TEMP_SENSOR_PIN
+#define DOUT HX711_DOUT_PIN
+#define CLK HX711_CLK_PIN
 
 // CHANGE HERE after load-cell calibration for this hardware setup.
-#define CALIBRATION_FACTOR 245.0
-
-// CHANGE HERE to your Wi-Fi used by the outer unit.
-// Inner connects only to align channel for ESP-NOW reliability.
-const char* WIFI_SSID = "ananthu73";
-const char* WIFI_PASSWORD = "123123123@@";
+#define CALIBRATION_FACTOR LOAD_CELL_CALIBRATION
 
 const uint32_t INNER_PACKET_MAGIC = 0x494E4E52; // 'INNR'
 
@@ -39,6 +36,13 @@ bool espNowReady = false;
 bool espNowPeerAdded = false;
 const uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 unsigned long lastWifiRetryMs = 0;
+
+void lockEspNowFallbackChannel(const char* reason) {
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+  Serial.printf("[ESPNOW] fixed channel=%d reason=%s\n", ESPNOW_CHANNEL, reason);
+}
 
 void initEspNow() {
   esp_err_t initErr = esp_now_init();
@@ -81,12 +85,14 @@ void ensureWifiForEspNow() {
     Serial.printf("[WIFI] connected ip=%s channel=%d\n", WiFi.localIP().toString().c_str(), WiFi.channel());
   } else {
     Serial.println("[WIFI] connect timeout; ESP-NOW may fail if channel mismatched");
+    lockEspNowFallbackChannel("wifi_timeout");
   }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Inner unit booting...");
+  Serial.printf("[BOOT] target espnow channel=%d\n", ESPNOW_CHANNEL);
 
   pinMode(REED_PIN, INPUT_PULLUP);
   sensors.begin();

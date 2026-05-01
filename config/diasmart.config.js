@@ -6,13 +6,13 @@
 
 module.exports = {
   network: {
-    backendIp: '192.168.1.187',
+    backendIp: '10.109.27.47',
     backendPort: 3000,
     espNowChannel: 1,
   },
 
   wifi: {
-    ssid: 'SLT-4G-74699C',
+    ssid: 'Galaxy S24 Ultra',
     password: 'Arnikan18',
   },
 
@@ -32,8 +32,8 @@ module.exports = {
 
   mqtt: {
     enabled: true,
-    brokerUrl: 'mqtt://192.168.1.187:1883',
-    backendBrokerUrl: 'mqtt://127.0.0.1:1883',
+    brokerUrl: 'mqtt://10.109.27.47:1883',
+    backendBrokerUrl: 'mqtt://10.109.27.47:1883',
     username: '',
     password: '',
     clientId: '',

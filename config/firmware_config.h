@@ -1,15 +1,15 @@
 #pragma once
 
-#define WIFI_SSID "SLT-4G-74699C"
+#define WIFI_SSID "Galaxy S24 Ultra"
 #define WIFI_PASSWORD "Arnikan18"
-#define BACKEND_IP "192.168.1.187"
+#define BACKEND_IP "10.109.27.47"
 #define BACKEND_PORT 3000
-#define BACKEND_READINGS_URL "http://192.168.1.187:3000/api/readings"
-#define BACKEND_GLUCO_BATCH_URL "http://192.168.1.187:3000/api/glucometer/batch"
-#define BACKEND_GLUCO_SINGLE_URL "http://192.168.1.187:3000/api/glucometer"
-#define BACKEND_DOSAGE_URL "http://192.168.1.187:3000/api/dosage"
+#define BACKEND_READINGS_URL "http://10.109.27.47:3000/api/readings"
+#define BACKEND_GLUCO_BATCH_URL "http://10.109.27.47:3000/api/glucometer/batch"
+#define BACKEND_GLUCO_SINGLE_URL "http://10.109.27.47:3000/api/glucometer"
+#define BACKEND_DOSAGE_URL "http://10.109.27.47:3000/api/dosage"
 #define MQTT_ENABLED 1
-#define MQTT_BROKER_HOST "192.168.1.187"
+#define MQTT_BROKER_HOST "10.109.27.47"
 #define MQTT_BROKER_PORT 1883
 #define MQTT_USERNAME ""
 #define MQTT_PASSWORD ""

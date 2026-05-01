@@ -1,0 +1,10 @@
+[33m2034b35[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32msanjeevan-dev[m[33m, [m[1;31morigin/sanjeevan-dev[m[33m)[m Resolved merge conflict using develop version
+[33m90b55d9[m Merge pull request #1 from cepdnaclk/ananthu-dev
+[33m9947f3e[m[33m ([m[1;31morigin/ananthu-dev[m[33m)[m glucometer_reading_and_UI_development
+[33md027c16[m Integrated ESP32 with backend, added live dashboard and database connection without connect gluco meter and insulin pen
+[33m9f3c110[m[33m ([m[1;31morigin/siva-dev[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;31morigin/Arnikan-dev[m[33m, [m[1;32mmain[m[33m)[m Added Project Folders
+[33m1f1a355[m Update team and supervisor member details in index.json
+[33md2d7130[m Update README.md
+[33m25610b3[m added files for thumbnail and cover page jpg
+[33m295ae51[m Update index.json
+[33m85ac269[m Initial commit

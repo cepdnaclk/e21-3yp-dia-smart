@@ -5,18 +5,18 @@
 #include <BLESecurity.h>
 
 #include <WiFi.h>
+#include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <PubSubClient.h>
 #include <time.h>
 #include <esp_now.h>
+#include <esp_wifi.h>
+#include "../config/firmware_config.h"
 
 // =======================
 // WiFi / Backend
 // =======================
-// Update these values for your current network and backend laptop IP.
-const char* WIFI_SSID = "ananthu73";
-const char* WIFI_PASSWORD = "123123123@@";
-const char* BACKEND_READINGS_URL = "http://10.116.204.122:3000/api/readings";
-const char* BACKEND_GLUCO_BATCH_URL = "http://10.116.204.122:3000/api/glucometer/batch";
+// Auto-generated from config/firmware_config.h
 
 // =======================
 // BLE UUIDs (Glucometer only)
@@ -24,7 +24,9 @@ const char* BACKEND_GLUCO_BATCH_URL = "http://10.116.204.122:3000/api/glucometer
 static BLEUUID glucoseServiceUUID("1808");
 static BLEUUID glucoseMeasurementUUID("2A18");
 static BLEUUID racpUUID("2A52");
-const uint32_t ACCU_CHEK_PIN = 836337;
+static BLEUUID dosageServiceUUID(DOSAGE_BLE_SERVICE_UUID);
+static BLEUUID dosageCharacteristicUUID(DOSAGE_BLE_CHARACTERISTIC_UUID);
+const uint32_t ACCU_CHEK_PIN = atoi(GLUCO_BLE_PIN);
 
 const uint32_t INNER_PACKET_MAGIC = 0x494E4E52; // 'INNR'
 
@@ -58,6 +60,14 @@ BLERemoteCharacteristic* glucoRacpChar = nullptr;
 bool glucoSeen = false;
 bool glucoConnected = false;
 bool doConnectGluco = false;
+bool glucoAnyRecordReceived = false;
+
+BLEAddress* dosageAddress = nullptr;
+BLEClient* dosageClient = nullptr;
+BLERemoteCharacteristic* dosageNotifyChar = nullptr;
+bool dosageSeen = false;
+bool dosageConnected = false;
+bool doConnectDosage = false;
 
 unsigned long lastInnerNotifyMs = 0;
 unsigned long lastScanMs = 0;
@@ -68,6 +78,7 @@ unsigned long nextGlucoRetryMs = 0;
 unsigned long lastWifiRetryMs = 0;
 unsigned long wifiConnectStartMs = 0;
 unsigned long lastSensorUploadMs = 0;
+unsigned long lastGlucoRequestMs = 0;
 
 struct GlucoseRecord {
   uint16_t record_id;
@@ -76,17 +87,101 @@ struct GlucoseRecord {
   char datetime_sl[24];
 };
 
-const int MAX_RECORDS_PER_SYNC = 400;
-const int BATCH_UPLOAD_SIZE = 12;
+const int MAX_RECORDS_PER_SYNC = GLUCO_MAX_BUFFER_RECORDS;
+const int BATCH_UPLOAD_SIZE = GLUCO_BATCH_SIZE;
 GlucoseRecord bufferedRecords[MAX_RECORDS_PER_SYNC];
 int bufferedCount = 0;
 bool syncDownloadComplete = false;
 bool syncUploadDone = false;
 uint32_t syncSequence = 0;
+unsigned long lastMqttRetryMs = 0;
+char mqttClientIdBuffer[64] = {0};
+WiFiClient mqttNetClient;
+PubSubClient mqttClient(mqttNetClient);
 
 // =======================
 // Helpers
 // =======================
+bool isMqttEnabled() {
+  return MQTT_ENABLED == 1;
+}
+
+String mqttTopic(const char* leaf) {
+  String topic = String(MQTT_TOPIC_PREFIX);
+  topic.trim();
+  while (topic.endsWith("/")) {
+    topic.remove(topic.length() - 1);
+  }
+  topic += "/";
+  topic += leaf;
+  return topic;
+}
+
+const char* getMqttClientId() {
+  if (mqttClientIdBuffer[0] != '\0') {
+    return mqttClientIdBuffer;
+  }
+
+  String configured = String(MQTT_CLIENT_ID);
+  configured.trim();
+  if (configured.length() == 0) {
+    configured = String("diasmart-outer-") + WiFi.macAddress();
+    configured.replace(":", "");
+  }
+
+  configured.toCharArray(mqttClientIdBuffer, sizeof(mqttClientIdBuffer));
+  return mqttClientIdBuffer;
+}
+
+void configureMqttClient() {
+  mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+  mqttClient.setBufferSize(4096);
+}
+
+void ensureMqttConnected() {
+  if (!isMqttEnabled()) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (mqttClient.connected()) return;
+  if (millis() - lastMqttRetryMs < 5000) return;
+
+  lastMqttRetryMs = millis();
+  bool connected = false;
+
+  if (String(MQTT_USERNAME).length() > 0) {
+    connected = mqttClient.connect(getMqttClientId(), MQTT_USERNAME, MQTT_PASSWORD);
+  } else {
+    connected = mqttClient.connect(getMqttClientId());
+  }
+
+  if (connected) {
+    Serial.printf(
+      "{\"transport\":\"mqtt\",\"status\":\"connected\",\"broker\":\"%s\",\"port\":%d,\"client_id\":\"%s\"}\n",
+      MQTT_BROKER_HOST,
+      MQTT_BROKER_PORT,
+      getMqttClientId()
+    );
+  } else {
+    Serial.printf("{\"transport\":\"mqtt\",\"status\":\"connect_failed\",\"state\":%d}\n", mqttClient.state());
+  }
+}
+
+bool publishMqttJson(const char* topicLeaf, const String& payload) {
+  ensureMqttConnected();
+  if (!mqttClient.connected()) {
+    return false;
+  }
+
+  String topic = mqttTopic(topicLeaf);
+  bool published = mqttClient.publish(topic.c_str(), payload.c_str());
+  Serial.printf(
+    "{\"transport\":\"mqtt\",\"topic\":\"%s\",\"published\":%s,\"bytes\":%u}\n",
+    topic.c_str(),
+    published ? "true" : "false",
+    (unsigned)payload.length()
+  );
+  return published;
+}
+
 void ensureWifiConnected() {
   wl_status_t st = WiFi.status();
   if (st == WL_CONNECTED) {
@@ -100,11 +195,14 @@ void ensureWifiConnected() {
     return;
   }
 
-  // If a previous connection attempt timed out, reset station state before retry.
+  // If a previous connection attempt timed out, keep radio stable for ESP-NOW and retry later.
   if (wifiConnectStartMs > 0 && (millis() - wifiConnectStartMs) >= 20000) {
-    Serial.println("{\"transport\":\"wifi\",\"status\":\"connect_timeout_reset\"}");
-    WiFi.disconnect(true, true);
+    Serial.println("{\"transport\":\"wifi\",\"status\":\"connect_timeout_keep_radio\"}");
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
     wifiConnectStartMs = 0;
+    return;
   }
 
   // Throttle retries so BLE scanning/notify handling is not starved.
@@ -123,23 +221,65 @@ void sendSensorData(float temp, const String& door, float weight, float insulin,
   ensureWifiConnected();
   if (WiFi.status() != WL_CONNECTED) return;
 
-  HTTPClient http;
-  http.setTimeout(12000);
-  http.begin(BACKEND_READINGS_URL);
-  http.addHeader("Content-Type", "application/json");
-
   String json = "{";
   json += "\"temperature\":" + (isnan(temp) ? String("null") : String(temp, 2)) + ",";
   json += "\"door_status\":\"" + (door.length() ? door : String("CLOSED")) + "\",";
   json += "\"insulin_inventory_weight\":" + (isnan(weight) ? String("null") : String(weight, 2)) + ",";
   json += "\"insulin_level_value\":" + (isnan(insulin) ? String("null") : String(insulin, 2)) + ",";
   json += "\"glucose_value\":" + (isnan(glucose) ? String("null") : String(glucose, 2)) + ",";
+  json += "\"source\":\"outer-hub\",";
+  json += "\"inner_rx_count\":" + String(innerRxCount) + ",";
+  json += "\"inner_last_seq\":" + String(lastInnerSeq) + ",";
   json += "\"skip_db\":true";
   json += "}";
 
+  bool mqttPublished = publishMqttJson("ingest/readings", json);
+  if (mqttPublished) {
+    Serial.printf(
+      "{\"upload\":\"sensors\",\"mqtt\":true,\"door\":\"%s\",\"temp\":%.2f,\"weight\":%.2f,\"inner_seq\":%lu}\n",
+      door.length() ? door.c_str() : "CLOSED",
+      isnan(temp) ? -999.0f : temp,
+      isnan(weight) ? -1.0f : weight,
+      (unsigned long)lastInnerSeq
+    );
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_READINGS_URL);
+  http.addHeader("Content-Type", "application/json");
   int code = http.POST(json);
   http.end();
   Serial.printf("{\"upload\":\"sensors\",\"http\":%d}\n", code);
+}
+
+void sendDosageData(float dose) {
+  ensureWifiConnected();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("{\"upload\":\"dosage\",\"status\":\"wifi_not_connected\"}");
+    return;
+  }
+
+  int roundedDose = (int)roundf(dose);
+  String json = "{";
+  json += "\"value\":" + String(roundedDose) + ",";
+  json += "\"source\":\"esp32-c3-ble\"";
+  json += "}";
+
+  bool mqttPublished = publishMqttJson("ingest/dosage", json);
+  if (mqttPublished) {
+    Serial.printf("{\"upload\":\"dosage\",\"mqtt\":true,\"dose\":%d,\"raw\":%.2f}\n", roundedDose, dose);
+    return;
+  }
+
+  HTTPClient http;
+  http.setTimeout(12000);
+  http.begin(BACKEND_DOSAGE_URL);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.POST(json);
+  http.end();
+  Serial.printf("{\"upload\":\"dosage\",\"http\":%d,\"dose\":%d,\"raw\":%.2f}\n", code, roundedDose, dose);
 }
 
 void onInnerPacketReceived(const uint8_t* data, int len) {
@@ -215,6 +355,7 @@ void bufferGlucoRecord(uint16_t seqNum, const char* dt, int mgdl, float mmol) {
   r.glucose_mmol_l = mmol;
   snprintf(r.datetime_sl, sizeof(r.datetime_sl), "%s", dt);
   g_glucose = (float)mgdl;
+  glucoAnyRecordReceived = true;
 }
 
 void uploadGlucoBatch() {
@@ -244,6 +385,13 @@ void uploadGlucoBatch() {
       payload += "}";
     }
     payload += "]}";
+
+    bool mqttPublished = publishMqttJson("ingest/glucometer/batch", payload);
+    if (mqttPublished) {
+      Serial.printf("{\"upload\":\"gluco_batch\",\"chunk\":%d,\"mqtt\":true}\n", (start / BATCH_UPLOAD_SIZE) + 1);
+      uploaded += (end - start);
+      continue;
+    }
 
     HTTPClient http;
     http.setTimeout(30000);
@@ -321,15 +469,68 @@ void racpCallback(
   size_t length,
   bool isNotify
 ) {
+  (void)pBLERemoteCharacteristic;
+  (void)isNotify;
   if (length >= 4 && pData[0] == 0x06 && pData[3] == 0x01) {
     syncDownloadComplete = true;
     Serial.println("{\"system_status\":\"Download Complete\"}");
   }
 }
 
+void requestAllGlucometerRecords() {
+  if (!glucoConnected || !glucoRacpChar) return;
+  
+  // 0x01 = Report Stored Records, 0x06 = First/Last/Latest Record (depends on manufacturer, for Accu-Chek Guide 06 gets the last record)
+  // Note: Using 0x01 (Report stored records) 0x06 (Last record)
+  uint8_t requestLatest[2] = {0x01, 0x06};
+  
+  Serial.println("[BLE] Writing 01 06 to RACP (Request latest record)");
+  glucoRacpChar->writeValue(requestLatest, 2, true);
+  
+  lastGlucoRequestMs = millis();
+}
+
+void dosageCallback(
+  BLERemoteCharacteristic* pBLERemoteCharacteristic,
+  uint8_t* pData,
+  size_t length,
+  bool isNotify
+) {
+  (void)pBLERemoteCharacteristic;
+  (void)isNotify;
+
+  if (length == 0) return;
+
+  String payload;
+  for (size_t i = 0; i < length; i++) {
+    payload += (char)pData[i];
+  }
+
+  int split = payload.indexOf(',');
+  String doseText = split >= 0 ? payload.substring(0, split) : payload;
+  String status = split >= 0 ? payload.substring(split + 1) : "";
+  doseText.trim();
+  status.trim();
+  status.toUpperCase();
+
+  float dose = doseText.toFloat();
+  if (dose <= 0.0f) return;
+
+  if (status.length() == 0 || status == "INJECTED") {
+    g_insulin = dose;
+    Serial.printf("{\"dosage\":\"ble\",\"payload\":\"%s\",\"dose\":%.2f}\n", payload.c_str(), dose);
+    sendDosageData(dose);
+    sendSensorData(g_temperature, g_door, g_weight, g_insulin, g_glucose);
+  }
+}
+
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
-    if (!glucoSeen && advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(glucoseServiceUUID)) {
+    if (!advertisedDevice.haveServiceUUID()) {
+      return;
+    }
+
+    if (!glucoSeen && advertisedDevice.isAdvertisingService(glucoseServiceUUID)) {
       if (glucoAddress) {
         delete glucoAddress;
         glucoAddress = nullptr;
@@ -339,15 +540,43 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       doConnectGluco = true;
       Serial.println("[SCAN] Glucometer found");
     }
+
+    if (!dosageSeen && advertisedDevice.isAdvertisingService(dosageServiceUUID)) {
+      if (dosageAddress) {
+        delete dosageAddress;
+        dosageAddress = nullptr;
+      }
+      dosageAddress = new BLEAddress(advertisedDevice.getAddress());
+      dosageSeen = true;
+      doConnectDosage = true;
+      Serial.println("[SCAN] Dosage BLE device found");
+    }
   }
 };
 
 class MySecurity : public BLESecurityCallbacks {
-  uint32_t onPassKeyRequest() { return ACCU_CHEK_PIN; }
-  void onPassKeyNotify(uint32_t pass_key) {}
-  bool onConfirmPIN(uint32_t pass_key) { return true; }
-  bool onSecurityRequest() { return true; }
-  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) {}
+  uint32_t onPassKeyRequest() { 
+    Serial.println("[BLE] Security: PassKeyRequest");
+    return ACCU_CHEK_PIN; 
+  }
+  void onPassKeyNotify(uint32_t pass_key) {
+    Serial.printf("[BLE] Security: PassKeyNotify %lu\n", (unsigned long)pass_key);
+  }
+  bool onConfirmPIN(uint32_t pass_key) { 
+    Serial.printf("[BLE] Security: ConfirmPIN %lu\n", (unsigned long)pass_key);
+    return true; 
+  }
+  bool onSecurityRequest() { 
+    Serial.println("[BLE] Security: SecurityRequest");
+    return true; 
+  }
+  void onAuthenticationComplete(esp_ble_auth_cmpl_t cmpl) { 
+    if(cmpl.success) {
+      Serial.println("[BLE] Security: Auth Complete Success");
+    } else {
+      Serial.printf("[BLE] Security: Auth Failed reason=%x\n", cmpl.fail_reason);
+    }
+  }
 };
 
 // =======================
@@ -363,8 +592,14 @@ bool connectGlucometer() {
     return false;
   }
 
+  Serial.println("[BLE] Initiating encryption...");
   esp_ble_set_encryption(glucoAddress->getNative(), ESP_BLE_SEC_ENCRYPT_MITM);
-  delay(2000);
+  
+  // Wait comfortably for authentication so it does not hang
+  // Usually bonding takes a few seconds or a user pin prompt
+  for(int i = 0; i < 40; i++) {
+    delay(100);
+  }
 
   BLERemoteService* svc = glucoClient->getService(glucoseServiceUUID);
   if (!svc) {
@@ -382,17 +617,49 @@ bool connectGlucometer() {
     return false;
   }
 
-  glucoMeasureChar->registerForNotify(glucoDataCallback, true);
-  glucoRacpChar->registerForNotify(racpCallback, false);
-
-  uint8_t requestAll[2] = {0x01, 0x01};
-  glucoRacpChar->writeValue(requestAll, 2, true);
+  Serial.println("[BLE] Subscribing to Notifications (2A18) and Indications (2A52)...");
+  glucoMeasureChar->registerForNotify(glucoDataCallback, true);  // true = notify
+  glucoRacpChar->registerForNotify(racpCallback, false);        // false = indicate
 
   glucoConnected = true;
   syncDownloadComplete = false;
   syncUploadDone = false;
+  glucoAnyRecordReceived = false;
   bufferedCount = 0;
-  Serial.println("[BLE] Connected to glucometer and requested all records");
+  
+  // Give it one more moment after subscribing, before requesting records (prevents dropping packet)
+  delay(1000);
+  requestAllGlucometerRecords();
+  return true;
+}
+
+bool connectDosageDevice() {
+  if (!dosageAddress) return false;
+  Serial.println("[BLE] Connecting to dosage BLE device...");
+
+  dosageClient = BLEDevice::createClient();
+  if (!dosageClient->connect(*dosageAddress)) {
+    Serial.println("[BLE] Dosage device connect failed");
+    return false;
+  }
+
+  BLERemoteService* svc = dosageClient->getService(dosageServiceUUID);
+  if (!svc) {
+    Serial.println("[BLE] Dosage service not found");
+    dosageClient->disconnect();
+    return false;
+  }
+
+  dosageNotifyChar = svc->getCharacteristic(dosageCharacteristicUUID);
+  if (!dosageNotifyChar) {
+    Serial.println("[BLE] Dosage characteristic not found");
+    dosageClient->disconnect();
+    return false;
+  }
+
+  dosageNotifyChar->registerForNotify(dosageCallback, true);
+  dosageConnected = true;
+  Serial.println("[BLE] Connected to dosage BLE device");
   return true;
 }
 
@@ -415,7 +682,9 @@ void setup() {
   } else {
     Serial.println("[WIFI] initial connect timeout; continuing with retries");
   }
+  configureMqttClient();
   ensureWifiConnected();
+  ensureMqttConnected();
   initEspNowReceiver();
 
   BLEDevice::init("Dia-Smart-Hub");
@@ -441,18 +710,39 @@ void loop() {
     lastWifiEnsureMs = now;
   }
 
-  if (!glucoSeen && (now - lastScanMs > 4000)) {
+  if (isMqttEnabled()) {
+    ensureMqttConnected();
+    if (mqttClient.connected()) {
+      mqttClient.loop();
+    }
+  }
+
+  if ((!glucoSeen || !dosageSeen) && (now - lastScanMs > 4000)) {
     scan->start(3, false);
     scan->clearResults();
     lastScanMs = now;
   }
 
+  // Prefer glucometer sync before dosage BLE connection to reduce BLE contention.
   if (doConnectGluco && !glucoConnected && now >= nextGlucoRetryMs) {
+    if (dosageConnected && dosageClient && dosageClient->isConnected()) {
+      Serial.println("[BLE] Temporarily disconnecting dosage listener before glucometer sync");
+      dosageClient->disconnect();
+      dosageConnected = false;
+    }
+
     if (!connectGlucometer()) {
       nextGlucoRetryMs = now + 5000;
       glucoSeen = false;
     }
     doConnectGluco = false;
+  }
+
+  if (doConnectDosage && !dosageConnected && !glucoConnected && !doConnectGluco) {
+    if (!connectDosageDevice()) {
+      dosageSeen = false;
+    }
+    doConnectDosage = false;
   }
 
   // Mark inner disconnected if no ESP-NOW packets for too long.
@@ -473,15 +763,35 @@ void loop() {
     doConnectGluco = false;
   }
 
+  if (glucoConnected && !syncDownloadComplete && (now - lastGlucoRequestMs > 12000)) {
+    // Retry download request if meter connected but has not started/finished transfer.
+    requestAllGlucometerRecords();
+  }
+
+  if (dosageConnected && dosageClient && !dosageClient->isConnected()) {
+    Serial.println("[BLE] Dosage BLE device disconnected");
+    dosageConnected = false;
+    dosageSeen = false;
+    doConnectDosage = false;
+  }
+
   if (syncDownloadComplete && !syncUploadDone) {
     uploadGlucoBatch();
   }
 
+  if (syncUploadDone && glucoConnected && glucoClient && glucoClient->isConnected()) {
+    Serial.println("[BLE] Glucometer sync done; disconnecting to restore dosage listener");
+    glucoClient->disconnect();
+    glucoConnected = false;
+    doConnectDosage = true;
+  }
+
   if (now - lastDiagMs > 10000) {
     Serial.printf(
-      "{\"diag\":\"outer\",\"wifiStatus\":%d,\"wifiChannel\":%d,\"innerSeen\":%s,\"innerConnected\":%s,\"innerAgeMs\":%lu,\"innerRxCount\":%lu,\"lastInnerSeq\":%lu,\"glucoSeen\":%s,\"glucoConnected\":%s,\"buffered\":%d}\n",
+      "{\"diag\":\"outer\",\"wifiStatus\":%d,\"wifiChannel\":%d,\"mqttConnected\":%s,\"innerSeen\":%s,\"innerConnected\":%s,\"innerAgeMs\":%lu,\"innerRxCount\":%lu,\"lastInnerSeq\":%lu,\"glucoSeen\":%s,\"glucoConnected\":%s,\"buffered\":%d}\n",
       (int)WiFi.status(),
       WiFi.channel(),
+      mqttClient.connected() ? "true" : "false",
       innerSeen ? "true" : "false", // seen via ESP-NOW packets
       innerConnected ? "true" : "false", // recent packet within timeout
       now - lastInnerNotifyMs,
@@ -490,6 +800,12 @@ void loop() {
       glucoSeen ? "true" : "false",
       glucoConnected ? "true" : "false",
       bufferedCount
+    );
+    Serial.printf(
+      "{\"diag\":\"dosage_ble\",\"seen\":%s,\"connected\":%s,\"last_dose\":%.2f}\n",
+      dosageSeen ? "true" : "false",
+      dosageConnected ? "true" : "false",
+      isnan(g_insulin) ? -1.0f : g_insulin
     );
     lastDiagMs = now;
   }

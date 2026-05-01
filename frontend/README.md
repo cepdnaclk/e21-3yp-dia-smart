@@ -1,44 +1,23 @@
-# Dia-Smart Frontend (Phase 1)
+# Dia-Smart Frontend
 
-This is the first web app dashboard for glucometer infographics.
+The active app is the Expo React Native app here:
 
-## Current features
+- `frontend/rn-app`
 
-- Load glucose records from `sample-data.json`
-- Upload your own JSON export
-- KPI summary cards (average, latest, total, in-range %)
-- Trend chart over time
-- Risk zone distribution bars
-- Daily average bar chart
-- Recent readings table
+Configure backend access by editing:
 
-## Expected JSON format
+- `config/diasmart.config.js`
 
-```json
-[
-  {
-    "device": "Accu-Chek Guide Me",
-    "record_id": 101,
-    "datetime_sl": "2026-03-01 06:30:00",
-    "glucose_mg_dl": 92,
-    "glucose_mmol_L": 5.1
-  }
-]
+Then regenerate app config:
+
+```bash
+node config/apply-config.js
 ```
 
-## Run locally
+Run the app:
 
-Because this app loads JSON with `fetch`, use a local HTTP server:
-
-```powershell
-cd frontend
-python -m http.server 5173
+```bash
+cd frontend/rn-app
+npm install
+npm run web
 ```
-
-Then open `http://localhost:5173`.
-
-## Next phase
-
-- Connect live data source from backend or cloud
-- Add filtering by date range and meal context
-- Add alert rules for hypo/hyper events

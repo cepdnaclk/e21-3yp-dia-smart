@@ -101,6 +101,19 @@ CREATE TABLE IF NOT EXISTS user_patient_access (
     UNIQUE (user_id, patient_id, access_role)
 );
 
+-- exra added coloum for above the table
+ALTER TABLE user_patient_access
+ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE';
+
+ALTER TABLE user_patient_access
+ADD COLUMN revoked_at TIMESTAMPTZ;
+
+ALTER TABLE user_patient_access
+ADD COLUMN revoked_by BIGINT
+REFERENCES app_users(user_id);
+
+
+
 CREATE INDEX IF NOT EXISTS idx_user_patient_access_user
     ON user_patient_access(user_id);
 
@@ -442,6 +455,13 @@ CREATE TABLE IF NOT EXISTS glucose_readings (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- exra added coloum for above the table
+
+ ALTER TABLE glucose_readings
+ADD COLUMN entered_by_user_id BIGINT
+REFERENCES app_users(user_id);
+
+
 CREATE INDEX IF NOT EXISTS idx_glucose_patient_time
     ON glucose_readings(patient_id, measured_at DESC);
 
@@ -473,6 +493,12 @@ CREATE TABLE IF NOT EXISTS dose_events (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- exra added coloum for above the table
+ALTER TABLE dose_events
+ADD COLUMN entered_by_user_id BIGINT
+REFERENCES app_users(user_id);
+
 
 CREATE INDEX IF NOT EXISTS idx_dose_patient_time
     ON dose_events(patient_id, injected_at DESC);
@@ -739,6 +765,89 @@ LEFT JOIN alerts al
    AND al.created_at < day_series.metric_day + INTERVAL '1 day'
 GROUP BY p.patient_id, p.full_name, day_series.metric_day
 ORDER BY p.patient_id, metric_date DESC;
+
+-- ============================================================
+-- relationship_requests table ADD
+-- ============================================================
+
+CREATE TABLE relationship_requests (
+    request_id BIGSERIAL PRIMARY KEY,
+
+    requester_user_id BIGINT NOT NULL
+        REFERENCES app_users(user_id),
+
+    target_user_id BIGINT
+        REFERENCES app_users(user_id),
+
+    patient_id BIGINT NOT NULL
+        REFERENCES patients(patient_id),
+
+    relationship_role VARCHAR(30) NOT NULL CHECK (
+        relationship_role IN ('CAREGIVER', 'DOCTOR')
+    ),
+
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (
+        status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'REVOKED')
+    ),
+
+    message TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMPTZ
+);
+
+-- ============================================================
+-- audit_logs table ADD
+-- ============================================================
+
+CREATE TABLE audit_logs (
+    audit_log_id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT
+        REFERENCES app_users(user_id),
+
+    patient_id BIGINT
+        REFERENCES patients(patient_id),
+
+    action_type VARCHAR(100) NOT NULL,
+
+    entity_type VARCHAR(100),
+    entity_id BIGINT,
+
+    ip_address VARCHAR(64),
+
+    details JSONB,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- notification_preferences table ADD
+-- ============================================================
+
+CREATE TABLE notification_preferences (
+    preference_id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL UNIQUE
+        REFERENCES app_users(user_id),
+
+    reminder_enabled BOOLEAN DEFAULT TRUE,
+    buzzer_enabled BOOLEAN DEFAULT TRUE,
+
+    reminder_minutes_before INTEGER DEFAULT 15,
+
+    push_enabled BOOLEAN DEFAULT TRUE,
+    sms_enabled BOOLEAN DEFAULT FALSE,
+    email_enabled BOOLEAN DEFAULT FALSE,
+
+    caregiver_notifications_enabled BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
 
 -- ============================================================
 -- 7. Optional seed data for local testing only

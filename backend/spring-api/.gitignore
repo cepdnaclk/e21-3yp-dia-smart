@@ -1,4 +1,5 @@
 HELP.md
+
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -31,3 +32,21 @@ build/
 
 ### VS Code ###
 .vscode/
+# AWS Certificates
+certs/
+*.pem
+*.crt
+*.key
+
+# Environment variables
+.env
+
+# Maven build files
+target/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

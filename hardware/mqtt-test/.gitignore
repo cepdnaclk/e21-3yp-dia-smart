@@ -1,0 +1,5 @@
+# AWS Certificates
+certs/
+*.pem
+*.crt
+*.key

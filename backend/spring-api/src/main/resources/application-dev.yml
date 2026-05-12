@@ -20,3 +20,8 @@ logging:
   level:
     "[org.springframework.security]": INFO
     "[org.hibernate.SQL]": DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}

@@ -9,6 +9,11 @@ import com.diasmart.springapi.users.repository.AppUserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.diasmart.springapi.auth.dto.LoginRequest;
+import com.diasmart.springapi.auth.dto.LoginResponse;
+import com.diasmart.springapi.auth.security.JwtService;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 /**
  * AuthService contains authentication-related business logic.
@@ -21,12 +26,18 @@ public class AuthService {
 
     private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     public AuthService(
             AppUserRepository appUserRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuthenticationManager authenticationManager,
+            JwtService jwtService) {
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
     }
 
     /**
@@ -57,5 +68,26 @@ public class AuthService {
         AppUser savedUser = appUserRepository.save(user);
 
         return UserResponse.fromEntity(savedUser);
+    }
+
+    /**
+     * Authenticates a user and returns a JWT access token.
+     */
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+        String email = request.getNormalizedEmail();
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, request.getPassword()));
+
+        AppUser user = appUserRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+
+        String token = jwtService.generateAccessToken(user);
+
+        return new LoginResponse(
+                token,
+                jwtService.getJwtExpirationMs(),
+                UserResponse.fromEntity(user));
     }
 }

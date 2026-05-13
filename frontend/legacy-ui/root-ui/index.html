@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dia-Smart Glucose Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <main class="container">
+    <section id="authShell" class="auth-shell">
+      <article id="loginView" class="auth-card card">
+        <p class="eyebrow">Dia-Smart</p>
+        <h1 class="auth-title">Welcome Back</h1>
+        <p class="subtitle">Sign in to monitor patient alerts and glucose trends.</p>
+
+        <form id="loginForm" class="auth-form">
+          <label for="loginRole">Role</label>
+          <select id="loginRole" required>
+            <option value="caregiver">Caregiver</option>
+            <option value="doctor">Doctor</option>
+            <option value="patient">Patient</option>
+          </select>
+
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" required placeholder="maria@family.com">
+
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" required placeholder="Enter password">
+
+          <button type="submit" class="btn auth-btn">Login Securely</button>
+        </form>
+
+        <div class="demo-credentials" aria-label="Demo credentials">
+          <p class="demo-title">Quick Demo Login</p>
+          <p><strong>Caregiver:</strong> caregiver@diasmart.com / Care1234</p>
+          <p><strong>Doctor:</strong> doctor@diasmart.com / Doctor1234</p>
+          <p><strong>Patient:</strong> patient@diasmart.com / Patient1234</p>
+        </div>
+
+        <p class="switch-text">
+          Need an account?
+          <button id="goSignupBtn" class="link-btn" type="button">Create one here</button>
+        </p>
+      </article>
+
+      <article id="signupView" class="auth-card card hidden">
+        <p class="eyebrow">Dia-Smart</p>
+        <h1 class="auth-title">Create Account</h1>
+        <p class="subtitle">Enter personal details and setup information to start monitoring.</p>
+
+        <form id="signupForm" class="auth-form auth-form-grid">
+          <h2>Personal Details</h2>
+          <label for="fullName">Full Name</label>
+          <input id="fullName" type="text" required placeholder="John Fernando">
+
+          <label for="dob">Date of Birth</label>
+          <input id="dob" type="date" required>
+
+          <label for="phone">Phone Number</label>
+          <input id="phone" type="tel" required placeholder="+94 77 123 4567">
+
+          <label for="relationship">Relationship / Role</label>
+          <select id="relationship" required>
+            <option value="caregiver">Caregiver</option>
+            <option value="patient">Patient</option>
+            <option value="doctor">Doctor</option>
+          </select>
+
+          <h2>Account Security</h2>
+          <label for="signupEmail">Email</label>
+          <input id="signupEmail" type="email" required placeholder="you@example.com">
+
+          <label for="signupPassword">Password</label>
+          <input id="signupPassword" type="password" required minlength="8" placeholder="Minimum 8 characters">
+
+          <label for="confirmPassword">Confirm Password</label>
+          <input id="confirmPassword" type="password" required minlength="8" placeholder="Repeat password">
+
+          <h2>Patient & Device Details</h2>
+          <label for="patientCondition">Patient Condition</label>
+          <input id="patientCondition" type="text" placeholder="Type 2 Diabetes">
+
+          <label for="doctorName">Assigned Doctor</label>
+          <input id="doctorName" type="text" placeholder="Dr. Silva">
+
+          <label for="deviceId">Device ID</label>
+          <input id="deviceId" type="text" placeholder="DIA-2026-001">
+
+          <button type="submit" class="btn auth-btn">Create Account</button>
+        </form>
+
+        <p class="switch-text">
+          Already registered?
+          <button id="goLoginBtn" class="link-btn" type="button">Back to login</button>
+        </p>
+      </article>
+    </section>
+
+    <section id="dashboardShell" class="hidden app-shell card">
+      <header class="app-topbar">
+        <div>
+          <p class="eyebrow">Dia-Smart Care App</p>
+          <h1 class="app-title" id="userGreeting">Welcome</h1>
+          <p class="subtitle" id="userRoleBadge">Medical Monitoring</p>
+        </div>
+        <button id="logoutBtn" class="file-label" type="button">Logout</button>
+      </header>
+
+      <div class="app-content">
+        <section id="tab-home" class="tab-panel active">
+          <section class="controls card section-card">
+            <div class="control-row">
+              <button id="loadSampleBtn" class="btn">Load Sample Data</button>
+              <label class="file-label" for="jsonFileInput">Upload JSON</label>
+              <input id="jsonFileInput" type="file" accept="application/json">
+            </div>
+            <p class="hint">Expected format: array of objects with fields `record_id`, `datetime_sl`, `glucose_mg_dl`.</p>
+            <p id="statusText" class="status">Waiting for data...</p>
+          </section>
+
+          <section class="kpis">
+            <article class="card kpi">
+              <h2>Average</h2>
+              <p id="avgValue" class="kpi-value">-</p>
+            </article>
+            <article class="card kpi">
+              <h2>Latest</h2>
+              <p id="latestValue" class="kpi-value">-</p>
+            </article>
+            <article class="card kpi">
+              <h2>Readings</h2>
+              <p id="countValue" class="kpi-value">0</p>
+            </article>
+            <article class="card kpi">
+              <h2>In Range</h2>
+              <p id="inRangeValue" class="kpi-value">0%</p>
+            </article>
+          </section>
+
+          <article class="card chart-card section-card">
+            <h2>Risk Zones</h2>
+            <div class="zones" id="zoneBars"></div>
+          </article>
+        </section>
+
+        <section id="tab-trends" class="tab-panel">
+          <article class="card chart-card section-card">
+            <div class="chart-head">
+              <h2>Trend Over Time</h2>
+              <span class="legend-dot"></span>
+            </div>
+            <canvas id="trendCanvas" width="960" height="320"></canvas>
+          </article>
+
+          <article class="card chart-card section-card">
+            <h2>Daily Averages</h2>
+            <canvas id="dailyCanvas" width="460" height="260"></canvas>
+          </article>
+        </section>
+
+        <section id="tab-readings" class="tab-panel">
+          <section class="card table-wrap section-card">
+            <h2>Recent Readings</h2>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Record ID</th>
+                    <th>Date & Time</th>
+                    <th>Glucose (mg/dL)</th>
+                    <th>Zone</th>
+                  </tr>
+                </thead>
+                <tbody id="readingTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section id="tab-profile" class="tab-panel">
+          <article class="card section-card profile-card">
+            <h2>Connected User</h2>
+            <p class="profile-name" id="profileUserName">-</p>
+            <p class="profile-meta" id="profileUserEmail">-</p>
+            <p class="profile-meta" id="profileUserRole">-</p>
+            <button id="profileLogoutBtn" class="btn profile-logout" type="button">Sign Out</button>
+          </article>
+
+          <article class="card section-card">
+            <h2>Demo Accounts</h2>
+            <p class="hint">Caregiver: caregiver@diasmart.com / Care1234</p>
+            <p class="hint">Doctor: doctor@diasmart.com / Doctor1234</p>
+            <p class="hint">Patient: patient@diasmart.com / Patient1234</p>
+          </article>
+        </section>
+      </div>
+
+      <nav class="tab-bar" aria-label="App navigation tabs">
+        <button class="tab-btn active" type="button" data-tab="home">Home</button>
+        <button class="tab-btn" type="button" data-tab="trends">Trends</button>
+        <button class="tab-btn" type="button" data-tab="readings">Readings</button>
+        <button class="tab-btn" type="button" data-tab="profile">Profile</button>
+      </nav>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

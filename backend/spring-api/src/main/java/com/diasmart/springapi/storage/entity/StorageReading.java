@@ -8,10 +8,8 @@ import lombok.Setter;
 import java.time.OffsetDateTime;
 
 
-// Maps this class to storage_readings table
+// Maps storage_readings table
 @Entity
-
-// Database table name
 @Table(name = "storage_readings")
 
 @Getter
@@ -20,23 +18,25 @@ public class StorageReading {
 
     // Primary key
     @Id
-
-    // Auto-generated ID
     @GeneratedValue(strategy = GenerationType.IDENTITY)
 
-    // Maps storage_reading_id column
     @Column(name = "storage_reading_id")
     private Long storageReadingId;
 
 
-    // Patient ID
+    // Related patient
     @Column(name = "patient_id")
     private Long patientId;
 
 
-    // Timestamp of reading
-    @Column(name = "measured_at")
-    private OffsetDateTime measuredAt;
+    // Related device
+    @Column(name = "device_id")
+    private Long deviceId;
+
+
+    // Raw telemetry event reference
+    @Column(name = "raw_event_id")
+    private Long rawEventId;
 
 
     // Refrigerator temperature
@@ -62,4 +62,19 @@ public class StorageReading {
     // Temperature safety status
     @Column(name = "temperature_status")
     private String temperatureStatus;
+
+
+    // Additional notes
+    @Column(name = "notes")
+    private String notes;
+
+
+    // Database insertion timestamp
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+
+    // Actual measurement timestamp
+    @Column(name = "measured_at")
+    private OffsetDateTime measuredAt;
 }

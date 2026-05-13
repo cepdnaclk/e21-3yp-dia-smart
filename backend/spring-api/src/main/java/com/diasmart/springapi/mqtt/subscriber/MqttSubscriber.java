@@ -1,21 +1,17 @@
 package com.diasmart.springapi.mqtt.subscriber;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.diasmart.springapi.mqtt.dto.TelemetryPayloadDTO;
+import com.diasmart.springapi.mqtt.service.TelemetryProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import jakarta.annotation.PostConstruct;
-
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.diasmart.springapi.glucose.entity.GlucoseReading;
-import com.diasmart.springapi.glucose.repository.GlucoseReadingRepository;
+import java.nio.charset.StandardCharsets;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import java.time.OffsetDateTime;
 @Component
 public class MqttSubscriber {
 
@@ -30,20 +26,23 @@ public class MqttSubscriber {
 
     private final MqttConnectOptions options;
 
-    private final ObjectMapper mapper = new ObjectMapper();
-    @Autowired
-    private GlucoseReadingRepository repository;
+    private final ObjectMapper mapper =
+            new ObjectMapper();
 
-    public MqttSubscriber(MqttConnectOptions options) {
+    @Autowired
+    private TelemetryProcessingService
+            telemetryProcessingService;
+
+    public MqttSubscriber(
+            MqttConnectOptions options
+    ) {
         this.options = options;
     }
 
     @PostConstruct
     public void init() {
-
         try {
-
-            System.out.println("🚀 MQTT Subscriber Starting...");
+            System.out.println("MQTT subscriber starting...");
 
             MqttClient client =
                     new MqttClient(
@@ -52,60 +51,43 @@ public class MqttSubscriber {
                     );
 
             client.connect(options);
+            System.out.println("Connected to AWS IoT Core");
 
-            System.out.println("✅ Connected to AWS IoT Core");
+            client.subscribe(
+                    topic,
+                    (t, message) -> {
+                        String payload =
+                                new String(
+                                        message.getPayload(),
+                                        StandardCharsets.UTF_8
+                                );
 
-            client.subscribe(topic, (t, message) -> {
+                        System.out.println(
+                                "MQTT message received"
+                        );
+                        System.out.println(payload);
 
-                String payload =
-                        new String(message.getPayload());
+                        try {
+                            TelemetryPayloadDTO dto =
+                                    mapper.readValue(
+                                            payload,
+                                            TelemetryPayloadDTO.class
+                                    );
 
-                System.out.println("📩 MQTT MESSAGE RECEIVED");
+                            telemetryProcessingService
+                                    .process(dto, payload, t);
 
-                System.out.println(payload);
-
-                JsonNode json =
-                        mapper.readTree(payload);
-
-                Long patientId =
-                        json.get("patient")
-                                .get("patientId")
-                                .asLong();
-
-                int glucose =
-                        json.get("glucose")
-                                .get("valueMgDl")
-                                .asInt();
-
-                GlucoseReading reading =
-                        new GlucoseReading();
-
-                reading.setPatientId(patientId);
-                
-                        reading.setGlucoseValueMgDl(
-                        Double.valueOf(glucose)
-                );
-                reading.setMeasuredAt(
-                        OffsetDateTime.now()
-                );
-
-                repository.save(reading);
-
-                System.out.println("✅ Saved To RDS");
-
-                System.out.println(
-                        "Patient ID: " + patientId
-                );
-
-                System.out.println(
-                        "Glucose: " + glucose
-                );
-            });
+                        } catch (Exception e) {
+                            System.out.println(
+                                    "MQTT message processing error"
+                            );
+                            e.printStackTrace();
+                        }
+                    }
+            );
 
         } catch (Exception e) {
-
-            System.out.println("❌ MQTT ERROR");
-
+            System.out.println("MQTT connection error");
             e.printStackTrace();
         }
     }

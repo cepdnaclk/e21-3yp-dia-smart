@@ -1,39 +1,45 @@
 package com.diasmart.springapi.dose.entity;
 
 import jakarta.persistence.*;
+
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
 
-// Maps this class to dose_events table
+// Maps dose_events table
 @Entity
-
-// Database table name
 @Table(name = "dose_events")
 
 @Getter
 @Setter
 public class DoseEvent {
 
-    // Primary key of dose event
+    // Primary key
     @Id
-
-    // Auto-increment ID
     @GeneratedValue(strategy = GenerationType.IDENTITY)
 
-    // Maps to dose_event_id column
     @Column(name = "dose_event_id")
     private Long doseEventId;
 
 
-    // Patient who received insulin
+    // Related patient
     @Column(name = "patient_id")
     private Long patientId;
 
 
-    // Dose timestamp
+    // Related device
+    @Column(name = "device_id")
+    private Long deviceId;
+
+
+    // Raw telemetry event reference
+    @Column(name = "raw_event_id")
+    private Long rawEventId;
+
+
+    // Injection timestamp
     @Column(name = "injected_at")
     private OffsetDateTime injectedAt;
 
@@ -43,12 +49,32 @@ public class DoseEvent {
     private Double doseUnits;
 
 
-    // Detection method used
+    // Detection source
     @Column(name = "detection_method")
     private String detectionMethod;
 
 
-    // Event confirmation status
+    // Pen rotation angle
+    @Column(name = "angle_degrees")
+    private Double angleDegrees;
+
+
+    // Detection confidence
+    @Column(name = "confidence_percent")
+    private Double confidencePercent;
+
+
+    // Event status
     @Column(name = "event_status")
     private String eventStatus;
+
+
+    // Additional notes
+    @Column(name = "notes")
+    private String notes;
+
+
+    // Record creation time
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
 }

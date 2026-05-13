@@ -12,12 +12,28 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface StorageReadingRepository
         extends JpaRepository<StorageReading, Long> {
 
-    // Fetch patient storage history ordered latest first
+    // Fetch paginated storage history
     Page<StorageReading>
     findByPatientIdOrderByMeasuredAtDesc(
 
             Long patientId,
 
             Pageable pageable
+    );
+
+
+    // Fetch latest inserted storage reading
+    StorageReading
+    findTopByPatientIdOrderByCreatedAtDesc(
+
+            Long patientId
+    );
+
+
+    // Fetch latest measured storage reading
+    StorageReading
+    findTopByPatientIdOrderByMeasuredAtDesc(
+
+            Long patientId
     );
 }

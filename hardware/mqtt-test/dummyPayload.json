@@ -1,0 +1,44 @@
+{
+  "eventId": "EVT-1001",
+  "eventType": "COMBINED_TELEMETRY",
+
+  "timestamp": "2026-05-07T10:30:00Z",
+
+  "schemaVersion": 1,
+  "sequenceNumber": 1001,
+  "replayedEvent": false,
+
+  "patient": {
+    "patientId": 1
+  },
+
+  "gateway": {
+    "deviceUid": "DS-OUTER-0001",
+    "firmwareVersion": "v1.0.0"
+  },
+
+  "storage": {
+    "temperatureC": 5.6,
+    "doorStatus": "CLOSED"
+  },
+
+  "glucose": {
+    "valueMgDl": 128,
+    "source": "BLE_GLUCOMETER"
+  },
+
+  "dose": {
+    "insulinDoseUnits": 12,
+    "detectionMethod": "AS5600"
+  },
+
+  "inventory": {
+    "weightG": 43.2
+  },
+
+  "battery": {
+    "innerUnitPercent": 82,
+    "penUnitPercent": 76,
+    "outerUnitPercent": 95
+  }
+}

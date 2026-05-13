@@ -30,87 +30,69 @@ const topic = 'diasmart/device/telemetry';
 // =========================
 
 client.on('connect', () => {
+    console.log('Connected to AWS IoT Core');
 
-    console.log('✅ Connected to AWS IoT Core');
+    const sequenceNumber = Date.now();
 
-    let packetCount = 1;
+    const payload = {
+        eventId: `EVT-${Date.now()}`,
+        eventType: 'COMBINED_TELEMETRY',
+        timestamp: new Date().toISOString(),
+        schemaVersion: 1,
+        sequenceNumber,
+        replayedEvent: false,
 
-    // Send packet every 3 seconds
-    setInterval(() => {
+        patient: {
+            patientId: 1
+        },
 
-        const payload = {
+        gateway: {
+            deviceUid: 'DS-OUTER-0001',
+            firmwareVersion: 'v1.0.0'
+        },
 
-            eventId: `EVT-${Date.now()}`,
+        storage: {
+            temperatureC: 45.0,
+            doorStatus: 'OPEN',
+        },
 
-            eventType: "COMBINED_TELEMETRY",
+        glucose: {
+            valueMgDl: 140,
+            source: 'BLE_GLUCOMETER'
+        },
 
-            trigger: "DOSE_EVENT",
+        dose: {
+            insulinDoseUnits: 18,
+            detectionMethod: 'AS5600'
+        },
 
-            timestamp: new Date().toISOString(),
+        inventory: {
+            weightG: 550.0
+        },
 
-            schemaVersion: 1,
+        battery: {
+            innerUnitPercent: 19,
+            penUnitPercent: 90,
+            outerUnitPercent: 39
+        }
+    };
 
-            sequenceNumber: packetCount,
-
-            replayedEvent: false,
-
-            patient: {
-                patientId: "1"
-            },
-
-            gateway: {
-                deviceUid: "DS-OUTER-0001",
-                firmwareVersion: "v1.0.0"
-            },
-
-            storage: {
-                temperatureC: parseFloat((Math.random() * 3 + 4).toFixed(1)),
-                doorStatus: "CLOSED"
-            },
-
-            glucose: {
-                valueMgDl: Math.floor(Math.random() * 40 + 100),
-                source: "BLE_GLUCOMETER"
-            },
-
-            dose: {
-                insulinDoseUnits: Math.floor(Math.random() * 10 + 5),
-                detectionMethod: "AS5600"
-            },
-
-            inventory: {
-                weightG: parseFloat((Math.random() * 10 + 40).toFixed(1))
-            },
-
-            battery: {
-                innerUnitPercent: Math.floor(Math.random() * 20 + 80),
-                penUnitPercent: Math.floor(Math.random() * 20 + 70),
-                outerUnitPercent: Math.floor(Math.random() * 10 + 90)
+    client.publish(
+        topic,
+        JSON.stringify(payload),
+        { qos: 1 },
+        (err) => {
+            if (err) {
+                console.log('Publish error');
+                console.log(err);
+            } else {
+                console.log('Payload sent');
+                console.log(payload);
             }
-        };
 
-        client.publish(
-            topic,
-            JSON.stringify(payload),
-            { qos: 1 },
-            (err) => {
-
-                if (err) {
-
-                    console.log('❌ Publish Error');
-                    console.log(err);
-
-                } else {
-
-                    console.log(`📤 Packet ${packetCount} Sent`);
-                    console.log(payload);
-                }
-            }
-        );
-
-        packetCount++;
-
-    }, 3000);
+            client.end();
+        }
+    );
 });
 
 // =========================
@@ -118,21 +100,6 @@ client.on('connect', () => {
 // =========================
 
 client.on('error', (error) => {
-
-    console.log('❌ MQTT Error');
+    console.log('MQTT error');
     console.log(error);
-});
-
-// =========================
-// Reconnect
-// =========================
-
-client.on('reconnect', () => {
-
-    console.log('🔄 Reconnecting...');
-});
-
-client.on('offline', () => {
-
-    console.log('⚠️ MQTT Offline');
 });

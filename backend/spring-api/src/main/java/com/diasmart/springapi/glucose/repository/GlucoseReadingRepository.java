@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface GlucoseReadingRepository
         extends JpaRepository<GlucoseReading, Long> {
+
 }

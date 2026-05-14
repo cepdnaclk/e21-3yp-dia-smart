@@ -52,12 +52,12 @@ client.on('connect', () => {
         },
 
         storage: {
-            temperatureC: 45.0,
+            temperatureC: 65.0,
             doorStatus: 'OPEN',
         },
 
         glucose: {
-            valueMgDl: 140,
+            valueMgDl: 150,
             source: 'BLE_GLUCOMETER'
         },
 

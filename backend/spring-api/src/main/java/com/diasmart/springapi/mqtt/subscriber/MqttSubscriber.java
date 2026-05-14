@@ -1,18 +1,24 @@
 package com.diasmart.springapi.mqtt.subscriber;
 
+import com.diasmart.springapi.audit.service.AuditService;
 import com.diasmart.springapi.mqtt.dto.TelemetryPayloadDTO;
 import com.diasmart.springapi.mqtt.service.TelemetryProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
 @Component
+@ConditionalOnProperty(
+        name = "mqtt.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class MqttSubscriber {
 
     @Value("${mqtt.broker.ssl}")
@@ -25,18 +31,20 @@ public class MqttSubscriber {
     private String clientId;
 
     private final MqttConnectOptions options;
+    private final AuditService auditService;
+    private final TelemetryProcessingService telemetryProcessingService;
 
     private final ObjectMapper mapper =
             new ObjectMapper();
 
-    @Autowired
-    private TelemetryProcessingService
-            telemetryProcessingService;
-
     public MqttSubscriber(
-            MqttConnectOptions options
+            MqttConnectOptions options,
+            AuditService auditService,
+            TelemetryProcessingService telemetryProcessingService
     ) {
         this.options = options;
+        this.auditService = auditService;
+        this.telemetryProcessingService = telemetryProcessingService;
     }
 
     @PostConstruct
@@ -67,16 +75,34 @@ public class MqttSubscriber {
                         );
                         System.out.println(payload);
 
-                        try {
-                            TelemetryPayloadDTO dto =
-                                    mapper.readValue(
-                                            payload,
-                                            TelemetryPayloadDTO.class
-                                    );
+                        TelemetryPayloadDTO dto;
 
+                        try {
+                            dto = mapper.readValue(
+                                    payload,
+                                    TelemetryPayloadDTO.class
+                            );
+                        } catch (Exception e) {
+                            System.out.println(
+                                    "MQTT payload parsing error"
+                            );
+                            auditService.logFailedPayloadValidation(
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    t,
+                                    e.getMessage(),
+                                    payload
+                            );
+                            e.printStackTrace();
+                            return;
+                        }
+
+                        try {
                             telemetryProcessingService
                                     .process(dto, payload, t);
-
                         } catch (Exception e) {
                             System.out.println(
                                     "MQTT message processing error"

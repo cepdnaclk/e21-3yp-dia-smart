@@ -1,29 +1,129 @@
 package com.diasmart.springapi.config.security;
 
+import com.diasmart.springapi.auth.security.JwtAuthenticationFilter;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+
+import org.springframework.security.config.http.SessionCreationPolicy;
+
+import org.springframework.security.core.userdetails.UserDetailsService;
+
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-
+/**
+ * Security configuration for Dia-Smart backend.
+ *
+ * Current stage:
+ * - Register and login are public.
+ * - Swagger endpoints are public.
+ * - All other APIs require JWT authentication.
+ */
 @Configuration
+@EnableWebSecurity
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter
+    ) {
+        this.jwtAuthenticationFilter =
+                jwtAuthenticationFilter;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
+
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(
+                        userDetailsService
+                );
+
+        provider.setPasswordEncoder(passwordEncoder);
+
+        return provider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration authenticationConfiguration
+    ) throws Exception {
+
+        return authenticationConfiguration
+                .getAuthenticationManager();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
+            HttpSecurity http,
+            AuthenticationProvider authenticationProvider
     ) throws Exception {
 
         http
 
-                // Disable CSRF for development
-                .csrf(csrf -> csrf.disable())
+                // Disable CSRF for stateless JWT APIs
+                .csrf(AbstractHttpConfigurer::disable)
 
-                // Allow all requests
+                // Stateless session management
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
+                // Authentication provider
+                .authenticationProvider(authenticationProvider)
+
+                // Route authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
+
+                        // Public authentication APIs
+                        .requestMatchers(
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login"
+                        ).permitAll()
+
+                        // Swagger/OpenAPI endpoints
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        // All other APIs require authentication
+                        .anyRequest().authenticated()
+                )
+
+                // JWT filter
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();

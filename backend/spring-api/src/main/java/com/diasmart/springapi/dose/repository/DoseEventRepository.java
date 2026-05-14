@@ -7,12 +7,16 @@ import org.springframework.data.domain.Pageable;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-
-// Repository for dose_events table operations
+/**
+ * Repository for dose event database operations.
+ */
 public interface DoseEventRepository
         extends JpaRepository<DoseEvent, Long> {
 
-    // Fetch patient's dose history ordered by latest first
+    /**
+     * Retrieves dose history for a patient
+     * ordered by latest injection first.
+     */
     Page<DoseEvent> findByPatientIdOrderByInjectedAtDesc(
             Long patientId,
             Pageable pageable

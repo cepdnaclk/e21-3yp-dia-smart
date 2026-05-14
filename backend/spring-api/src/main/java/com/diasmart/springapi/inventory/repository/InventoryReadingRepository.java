@@ -7,17 +7,30 @@ import org.springframework.data.domain.Pageable;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-
-// Handles inventory database operations
+/**
+ * Repository for inventory reading database operations.
+ */
 public interface InventoryReadingRepository
         extends JpaRepository<InventoryReading, Long> {
 
-    // Fetch latest inventory readings of patient
+    /**
+     * Retrieves paginated inventory history
+     * ordered by latest reading first.
+     */
     Page<InventoryReading>
     findByPatientIdOrderByMeasuredAtDesc(
 
             Long patientId,
-
             Pageable pageable
+    );
+
+    /**
+     * Retrieves latest inventory reading
+     * for a patient.
+     */
+    InventoryReading
+    findTopByPatientIdOrderByMeasuredAtDesc(
+
+            Long patientId
     );
 }

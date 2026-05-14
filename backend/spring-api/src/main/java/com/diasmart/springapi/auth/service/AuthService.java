@@ -21,7 +21,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
  * This step supports user registration.
  * Login and JWT generation will be added in the next step.
  */
-@Service
+//@Service
 public class AuthService {
 
     private final AppUserRepository appUserRepository;

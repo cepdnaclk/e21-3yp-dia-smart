@@ -17,8 +17,8 @@ import com.diasmart.springapi.auth.dto.LoginResponse;
  * Base path:
  * /api/v1/auth
  */
-@RestController
-@RequestMapping("/api/v1/auth")
+//@RestController
+//@RequestMapping("/api/v1/auth")
 public class AuthController {
 
     private final AuthService authService;

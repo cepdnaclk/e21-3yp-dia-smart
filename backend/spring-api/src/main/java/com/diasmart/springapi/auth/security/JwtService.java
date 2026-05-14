@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * JwtService handles JWT access token generation and validation.
  */
-@Service
+//@Service
 public class JwtService {
 
     @Value("${app.jwt.secret}")

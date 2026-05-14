@@ -19,7 +19,7 @@ import java.io.IOException;
  *
  * If token is valid, it marks the request as authenticated.
  */
-@Component
+//@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;

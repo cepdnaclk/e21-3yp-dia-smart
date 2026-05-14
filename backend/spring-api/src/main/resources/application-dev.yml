@@ -8,13 +8,23 @@ spring:
     password: Sanjeevan2002
     driver-class-name: org.postgresql.Driver
 
-  jpa:
+    jpa:
     hibernate:
-      ddl-auto: none
-
+      ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        "[format_sql]": true
 
-    open-in-view: false
+logging:
+  level:
+    "[org.springframework.security]": INFO
+    "[org.hibernate.SQL]": DEBUG
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
 mqtt:
   broker:

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * GlobalExceptionHandler converts backend exceptions into standard API error
  * responses.
  */
-@RestControllerAdvice
+@RestControllerAdvice("sharedGlobalExceptionHandler")
 public class GlobalExceptionHandler {
 
         /**

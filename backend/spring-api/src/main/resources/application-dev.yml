@@ -1,3 +1,26 @@
+server:
+  port: 8080
+
 spring:
-  profiles:
-    active: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/diasmart
+    username: postgres
+    password: Sanjeevan2002
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+    show-sql: true
+
+    open-in-view: false
+
+mqtt:
+  broker:
+    ssl: ${MQTT_BROKER}
+
+  client:
+    id: diasmart-backend-dev
+
+  topic: ${MQTT_TOPIC}

@@ -1,5 +1,6 @@
 package com.diasmart.springapi.mqtt.service;
 
+import com.diasmart.springapi.audit.service.AuditService;
 import com.diasmart.springapi.devices.entity.Device;
 import com.diasmart.springapi.devices.entity.DeviceHealthLog;
 import com.diasmart.springapi.devices.repository.DeviceHealthLogRepository;
@@ -144,6 +145,7 @@ public class TelemetryProcessingService {
     private final DoseEventRepository doseEventRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceHealthLogRepository healthLogRepository;
+    private final AuditService auditService;
     private final ObjectMapper objectMapper =
             new ObjectMapper();
 
@@ -154,7 +156,8 @@ public class TelemetryProcessingService {
             InventoryReadingRepository inventoryRepository,
             DoseEventRepository doseEventRepository,
             DeviceRepository deviceRepository,
-            DeviceHealthLogRepository healthLogRepository
+            DeviceHealthLogRepository healthLogRepository,
+            AuditService auditService
     ) {
         this.glucoseRepository = glucoseRepository;
         this.storageRepository = storageRepository;
@@ -163,6 +166,7 @@ public class TelemetryProcessingService {
         this.doseEventRepository = doseEventRepository;
         this.deviceRepository = deviceRepository;
         this.healthLogRepository = healthLogRepository;
+        this.auditService = auditService;
     }
 
     public void process(
@@ -193,7 +197,7 @@ public class TelemetryProcessingService {
                         payload,
                         sourceDeviceUid,
                         patientId,
-                        eventTime
+                        receivedAt
                 );
         String sourceEventId = trimToNull(payload.getEventId());
 
@@ -205,6 +209,14 @@ public class TelemetryProcessingService {
             System.out.println(
                     "Duplicate telemetry event skipped: "
                             + sourceEventId
+            );
+            auditService.logDuplicateMqttEvent(
+                    patientId,
+                    getDeviceId(sourceDevice),
+                    sourceDeviceUid,
+                    sourceEventId,
+                    mqttTopic,
+                    payload.getReplayedEvent()
             );
             return;
         }
@@ -220,6 +232,19 @@ public class TelemetryProcessingService {
                         eventTime,
                         receivedAt
                 );
+
+        if (Boolean.TRUE.equals(payload.getReplayedEvent())) {
+            auditService.logMqttReplayEvent(
+                    patientId,
+                    getDeviceId(sourceDevice),
+                    rawEvent.getRawEventId(),
+                    sourceDeviceUid,
+                    sourceEventId,
+                    rawEvent.getEventType(),
+                    mqttTopic,
+                    eventTime
+            );
+        }
 
         try {
             int savedRows = 0;
@@ -276,6 +301,19 @@ public class TelemetryProcessingService {
                     truncate(ex.getMessage(), 1000)
             );
             rawRepository.save(rawEvent);
+
+            if (ex instanceof IllegalArgumentException) {
+                auditService.logFailedPayloadValidation(
+                        patientId,
+                        getDeviceId(sourceDevice),
+                        rawEvent.getRawEventId(),
+                        sourceDeviceUid,
+                        sourceEventId,
+                        mqttTopic,
+                        ex.getMessage(),
+                        rawJson
+                );
+            }
 
             System.out.println(
                     "Telemetry processing failed: "
@@ -341,7 +379,7 @@ public class TelemetryProcessingService {
                         "Dia-Smart Glucometer",
                         "BLE",
                         null,
-                        eventTime
+                        createdAt
                 );
 
         GlucoseReading glucose = new GlucoseReading();
@@ -404,7 +442,7 @@ public class TelemetryProcessingService {
                         "Dia-Smart Inner Unit",
                         "ESP_NOW",
                         null,
-                        eventTime
+                        createdAt
                 );
 
         Double temperatureC =
@@ -496,7 +534,7 @@ public class TelemetryProcessingService {
                         "Dia-Smart Inner Unit",
                         "ESP_NOW",
                         null,
-                        eventTime
+                        createdAt
                 );
 
         Double weightG =
@@ -621,7 +659,7 @@ public class TelemetryProcessingService {
                         "Dia-Smart Dose Cap",
                         "BLE",
                         null,
-                        eventTime
+                        createdAt
                 );
 
         DoseEvent doseEvent = new DoseEvent();
@@ -779,7 +817,7 @@ public class TelemetryProcessingService {
                         deviceName,
                         communicationType,
                         firmwareVersion,
-                        eventTime
+                        createdAt
                 );
 
         DeviceHealthLog healthLog = new DeviceHealthLog();
@@ -882,7 +920,7 @@ public class TelemetryProcessingService {
             TelemetryPayloadDTO payload,
             String sourceDeviceUid,
             Long patientId,
-            OffsetDateTime eventTime
+            OffsetDateTime lastSeenAt
     ) {
         if ("UNKNOWN_DEVICE".equals(sourceDeviceUid)) {
             return null;
@@ -902,7 +940,7 @@ public class TelemetryProcessingService {
                         : "Dia-Smart Device",
                 isGateway ? "MQTTS" : "OTHER",
                 isGateway ? getFirmwareVersion(payload) : null,
-                eventTime
+                lastSeenAt
         );
     }
 

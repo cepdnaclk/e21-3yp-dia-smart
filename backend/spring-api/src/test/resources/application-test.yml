@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:diasmart;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+mqtt:
+  enabled: false
+  broker:
+    ssl: tcp://localhost:1883
+  client:
+    id: diasmart-backend-test
+  topic: diasmart/test/telemetry

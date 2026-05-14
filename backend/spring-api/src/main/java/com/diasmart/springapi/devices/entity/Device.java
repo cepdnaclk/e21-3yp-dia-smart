@@ -3,6 +3,7 @@ package com.diasmart.springapi.devices.entity;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "devices")
@@ -16,8 +17,20 @@ public class Device {
     @Column(name = "patient_id")
     private Long patientId;
 
-    @Column(name = "device_uid")
+    @Column(name = "device_uid", unique = true, nullable = false)
     private String deviceUid;
+
+    @Column(name = "aws_thing_name")
+    private String awsThingName;
+
+    @Column(name = "mqtt_client_id")
+    private String mqttClientId;
+
+    @Column(name = "mac_address")
+    private String macAddress;
+
+    @Column(name = "serial_number")
+    private String serialNumber;
 
     @Column(name = "device_type")
     private String deviceType;
@@ -31,11 +44,43 @@ public class Device {
     @Column(name = "firmware_version")
     private String firmwareVersion;
 
+    @Column(name = "hardware_version")
+    private String hardwareVersion;
+
     @Column(name = "last_seen_at")
     private OffsetDateTime lastSeenAt;
 
     @Column(name = "is_active")
     private Boolean active;
+
+    @Column(name = "notes")
+    private String notes;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        if (active == null) {
+            active = true;
+        }
+
+        if (createdAt == null) {
+            createdAt = now;
+        }
+
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
 
     public Long getDeviceId() {
         return deviceId;
@@ -47,6 +92,22 @@ public class Device {
 
     public String getDeviceUid() {
         return deviceUid;
+    }
+
+    public String getAwsThingName() {
+        return awsThingName;
+    }
+
+    public String getMqttClientId() {
+        return mqttClientId;
+    }
+
+    public String getMacAddress() {
+        return macAddress;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
     }
 
     public String getDeviceType() {
@@ -65,12 +126,28 @@ public class Device {
         return firmwareVersion;
     }
 
+    public String getHardwareVersion() {
+        return hardwareVersion;
+    }
+
     public OffsetDateTime getLastSeenAt() {
         return lastSeenAt;
     }
 
     public Boolean getActive() {
         return active;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     public void setDeviceId(Long deviceId) {
@@ -83,6 +160,22 @@ public class Device {
 
     public void setDeviceUid(String deviceUid) {
         this.deviceUid = deviceUid;
+    }
+
+    public void setAwsThingName(String awsThingName) {
+        this.awsThingName = awsThingName;
+    }
+
+    public void setMqttClientId(String mqttClientId) {
+        this.mqttClientId = mqttClientId;
+    }
+
+    public void setMacAddress(String macAddress) {
+        this.macAddress = macAddress;
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
     }
 
     public void setDeviceType(String deviceType) {
@@ -101,11 +194,27 @@ public class Device {
         this.firmwareVersion = firmwareVersion;
     }
 
+    public void setHardwareVersion(String hardwareVersion) {
+        this.hardwareVersion = hardwareVersion;
+    }
+
     public void setLastSeenAt(OffsetDateTime lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
     }
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

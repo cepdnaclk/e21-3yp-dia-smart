@@ -1,91 +1,126 @@
 package com.diasmart.springapi.users.dto;
 
-import com.diasmart.springapi.shared.enums.AccountStatus;
 import com.diasmart.springapi.shared.enums.UserRole;
 import com.diasmart.springapi.users.entity.AppUser;
 
-import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
- * UserResponse is the safe user data returned to the frontend.
+ * Safe user response DTO.
  *
- * Important:
- * This DTO does NOT expose passwordHash.
+ * This DTO never exposes passwordHash.
  */
 public class UserResponse {
 
-    private Long id;
-    private String fullName;
+    private Long userId;
+    private UUID userUuid;
     private String email;
     private UserRole role;
-    private AccountStatus accountStatus;
-    private String phoneNumber;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private String displayName;
+    private String contactNumber;
+    private boolean active;
+    private OffsetDateTime lastLoginAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     public UserResponse() {
     }
 
-    public UserResponse(
-            Long id,
-            String fullName,
-            String email,
-            UserRole role,
-            AccountStatus accountStatus,
-            String phoneNumber,
-            Instant createdAt,
-            Instant updatedAt) {
-        this.id = id;
-        this.fullName = fullName;
-        this.email = email;
-        this.role = role;
-        this.accountStatus = accountStatus;
-        this.phoneNumber = phoneNumber;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-
     public static UserResponse fromEntity(AppUser user) {
-        return new UserResponse(
-                user.getId(),
-                user.getFullName(),
-                user.getEmail(),
-                user.getRole(),
-                user.getAccountStatus(),
-                user.getPhoneNumber(),
-                user.getCreatedAt(),
-                user.getUpdatedAt());
+        UserResponse response = new UserResponse();
+
+        response.setUserId(user.getUserId());
+        response.setUserUuid(user.getUserUuid());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setDisplayName(user.getDisplayName());
+        response.setContactNumber(user.getContactNumber());
+        response.setActive(user.isActive());
+        response.setLastLoginAt(user.getLastLoginAt());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
+
+        return response;
     }
 
-    public Long getId() {
-        return id;
+    public Long getUserId() {
+        return userId;
     }
 
-    public String getFullName() {
-        return fullName;
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public UUID getUserUuid() {
+        return userUuid;
+    }
+
+    public void setUserUuid(UUID userUuid) {
+        this.userUuid = userUuid;
     }
 
     public String getEmail() {
         return email;
     }
 
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public UserRole getRole() {
         return role;
     }
 
-    public AccountStatus getAccountStatus() {
-        return accountStatus;
+    public void setRole(UserRole role) {
+        this.role = role;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public String getDisplayName() {
+        return displayName;
     }
 
-    public Instant getCreatedAt() {
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public OffsetDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(OffsetDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public Instant getUpdatedAt() {
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

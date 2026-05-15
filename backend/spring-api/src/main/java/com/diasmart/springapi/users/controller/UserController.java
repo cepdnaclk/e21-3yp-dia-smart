@@ -8,12 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * UserController exposes user account APIs.
- *
- * Base path:
- * /api/v1/users
- */
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {

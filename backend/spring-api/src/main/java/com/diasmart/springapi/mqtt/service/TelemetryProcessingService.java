@@ -32,6 +32,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+//To integrate with alert evaluation services
+import com.diasmart.springapi.alerts.service.StorageAlertEvaluationService;
+import com.diasmart.springapi.alerts.service.InventoryAlertEvaluationService;
+
 @Service
 public class TelemetryProcessingService {
 
@@ -138,6 +142,23 @@ public class TelemetryProcessingService {
             "UNKNOWN"
     );
 
+    /*
+    * Alert evaluation services.
+    *
+    * Current phase:
+    * alerts are generated after
+    * successful telemetry persistence.
+    *
+    * Future:
+    * may evolve into async/event-driven
+    * alert processing pipeline.
+    */
+    private final StorageAlertEvaluationService
+        storageAlertEvaluationService;
+
+    private final InventoryAlertEvaluationService
+        inventoryAlertEvaluationService;
+
     private final GlucoseReadingRepository glucoseRepository;
     private final StorageReadingRepository storageRepository;
     private final RawDeviceEventRepository rawRepository;
@@ -157,7 +178,14 @@ public class TelemetryProcessingService {
             DoseEventRepository doseEventRepository,
             DeviceRepository deviceRepository,
             DeviceHealthLogRepository healthLogRepository,
-            AuditService auditService
+            AuditService auditService,
+
+        //for alert integration    
+        StorageAlertEvaluationService
+                storageAlertEvaluationService,
+
+        InventoryAlertEvaluationService
+                inventoryAlertEvaluationService
     ) {
         this.glucoseRepository = glucoseRepository;
         this.storageRepository = storageRepository;
@@ -167,6 +195,11 @@ public class TelemetryProcessingService {
         this.deviceRepository = deviceRepository;
         this.healthLogRepository = healthLogRepository;
         this.auditService = auditService;
+        //For alert integration
+        this.storageAlertEvaluationService =
+                storageAlertEvaluationService;
+        this.inventoryAlertEvaluationService =
+                inventoryAlertEvaluationService;
     }
 
     public void process(
@@ -504,6 +537,22 @@ public class TelemetryProcessingService {
         storage.setNotes(trimToNull(dto.getNotes()));
 
         storageRepository.save(storage);
+        //For alert integration - evaluate storage alerts after saving new reading
+                /*
+        * Alert evaluation integration.
+        *
+        * Current phase:
+        * synchronous alert evaluation
+        * after successful persistence.
+        *
+        * Existing replay/value deduplication
+        * already prevents most duplicate alerts.
+        *
+        * Future:
+        * may move into async event pipeline.
+        */
+        storageAlertEvaluationService
+        .evaluateStorageAlerts(storage);
         System.out.println("Storage reading saved");
         return 1;
     }
@@ -615,6 +664,21 @@ public class TelemetryProcessingService {
         inventory.setNotes(trimToNull(dto.getNotes()));
 
         inventoryRepository.save(inventory);
+        /*
+        * Alert evaluation integration.
+        *
+        * Current phase:
+        * synchronous alert evaluation
+        * after successful persistence.
+        *
+        * Existing replay/value deduplication
+        * already prevents most duplicate alerts.
+        *
+        * Future:
+        * may move into async event pipeline.
+        */
+        inventoryAlertEvaluationService
+                .evaluateInventoryAlerts(inventory);
         System.out.println("Inventory reading saved");
         return 1;
     }

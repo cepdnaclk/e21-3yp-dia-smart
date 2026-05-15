@@ -24,7 +24,7 @@ public class AuthorizationService {
 
         System.out.println("===== MANUAL ENTRY DEBUG =====");
         System.out.println("ROLE = " + role);
-        System.out.println("CURRENT USER ID = " + currentUser.getId());
+        System.out.println("CURRENT USER ID = " + currentUser.getUserId());
         System.out.println("PATIENT ID = " + patientId);
 
 
@@ -62,7 +62,7 @@ public class AuthorizationService {
         // Patient can only access own data
         if (role == UserRole.PATIENT) {
 
-            if (!currentUser.getId().equals(patientId)) {
+            if (!currentUser.getUserId().equals(patientId)) {
 
                 throw new AccessDeniedException(
                         "You cannot access another patient's data"
@@ -82,7 +82,7 @@ public class AuthorizationService {
         // Patients can write only their own manual entries
         if (role == UserRole.PATIENT) {
 
-            if (!currentUser.getId().equals(patientId)) {
+            if (!currentUser.getUserId().equals(patientId)) {
 
                 throw new AccessDeniedException(
                         "You cannot create entries for another patient"

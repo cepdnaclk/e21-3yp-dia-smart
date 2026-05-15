@@ -36,7 +36,7 @@ public class AlertService {
 
         return alertRepository
                 .findByPatientIdOrderByCreatedAtDesc(
-                        currentUser.getId(),
+                        currentUser.getUserId(),
                         pageable
                 )
                 .map(this::mapToResponse);
@@ -58,7 +58,7 @@ public class AlertService {
                 );
 
         if (!alert.getPatientId().equals(
-                currentUser.getId()
+                currentUser.getUserId()
         )) {
 
             throw new IllegalArgumentException(
@@ -85,7 +85,7 @@ public class AlertService {
                 );
 
         if (!alert.getPatientId().equals(
-                currentUser.getId()
+                currentUser.getUserId()
         )) {
 
             throw new IllegalArgumentException(
@@ -100,7 +100,7 @@ public class AlertService {
         );
 
         alert.setAcknowledgedBy(
-                currentUser.getId()
+                currentUser.getUserId()
         );
 
         Alert updatedAlert =

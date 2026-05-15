@@ -1,40 +1,41 @@
 package com.diasmart.springapi.users.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Size;
 
 /**
- * Request body for updating the currently logged-in user's own profile.
+ * Request body for updating the current user's profile.
  *
- * Endpoint:
- * PATCH /api/v1/users/me
- *
- * Email is not updated here because email is currently used as the JWT
- * identity.
+ * Schema-aligned:
+ * - displayName maps to app_users.display_name
+ * - contactNumber maps to app_users.contact_number
  */
 public class UpdateUserProfileRequest {
 
-    @Size(max = 150, message = "Full name must not exceed 150 characters")
-    private String fullName;
+    @Size(max = 120, message = "Display name must not exceed 120 characters")
+    @JsonAlias("fullName")
+    private String displayName;
 
-    @Size(max = 30, message = "Phone number must not exceed 30 characters")
-    private String phoneNumber;
+    @Size(max = 30, message = "Contact number must not exceed 30 characters")
+    @JsonAlias("phoneNumber")
+    private String contactNumber;
 
     public UpdateUserProfileRequest() {
     }
 
-    public String getFullName() {
-        return fullName;
+    public String getDisplayName() {
+        return displayName;
     }
 
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public String getContactNumber() {
+        return contactNumber;
     }
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
     }
 }

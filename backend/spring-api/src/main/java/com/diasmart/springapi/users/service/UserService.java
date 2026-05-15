@@ -8,13 +8,6 @@ import com.diasmart.springapi.users.repository.AppUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * UserService contains user-related business logic.
- *
- * Responsibilities:
- * - Retrieve the currently logged-in user's profile
- * - Update the currently logged-in user's own profile
- */
 @Service
 public class UserService {
 
@@ -39,23 +32,23 @@ public class UserService {
     public UserResponse updateCurrentUserProfile(UpdateUserProfileRequest request) {
         AppUser user = currentUserService.getCurrentUser();
 
-        if (request.getFullName() != null) {
-            String fullName = request.getFullName().trim();
+        if (request.getDisplayName() != null) {
+            String displayName = request.getDisplayName().trim();
 
-            if (fullName.isBlank()) {
-                throw new IllegalArgumentException("Full name cannot be blank");
+            if (displayName.isBlank()) {
+                throw new IllegalArgumentException("Display name cannot be blank");
             }
 
-            user.setFullName(fullName);
+            user.setDisplayName(displayName);
         }
 
-        if (request.getPhoneNumber() != null) {
-            String phoneNumber = request.getPhoneNumber().trim();
+        if (request.getContactNumber() != null) {
+            String contactNumber = request.getContactNumber().trim();
 
-            if (phoneNumber.isBlank()) {
-                user.setPhoneNumber(null);
+            if (contactNumber.isBlank()) {
+                user.setContactNumber(null);
             } else {
-                user.setPhoneNumber(phoneNumber);
+                user.setContactNumber(contactNumber);
             }
         }
 

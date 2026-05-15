@@ -13,4 +13,9 @@ public interface DoseEventRepository
             Long patientId,
             Pageable pageable
     );
+
+    DoseEvent
+    findTopByPatientIdOrderByInjectedAtDesc(
+            Long patientId
+    );
 }

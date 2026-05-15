@@ -13,4 +13,9 @@ public interface GlucoseReadingRepository
             Long patientId,
             Pageable pageable
     );
+
+    GlucoseReading
+    findTopByPatientIdOrderByMeasuredAtDesc(
+            Long patientId
+    );
 }

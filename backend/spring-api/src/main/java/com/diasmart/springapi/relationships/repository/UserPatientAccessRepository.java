@@ -9,27 +9,34 @@ import java.util.Optional;
 
 public interface UserPatientAccessRepository extends JpaRepository<UserPatientAccess, Long> {
 
-    Optional<UserPatientAccess> findByUserIdAndPatientIdAndStatus(
-            Long userId,
-            Long patientId,
-            AccessStatus status);
+        Optional<UserPatientAccess> findByUserIdAndPatientIdAndStatus(
+                        Long userId,
+                        Long patientId,
+                        AccessStatus status);
 
-    boolean existsByUserIdAndPatientIdAndStatusAndCanViewTrue(
-            Long userId,
-            Long patientId,
-            AccessStatus status);
+        boolean existsByUserIdAndPatientIdAndStatusAndCanViewTrue(
+                        Long userId,
+                        Long patientId,
+                        AccessStatus status);
 
-    boolean existsByUserIdAndPatientIdAndStatusAndCanAcknowledgeAlertsTrue(
-            Long userId,
-            Long patientId,
-            AccessStatus status);
+        boolean existsByUserIdAndPatientIdAndStatusAndCanAcknowledgeAlertsTrue(
+                        Long userId,
+                        Long patientId,
+                        AccessStatus status);
 
-    boolean existsByUserIdAndPatientIdAndStatusAndCanEditPrescriptionsTrue(
-            Long userId,
-            Long patientId,
-            AccessStatus status);
+        boolean existsByUserIdAndPatientIdAndStatusAndCanEditPrescriptionsTrue(
+                        Long userId,
+                        Long patientId,
+                        AccessStatus status);
 
-    List<UserPatientAccess> findByUserIdAndStatusAndCanViewTrue(
-            Long userId,
-            AccessStatus status);
+        List<UserPatientAccess> findByUserIdAndStatusAndCanViewTrue(
+                        Long userId,
+                        AccessStatus status);
+
+        List<UserPatientAccess> findByUserIdAndStatusOrderByCreatedAtDesc(
+                        Long userId,
+                        AccessStatus status);
+
+        List<UserPatientAccess> findByUserIdOrderByCreatedAtDesc(
+                        Long userId);
 }

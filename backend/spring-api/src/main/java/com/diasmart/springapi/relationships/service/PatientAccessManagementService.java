@@ -1,0 +1,150 @@
+package com.diasmart.springapi.relationships.service;
+
+import com.diasmart.springapi.relationships.dto.CreatePatientAccessRequest;
+import com.diasmart.springapi.relationships.dto.PatientAccessResponse;
+import com.diasmart.springapi.relationships.entity.UserPatientAccess;
+import com.diasmart.springapi.relationships.repository.UserPatientAccessRepository;
+import com.diasmart.springapi.shared.enums.AccessStatus;
+import com.diasmart.springapi.shared.enums.UserRole;
+import com.diasmart.springapi.shared.security.CurrentUserService;
+import com.diasmart.springapi.users.entity.AppUser;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+/**
+ * PatientAccessManagementService manages user-patient access relationships.
+ *
+ * PatientAccessService checks permissions.
+ * PatientAccessManagementService creates, lists, and revokes relationships.
+ */
+@Service
+public class PatientAccessManagementService {
+
+    private final UserPatientAccessRepository userPatientAccessRepository;
+    private final CurrentUserService currentUserService;
+
+    public PatientAccessManagementService(
+            UserPatientAccessRepository userPatientAccessRepository,
+            CurrentUserService currentUserService) {
+        this.userPatientAccessRepository = userPatientAccessRepository;
+        this.currentUserService = currentUserService;
+    }
+
+    /**
+     * Admin creates a user-patient relationship.
+     */
+    @Transactional
+    public PatientAccessResponse createAccess(CreatePatientAccessRequest request) {
+        requireAdmin();
+
+        userPatientAccessRepository
+                .findByUserIdAndPatientIdAndStatus(
+                        request.getUserId(),
+                        request.getPatientId(),
+                        AccessStatus.ACTIVE)
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException(
+                            "Active access already exists for this user and patient");
+                });
+
+        UserPatientAccess access = new UserPatientAccess();
+
+        access.setUserId(request.getUserId());
+        access.setPatientId(request.getPatientId());
+        access.setAccessRole(request.getAccessRole());
+        access.setRelationshipLabel(normalizeNullableText(request.getRelationshipLabel()));
+
+        access.setCanView(
+                request.getCanView() == null || request.getCanView());
+
+        access.setCanAcknowledgeAlerts(
+                request.getCanAcknowledgeAlerts() != null && request.getCanAcknowledgeAlerts());
+
+        access.setCanEditPrescriptions(
+                request.getCanEditPrescriptions() != null && request.getCanEditPrescriptions());
+
+        access.setStatus(AccessStatus.ACTIVE);
+
+        UserPatientAccess savedAccess = userPatientAccessRepository.save(access);
+
+        return PatientAccessResponse.fromEntity(savedAccess);
+    }
+
+    /**
+     * Current user lists their own active access relationships.
+     */
+    @Transactional(readOnly = true)
+    public List<PatientAccessResponse> getMyAccess() {
+        AppUser currentUser = currentUserService.getCurrentUser();
+
+        return userPatientAccessRepository
+                .findByUserIdAndStatusOrderByCreatedAtDesc(
+                        currentUser.getUserId(),
+                        AccessStatus.ACTIVE)
+                .stream()
+                .map(PatientAccessResponse::fromEntity)
+                .toList();
+    }
+
+    /**
+     * Admin lists all access records for a user.
+     */
+    @Transactional(readOnly = true)
+    public List<PatientAccessResponse> getAccessForUser(Long userId) {
+        requireAdmin();
+
+        return userPatientAccessRepository
+                .findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(PatientAccessResponse::fromEntity)
+                .toList();
+    }
+
+    /**
+     * Admin revokes a user-patient relationship.
+     */
+    @Transactional
+    public PatientAccessResponse revokeAccess(Long accessId) {
+        AppUser currentUser = requireAdmin();
+
+        UserPatientAccess access = userPatientAccessRepository
+                .findById(accessId)
+                .orElseThrow(() -> new IllegalArgumentException("Patient access record not found"));
+
+        if (access.getStatus() == AccessStatus.REVOKED) {
+            throw new IllegalArgumentException("Patient access is already revoked");
+        }
+
+        access.setStatus(AccessStatus.REVOKED);
+        access.setRevokedAt(OffsetDateTime.now());
+        access.setRevokedBy(currentUser.getUserId());
+
+        UserPatientAccess savedAccess = userPatientAccessRepository.save(access);
+
+        return PatientAccessResponse.fromEntity(savedAccess);
+    }
+
+    private AppUser requireAdmin() {
+        AppUser currentUser = currentUserService.getCurrentUser();
+
+        if (currentUser.getRole() != UserRole.ADMIN) {
+            throw new AccessDeniedException("Only admins can manage patient access relationships");
+        }
+
+        return currentUser;
+    }
+
+    private String normalizeNullableText(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+
+        return trimmed.isBlank() ? null : trimmed;
+    }
+}

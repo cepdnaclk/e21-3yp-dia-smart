@@ -13,6 +13,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.diasmart.springapi.shared.exceptions.InvalidCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 
 import java.time.OffsetDateTime;
 
@@ -72,14 +74,18 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         String email = request.getNormalizedEmail();
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, request.getPassword()));
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword()));
+        } catch (AuthenticationException exception) {
+            throw new InvalidCredentialsException("Invalid email or password");
+        }
 
         AppUser user = appUserRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
         if (!user.isActive()) {
-            throw new IllegalArgumentException("User account is inactive");
+            throw new InvalidCredentialsException("Invalid email or password");
         }
 
         user.setLastLoginAt(OffsetDateTime.now());

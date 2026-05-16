@@ -1,6 +1,7 @@
 package com.diasmart.springapi.users.controller;
 
 import com.diasmart.springapi.shared.dto.ApiResponse;
+import com.diasmart.springapi.users.dto.ChangePasswordRequest;
 import com.diasmart.springapi.users.dto.UpdateUserProfileRequest;
 import com.diasmart.springapi.users.dto.UserResponse;
 import com.diasmart.springapi.users.service.UserService;
@@ -8,6 +9,12 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * UserController exposes current-user account APIs.
+ *
+ * Base path:
+ * /api/v1/users
+ */
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -33,5 +40,14 @@ public class UserController {
 
         return ResponseEntity.ok(
                 ApiResponse.success("Current user profile updated successfully", updatedUser));
+    }
+
+    @PatchMapping("/me/password")
+    public ResponseEntity<ApiResponse<UserResponse>> changeCurrentUserPassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+        UserResponse updatedUser = userService.changeCurrentUserPassword(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Password changed successfully", updatedUser));
     }
 }

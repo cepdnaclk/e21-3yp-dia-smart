@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * GlobalExceptionHandler converts backend exceptions into standard API error
  * responses.
  */
-@RestControllerAdvice("sharedGlobalExceptionHandler")
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
         /**
@@ -25,6 +25,20 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.BAD_REQUEST)
                                 .body(ErrorResponse.of(exception.getMessage(), "BAD_REQUEST"));
+        }
+
+        /**
+         * Handles invalid login credentials.
+         *
+         * This is used when AuthService catches Spring Security authentication
+         * failures and converts them into InvalidCredentialsException.
+         */
+        @ExceptionHandler(InvalidCredentialsException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(
+                        InvalidCredentialsException exception) {
+                return ResponseEntity
+                                .status(HttpStatus.UNAUTHORIZED)
+                                .body(ErrorResponse.of(exception.getMessage(), "UNAUTHORIZED"));
         }
 
         /**
@@ -47,7 +61,7 @@ public class GlobalExceptionHandler {
         }
 
         /**
-         * Handles failed login attempts.
+         * Handles general authentication failures.
          */
         @ExceptionHandler(AuthenticationException.class)
         public ResponseEntity<ErrorResponse> handleAuthenticationException(

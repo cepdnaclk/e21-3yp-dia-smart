@@ -7,6 +7,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.security.access.AccessDeniedException;
 
 /**
  * GlobalExceptionHandler converts backend exceptions into standard API error
@@ -80,5 +81,13 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body(ErrorResponse.of("Internal server error", "INTERNAL_ERROR"));
+        }
+
+        @ExceptionHandler(AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+                        AccessDeniedException exception) {
+                return ResponseEntity
+                                .status(HttpStatus.FORBIDDEN)
+                                .body(ErrorResponse.of(exception.getMessage(), "FORBIDDEN"));
         }
 }

@@ -3,151 +3,106 @@ package com.diasmart.springapi.alerts.service;
 import com.diasmart.springapi.alerts.dto.AlertResponse;
 import com.diasmart.springapi.alerts.entity.Alert;
 import com.diasmart.springapi.alerts.repository.AlertRepository;
+import com.diasmart.springapi.relationships.service.PatientAccessService;
+import com.diasmart.springapi.shared.enums.UserRole;
 import com.diasmart.springapi.shared.security.CurrentUserService;
 import com.diasmart.springapi.users.entity.AppUser;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Service
 public class AlertService {
 
-    private final AlertRepository alertRepository;
+        private final AlertRepository alertRepository;
+        private final CurrentUserService currentUserService;
+        private final PatientAccessService patientAccessService;
 
-    private final CurrentUserService currentUserService;
-
-    public AlertService(
-            AlertRepository alertRepository,
-            CurrentUserService currentUserService
-    ) {
-        this.alertRepository = alertRepository;
-        this.currentUserService = currentUserService;
-    }
-
-    public Page<AlertResponse> getAlerts(
-            Pageable pageable
-    ) {
-
-        AppUser currentUser =
-                currentUserService.getCurrentUser();
-
-        return alertRepository
-                .findByPatientIdOrderByCreatedAtDesc(
-                        currentUser.getUserId(),
-                        pageable
-                )
-                .map(this::mapToResponse);
-    }
-
-    public AlertResponse getAlert(
-            Long alertId
-    ) {
-
-        AppUser currentUser =
-                currentUserService.getCurrentUser();
-
-        Alert alert = alertRepository
-                .findById(alertId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Alert not found"
-                        )
-                );
-
-        if (!alert.getPatientId().equals(
-                currentUser.getUserId()
-        )) {
-
-            throw new IllegalArgumentException(
-                    "You cannot access this alert"
-            );
+        public AlertService(
+                        AlertRepository alertRepository,
+                        CurrentUserService currentUserService,
+                        PatientAccessService patientAccessService) {
+                this.alertRepository = alertRepository;
+                this.currentUserService = currentUserService;
+                this.patientAccessService = patientAccessService;
         }
 
-        return mapToResponse(alert);
-    }
+        public Page<AlertResponse> getAlerts(Pageable pageable) {
+                AppUser currentUser = currentUserService.getCurrentUser();
 
-    public AlertResponse acknowledgeAlert(
-            Long alertId
-    ) {
+                /*
+                 * ADMIN handling:
+                 * Admin is a system-level role from app_users.role.
+                 * Admin is not stored in user_patient_access.access_role.
+                 */
+                if (currentUser.getRole() == UserRole.ADMIN) {
+                        return alertRepository
+                                        .findAll(pageable)
+                                        .map(this::mapToResponse);
+                }
 
-        AppUser currentUser =
-                currentUserService.getCurrentUser();
+                /*
+                 * Correct relationship logic:
+                 * app_users.user_id -> user_patient_access -> patients.patient_id
+                 */
+                List<Long> viewablePatientIds = patientAccessService.getViewablePatientIdsForCurrentUser();
 
-        Alert alert = alertRepository
-                .findById(alertId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Alert not found"
-                        )
-                );
+                if (viewablePatientIds.isEmpty()) {
+                        return Page.empty(pageable);
+                }
 
-        if (!alert.getPatientId().equals(
-                currentUser.getUserId()
-        )) {
-
-            throw new IllegalArgumentException(
-                    "You cannot acknowledge this alert"
-            );
+                return alertRepository
+                                .findByPatientIdInOrderByCreatedAtDesc(
+                                                viewablePatientIds,
+                                                pageable)
+                                .map(this::mapToResponse);
         }
 
-        alert.setStatus("ACKNOWLEDGED");
+        public AlertResponse getAlert(Long alertId) {
+                Alert alert = alertRepository
+                                .findById(alertId)
+                                .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
 
-        alert.setAcknowledgedAt(
-                OffsetDateTime.now()
-        );
+                patientAccessService.requireCanViewPatient(
+                                alert.getPatientId());
 
-        alert.setAcknowledgedBy(
-                currentUser.getUserId()
-        );
+                return mapToResponse(alert);
+        }
 
-        Alert updatedAlert =
-                alertRepository.save(alert);
+        public AlertResponse acknowledgeAlert(Long alertId) {
+                AppUser currentUser = currentUserService.getCurrentUser();
 
-        return mapToResponse(updatedAlert);
-    }
+                Alert alert = alertRepository
+                                .findById(alertId)
+                                .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
 
-    private AlertResponse mapToResponse(
-            Alert alert
-    ) {
+                patientAccessService.requireCanAcknowledgeAlerts(
+                                alert.getPatientId());
 
-        AlertResponse response =
-                new AlertResponse();
+                alert.setStatus("ACKNOWLEDGED");
+                alert.setAcknowledgedAt(OffsetDateTime.now());
+                alert.setAcknowledgedBy(currentUser.getUserId());
 
-        response.setAlertId(
-                alert.getAlertId()
-        );
+                Alert updatedAlert = alertRepository.save(alert);
 
-        response.setAlertType(
-                alert.getAlertType()
-        );
+                return mapToResponse(updatedAlert);
+        }
 
-        response.setSeverity(
-                alert.getSeverity()
-        );
+        private AlertResponse mapToResponse(Alert alert) {
+                AlertResponse response = new AlertResponse();
 
-        response.setTitle(
-                alert.getTitle()
-        );
+                response.setAlertId(alert.getAlertId());
+                response.setAlertType(alert.getAlertType());
+                response.setSeverity(alert.getSeverity());
+                response.setTitle(alert.getTitle());
+                response.setMessage(alert.getMessage());
+                response.setStatus(alert.getStatus());
+                response.setCreatedAt(alert.getCreatedAt());
+                response.setAcknowledgedAt(alert.getAcknowledgedAt());
 
-        response.setMessage(
-                alert.getMessage()
-        );
-
-        response.setStatus(
-                alert.getStatus()
-        );
-
-        response.setCreatedAt(
-                alert.getCreatedAt()
-        );
-
-        response.setAcknowledgedAt(
-                alert.getAcknowledgedAt()
-        );
-
-        return response;
-    }
+                return response;
+        }
 }

@@ -41,33 +41,52 @@ public class PatientAccessManagementService {
     public PatientAccessResponse createAccess(CreatePatientAccessRequest request) {
         requireAdmin();
 
-        userPatientAccessRepository
-                .findByUserIdAndPatientIdAndStatus(
+        /*
+         * Correct behavior:
+         *
+         * Case 1: No row exists for this user + patient
+         * -> create a new access row.
+         *
+         * Case 2: Row exists and status is ACTIVE
+         * -> reject because active access already exists.
+         *
+         * Case 3: Row exists and status is REVOKED
+         * -> reactivate the same row instead of inserting duplicate row.
+         */
+        UserPatientAccess access = userPatientAccessRepository
+                .findByUserIdAndPatientId(
                         request.getUserId(),
-                        request.getPatientId(),
-                        AccessStatus.ACTIVE)
-                .ifPresent(existing -> {
-                    throw new IllegalArgumentException(
-                            "Active access already exists for this user and patient");
-                });
+                        request.getPatientId())
+                .orElseGet(UserPatientAccess::new);
 
-        UserPatientAccess access = new UserPatientAccess();
+        if (access.getAccessId() != null && access.getStatus() == AccessStatus.ACTIVE) {
+            throw new IllegalArgumentException(
+                    "Active access already exists for this user and patient");
+        }
 
         access.setUserId(request.getUserId());
         access.setPatientId(request.getPatientId());
         access.setAccessRole(request.getAccessRole());
-        access.setRelationshipLabel(normalizeNullableText(request.getRelationshipLabel()));
+        access.setRelationshipLabel(
+                normalizeNullableText(request.getRelationshipLabel()));
 
         access.setCanView(
                 request.getCanView() == null || request.getCanView());
 
         access.setCanAcknowledgeAlerts(
-                request.getCanAcknowledgeAlerts() != null && request.getCanAcknowledgeAlerts());
+                request.getCanAcknowledgeAlerts() != null
+                        && request.getCanAcknowledgeAlerts());
 
         access.setCanEditPrescriptions(
-                request.getCanEditPrescriptions() != null && request.getCanEditPrescriptions());
+                request.getCanEditPrescriptions() != null
+                        && request.getCanEditPrescriptions());
 
+        /*
+         * If this was a previously revoked row, these lines reactivate it.
+         */
         access.setStatus(AccessStatus.ACTIVE);
+        access.setRevokedAt(null);
+        access.setRevokedBy(null);
 
         UserPatientAccess savedAccess = userPatientAccessRepository.save(access);
 

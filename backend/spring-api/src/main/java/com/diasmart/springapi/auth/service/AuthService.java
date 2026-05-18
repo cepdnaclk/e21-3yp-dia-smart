@@ -18,6 +18,16 @@ import org.springframework.security.core.AuthenticationException;
 
 import java.time.OffsetDateTime;
 
+import com.diasmart.springapi.patients.entity.Patient;
+import com.diasmart.springapi.patients.repository.PatientRepository;
+import com.diasmart.springapi.relationships.entity.UserPatientAccess;
+import com.diasmart.springapi.relationships.repository.UserPatientAccessRepository;
+import com.diasmart.springapi.shared.enums.AccessRole;
+import com.diasmart.springapi.shared.enums.AccessStatus;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
 @Service
 public class AuthService {
 
@@ -26,15 +36,24 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
-    public AuthService(
-            AppUserRepository appUserRepository,
-            PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager,
-            JwtService jwtService) {
+    private final PatientRepository patientRepository;
+private final UserPatientAccessRepository userPatientAccessRepository;
+
+public AuthService(
+        AppUserRepository appUserRepository,
+        PasswordEncoder passwordEncoder,
+        AuthenticationManager authenticationManager,
+        JwtService jwtService,
+        PatientRepository patientRepository,
+        UserPatientAccessRepository userPatientAccessRepository) {
+
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+
+        this.patientRepository = patientRepository;
+        this.userPatientAccessRepository = userPatientAccessRepository;
     }
 
     @Transactional
@@ -66,6 +85,38 @@ public class AuthService {
         user.setActive(true);
 
         AppUser savedUser = appUserRepository.save(user);
+
+        if (savedUser.getRole() == UserRole.PATIENT) {
+
+        Patient patient = new Patient();
+
+        patient.setPatientUuid(UUID.randomUUID());
+        patient.setFullName(savedUser.getDisplayName());
+        patient.setGender("UNKNOWN");
+        patient.setDiabetesType("UNKNOWN");
+        patient.setTargetGlucoseMinMgDl(BigDecimal.valueOf(70));
+        patient.setTargetGlucoseMaxMgDl(BigDecimal.valueOf(140));
+        patient.setActive(true);
+        patient.setCreatedAt(OffsetDateTime.now());
+        patient.setUpdatedAt(OffsetDateTime.now());
+
+        Patient savedPatient = patientRepository.save(patient);
+
+        UserPatientAccess access = new UserPatientAccess();
+
+        access.setUserId(savedUser.getUserId());
+        access.setPatientId(savedPatient.getPatientId());
+
+        access.setAccessRole(AccessRole.SELF);
+
+        access.setCanView(true);
+        access.setCanAcknowledgeAlerts(true);
+        access.setCanEditPrescriptions(false);
+
+        access.setStatus(AccessStatus.ACTIVE);
+
+        userPatientAccessRepository.save(access);
+    }
 
         return UserResponse.fromEntity(savedUser);
     }

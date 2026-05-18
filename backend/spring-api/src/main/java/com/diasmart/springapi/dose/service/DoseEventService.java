@@ -13,12 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 
-//Intentially avoided authentication part
-// authorizationService.authorize(
-//     Permission.WRITE_MANUAL_DOSE,
-//     patientId
-// );
-
 @Service
 public class DoseEventService {
 

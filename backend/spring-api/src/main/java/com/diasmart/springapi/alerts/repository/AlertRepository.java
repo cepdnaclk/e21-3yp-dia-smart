@@ -5,11 +5,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AlertRepository
-        extends JpaRepository<Alert, Long> {
+import java.util.List;
 
-    Page<Alert> findByPatientIdOrderByCreatedAtDesc(
-            Long patientId,
-            Pageable pageable
-    );
+public interface AlertRepository
+                extends JpaRepository<Alert, Long> {
+
+        Page<Alert> findByPatientIdOrderByCreatedAtDesc(
+                        Long patientId,
+                        Pageable pageable);
+
+        Page<Alert> findByPatientIdInOrderByCreatedAtDesc(
+                        List<Long> patientIds,
+                        Pageable pageable);
 }

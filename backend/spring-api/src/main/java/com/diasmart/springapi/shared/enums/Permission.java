@@ -12,6 +12,5 @@ public enum Permission {
 
     READ_INVENTORY_HISTORY,
 
-    READ_PATIENT_PROFILE,
-    
+    READ_PATIENT_PROFILE,    
 }

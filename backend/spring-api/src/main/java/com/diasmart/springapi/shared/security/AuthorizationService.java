@@ -37,6 +37,7 @@ public class AuthorizationService {
 
         switch (permission) {
 
+            case READ_PATIENT_PROFILE:
             case READ_PATIENT_READINGS:
             case READ_STORAGE_HISTORY:
             case READ_INVENTORY_HISTORY:
@@ -47,6 +48,7 @@ public class AuthorizationService {
             case WRITE_MANUAL_DOSE:
                 validateManualEntryAccess(currentUser, patientId);
                 break;
+                
 
             default:
                 throw new AccessDeniedException(

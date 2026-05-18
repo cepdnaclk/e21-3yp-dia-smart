@@ -9,10 +9,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface DoseEventRepository
         extends JpaRepository<DoseEvent, Long> {
 
-    Page<DoseEvent> findByPatientId(
-            Long patientId,
-            Pageable pageable
-    );
+    Page<DoseEvent> findByPatientIdOrderByInjectedAtDesc(
+        Long patientId,
+        Pageable pageable
+);
 
     DoseEvent
     findTopByPatientIdOrderByInjectedAtDesc(

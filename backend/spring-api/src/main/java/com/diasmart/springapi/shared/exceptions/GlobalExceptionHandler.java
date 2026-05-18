@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.security.access.AccessDeniedException;
 
+
+import com.diasmart.springapi.shared.dto.ApiResponse;
+
 /**
  * GlobalExceptionHandler converts backend exceptions into standard API error
  * responses.
@@ -89,5 +92,21 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.FORBIDDEN)
                                 .body(ErrorResponse.of(exception.getMessage(), "FORBIDDEN"));
+        }
+
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ErrorResponse>
+        handleResourceNotFoundException(
+                ResourceNotFoundException exception
+        ) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(
+                        ErrorResponse.of(
+                                exception.getMessage(),
+                                "NOT_FOUND"
+                        )
+                );
         }
 }

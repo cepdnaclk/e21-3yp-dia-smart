@@ -45,7 +45,10 @@ public class DoseEventService {
         );
 
         return doseEventRepository
-                .findByPatientId(patientId, pageable)
+                .findByPatientIdOrderByInjectedAtDesc(
+                        patientId,
+                        pageable
+                )
                 .map(this::mapToResponse);
     }
 
@@ -53,6 +56,10 @@ public class DoseEventService {
             Long patientId,
             CreateManualDoseEventRequest request
     ) {
+        authorizationService.authorize(
+        Permission.WRITE_MANUAL_DOSE,
+        patientId
+        );
 
         DoseEvent event = new DoseEvent();
 
@@ -73,7 +80,7 @@ public class DoseEventService {
         );
 
         // manual entry distinction
-        event.setDetectionMethod("MANUAL_ENTRY");
+        event.setDetectionMethod("MANUAL");
 
         event.setEventStatus("CONFIRMED");
 

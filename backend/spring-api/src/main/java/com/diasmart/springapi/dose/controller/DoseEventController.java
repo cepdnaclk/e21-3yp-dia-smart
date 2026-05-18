@@ -74,13 +74,5 @@ public class DoseEventController {
         );
     }
 
-    @PostMapping("/raw-test")
-        public ResponseEntity<String> rawTest(
-        @RequestBody String body
-    ) {
-
-    System.out.println("RAW BODY = " + body);
-
-    return ResponseEntity.ok("RAW BODY RECEIVED");
-    }
+    
 }

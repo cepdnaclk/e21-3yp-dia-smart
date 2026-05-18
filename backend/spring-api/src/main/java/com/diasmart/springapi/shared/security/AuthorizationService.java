@@ -16,6 +16,7 @@ public class AuthorizationService {
     public void authorize(Permission permission, Long patientId) {
         switch (permission) {
 
+            case READ_PATIENT_PROFILE:
             case READ_PATIENT_READINGS:
             case READ_STORAGE_HISTORY:
             case READ_INVENTORY_HISTORY:
@@ -36,6 +37,7 @@ public class AuthorizationService {
                  */
                 patientAccessService.requireCanViewPatient(patientId);
                 break;
+                
 
             default:
                 throw new org.springframework.security.access.AccessDeniedException(

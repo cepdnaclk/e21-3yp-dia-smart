@@ -75,18 +75,18 @@ public class GlucoseReadingService {
 
         // Important:
         // distinguish manual entries from device telemetry
-        reading.setSource("MANUAL_ENTRY");
+        reading.setSource("MANUAL");
 
         reading.setCreatedAt(
                 OffsetDateTime.now()
         );
 
-        System.out.println("BEFORE SAVE");
+        //System.out.println("BEFORE SAVE");
 
         GlucoseReading savedReading =
         glucoseReadingRepository.save(reading);
 
-        System.out.println("AFTER SAVE");
+        //System.out.println("AFTER SAVE");
 
         return mapToResponse(savedReading);
         }

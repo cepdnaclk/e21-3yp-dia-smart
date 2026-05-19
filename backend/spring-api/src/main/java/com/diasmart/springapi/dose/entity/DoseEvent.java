@@ -22,6 +22,12 @@ public class DoseEvent {
     @Column(name = "raw_event_id")
     private Long rawEventId;
 
+    @Column(name = "prescription_id")
+    private Long prescriptionId;
+
+    @Column(name = "schedule_id")
+    private Long scheduleId;
+
     @Column(name = "injected_at")
     private OffsetDateTime injectedAt;
 
@@ -94,6 +100,14 @@ public class DoseEvent {
         return createdAt;
     }
 
+    public Long getPrescriptionId() {
+        return prescriptionId;
+    }
+
+    public Long getScheduleId() {
+        return scheduleId;
+    }
+
     public void setDoseEventId(Long doseEventId) {
         this.doseEventId = doseEventId;
     }
@@ -140,5 +154,13 @@ public class DoseEvent {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setPrescriptionId(Long prescriptionId) {
+        this.prescriptionId = prescriptionId;
+    }
+
+    public void setScheduleId(Long scheduleId) {
+        this.scheduleId = scheduleId;
     }
 }

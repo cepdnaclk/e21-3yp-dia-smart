@@ -1,9 +1,11 @@
 package com.diasmart.springapi.prescriptions.dto;
+import jakarta.validation.constraints.NotBlank;
 
 public class CreatePrescriptionRequest {
 
     private Long insulinProductId;
 
+    @NotBlank(message = "Prescription name is required")
     private String prescriptionName;
 
     private String startDate;

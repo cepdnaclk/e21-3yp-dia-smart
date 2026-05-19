@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.diasmart.springapi.prescriptions.dto.CreatePrescriptionRequest;
 import com.diasmart.springapi.prescriptions.dto.UpdatePrescriptionRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -55,7 +56,7 @@ public class PrescriptionController {
 
             @PathVariable Long patientId,
 
-            @RequestBody
+            @Valid @RequestBody
             CreatePrescriptionRequest request
     ) {
 

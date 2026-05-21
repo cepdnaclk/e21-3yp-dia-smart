@@ -20,6 +20,11 @@ public class AuthorizationService {
             case READ_PATIENT_READINGS:
             case READ_STORAGE_HISTORY:
             case READ_INVENTORY_HISTORY:
+            case READ_CLINICAL_ALERTS:
+            case READ_PRESCRIPTION:
+            case READ_SCHEDULE:
+            case READ_ADHERENCE_ANALYTICS:
+            case READ_DASHBOARD:
                 patientAccessService.requireCanViewPatient(patientId);
                 break;
 
@@ -37,11 +42,20 @@ public class AuthorizationService {
                  */
                 patientAccessService.requireCanViewPatient(patientId);
                 break;
-                
+
+            case ACKNOWLEDGE_CLINICAL_ALERTS:
+                patientAccessService.requireCanAcknowledgeAlerts(patientId);
+                break;
+
+            case CREATE_PRESCRIPTION:
+            case ARCHIVE_PRESCRIPTION:
+            case MANAGE_SCHEDULE:
+                patientAccessService.requireCanEditPrescriptions(patientId);
+                break;
 
             default:
                 throw new org.springframework.security.access.AccessDeniedException(
-                        "Permission validation not implemented");
+                        "Permission validation not implemented for: " + permission);
         }
     }
 }

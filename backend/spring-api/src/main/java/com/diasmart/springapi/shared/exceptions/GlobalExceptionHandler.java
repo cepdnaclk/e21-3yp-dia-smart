@@ -1,13 +1,15 @@
 package com.diasmart.springapi.shared.exceptions;
 
+import com.diasmart.springapi.common.exceptions.ApiException;
 import com.diasmart.springapi.shared.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
 /**
  * GlobalExceptionHandler converts backend exceptions into standard API error
@@ -89,6 +91,22 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.FORBIDDEN)
                                 .body(ErrorResponse.of(exception.getMessage(), "FORBIDDEN"));
+        }
+
+        @ExceptionHandler(ApiException.class)
+        public ResponseEntity<ErrorResponse> handleApiException(
+                        ApiException exception) {
+                return ResponseEntity
+                                .status(exception.getStatus())
+                                .body(ErrorResponse.of(exception.getMessage(), exception.getErrorCode()));
+        }
+
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+                        HttpMessageNotReadableException exception) {
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(ErrorResponse.of("Request body is missing or malformed", "BAD_REQUEST"));
         }
 
         @ExceptionHandler(ResourceNotFoundException.class)

@@ -12,5 +12,28 @@ public enum Permission {
 
     READ_INVENTORY_HISTORY,
 
-    READ_PATIENT_PROFILE,    
+    READ_PATIENT_PROFILE,
+
+    // Alert permissions
+    READ_CLINICAL_ALERTS,
+
+    ACKNOWLEDGE_CLINICAL_ALERTS,
+
+    // Prescription permissions
+    READ_PRESCRIPTION,
+
+    CREATE_PRESCRIPTION,
+
+    ARCHIVE_PRESCRIPTION,
+
+    // Schedule permissions
+    READ_SCHEDULE,
+
+    MANAGE_SCHEDULE,
+
+    // Analytics permissions
+    READ_ADHERENCE_ANALYTICS,
+
+    // Dashboard permissions
+    READ_DASHBOARD,
 }

@@ -1,6 +1,7 @@
 package com.diasmart.springapi.alerts.controller;
 
 import com.diasmart.springapi.alerts.dto.AlertResponse;
+import com.diasmart.springapi.alerts.dto.ResolveAlertRequest;
 import com.diasmart.springapi.alerts.service.AlertService;
 import com.diasmart.springapi.shared.dto.ApiResponse;
 
@@ -73,6 +74,27 @@ public class AlertController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "Alert acknowledged successfully",
+                        response
+                )
+        );
+    }
+
+    @PatchMapping("/{alertId}/resolve")
+    public ResponseEntity<ApiResponse<AlertResponse>>
+    resolveAlert(
+
+            @PathVariable Long alertId,
+            @RequestBody(required = false) ResolveAlertRequest request
+    ) {
+
+        String note = request != null ? request.getResolutionNote() : null;
+
+        AlertResponse response =
+                alertService.resolveAlert(alertId, note);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Alert resolved successfully",
                         response
                 )
         );

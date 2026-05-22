@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"name": "outer-unit",
+			"path": "outer-unit/outer-unit"
+		},
+		{
+			"name": "inner-unit",
+			"path": "inner-unit"
+		},
+		{
+			"name": "pen-unit",
+			"path": "pen-unit"
+		},
+		{
+			"path": "outer-unit"
+		}
+	],
+	"settings": {}
+}

@@ -326,7 +326,7 @@ public class DoseScheduleService {
         OffsetDateTime endOfDay =
                 startOfDay.plusDays(1);
 
-    List<DoseEvent> todaysDoseEvents =
+    List<DoseEvent> todaysDoseEvents =F
             doseEventRepository
                     .findByPatientIdAndInjectedAtBetween(
                             patientId,

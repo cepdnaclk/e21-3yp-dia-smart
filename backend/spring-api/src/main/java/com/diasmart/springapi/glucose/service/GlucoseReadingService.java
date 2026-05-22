@@ -81,12 +81,10 @@ public class GlucoseReadingService {
                 OffsetDateTime.now()
         );
 
-        //System.out.println("BEFORE SAVE");
 
         GlucoseReading savedReading =
         glucoseReadingRepository.save(reading);
 
-        //System.out.println("AFTER SAVE");
 
         return mapToResponse(savedReading);
         }

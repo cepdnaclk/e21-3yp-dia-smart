@@ -10,8 +10,10 @@ public class AlertResponse {
     private String title;
     private String message;
     private String status;
+    private String alertDomain;
     private OffsetDateTime createdAt;
     private OffsetDateTime acknowledgedAt;
+    private OffsetDateTime resolvedAt;
 
     // getters/setters
     // =========================
@@ -48,6 +50,14 @@ public class AlertResponse {
 
     public OffsetDateTime getAcknowledgedAt() {
         return acknowledgedAt;
+    }
+
+    public String getAlertDomain() {
+        return alertDomain;
+    }
+
+    public OffsetDateTime getResolvedAt() {
+        return resolvedAt;
     }
 
     // =========================
@@ -88,5 +98,15 @@ public class AlertResponse {
             OffsetDateTime acknowledgedAt
     ) {
         this.acknowledgedAt = acknowledgedAt;
+    }
+
+    public void setAlertDomain(String alertDomain) {
+        this.alertDomain = alertDomain;
+    }
+
+    public void setResolvedAt(
+            OffsetDateTime resolvedAt
+    ) {
+        this.resolvedAt = resolvedAt;
     }
 }

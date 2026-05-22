@@ -100,9 +100,31 @@ public class AlertService {
                 response.setTitle(alert.getTitle());
                 response.setMessage(alert.getMessage());
                 response.setStatus(alert.getStatus());
+                response.setAlertDomain(alert.getAlertDomain());
                 response.setCreatedAt(alert.getCreatedAt());
                 response.setAcknowledgedAt(alert.getAcknowledgedAt());
+                response.setResolvedAt(alert.getResolvedAt());
 
                 return response;
+        }
+
+        public AlertResponse resolveAlert(Long alertId, String resolutionNote) {
+                AppUser currentUser = currentUserService.getCurrentUser();
+
+                Alert alert = alertRepository
+                                .findById(alertId)
+                                .orElseThrow(() -> new IllegalArgumentException("Alert not found"));
+
+                patientAccessService.requireCanAcknowledgeAlerts(
+                                alert.getPatientId());
+
+                alert.setStatus("RESOLVED");
+                alert.setResolvedAt(OffsetDateTime.now());
+                alert.setResolvedBy(currentUser.getUserId());
+                alert.setResolutionNote(resolutionNote);
+
+                Alert updatedAlert = alertRepository.save(alert);
+
+                return mapToResponse(updatedAlert);
         }
 }

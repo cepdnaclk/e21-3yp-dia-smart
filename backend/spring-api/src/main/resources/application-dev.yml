@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/diasmart
     username: postgres
-    password: Arnikan18
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
     jpa:

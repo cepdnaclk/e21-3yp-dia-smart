@@ -58,7 +58,7 @@ public class AlertFactoryService {
 
         alert.setMessage(message);
 
-        alert.setStatus("OPEN");
+        alert.setStatus("ACTIVE");
 
         alert.setFirstDetectedAt(
                 OffsetDateTime.now()

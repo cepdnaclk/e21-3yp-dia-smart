@@ -95,7 +95,7 @@ public class InventoryAlertEvaluationService {
 
                     "LOW_INVENTORY",
 
-                    "WARNING",
+                    "MEDIUM",
 
                     "Low insulin inventory",
 

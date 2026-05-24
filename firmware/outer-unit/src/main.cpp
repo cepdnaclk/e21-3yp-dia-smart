@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "models/telemetry_event.h"
+#include "managers/wifi_manager.h"
 
 QueueHandle_t telemetryQueue;
 
@@ -13,6 +14,9 @@ void setup()
     delay(1000);
 
     Serial.println("\n=== Dia-Smart Outer Unit Starting ===");
+
+    // --- INITIALIZE HARDWARE & NETWORK ---
+    setupWiFi();
 
     telemetryQueue = xQueueCreate(
         10,

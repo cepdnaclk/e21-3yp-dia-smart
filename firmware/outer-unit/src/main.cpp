@@ -1,31 +1,26 @@
 #include <Arduino.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
-#include "include/system_queues.h"
 #include "models/telemetry_event.h"
 
 QueueHandle_t telemetryQueue;
 
-void eventAggregatorTask(void *pvParameters);
-void mqttPublishTask(void *pvParameters);
+void eventAggregatorTask(void *parameter);
+void mqttPublishTask(void *parameter);
 
-void setup() {
-
+void setup()
+{
     Serial.begin(115200);
 
-    delay(2000);
+    delay(1000);
 
     Serial.println("\n=== Dia-Smart Outer Unit Starting ===");
 
     telemetryQueue = xQueueCreate(
         10,
-        sizeof(TelemetryEvent)
-    );
+        sizeof(TelemetryEvent));
 
-    if (telemetryQueue == NULL) {
-
-        Serial.println("Failed to create telemetry queue");
+    if (telemetryQueue == NULL)
+    {
+        Serial.println("Queue creation failed!");
 
         while (true);
     }
@@ -33,27 +28,42 @@ void setup() {
     xTaskCreatePinnedToCore(
         eventAggregatorTask,
         "EventAggregatorTask",
-        4096,
+        8192,
         NULL,
-        1,
+        2,
         NULL,
-        1
-    );
+        1);
 
     xTaskCreatePinnedToCore(
         mqttPublishTask,
         "MQTTPublishTask",
-        4096,
+        8192,
         NULL,
         1,
         NULL,
-        1
-    );
+        0);
 
     Serial.println("Tasks started successfully");
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
-void loop() {
-
+void loop()
+{
     vTaskDelay(portMAX_DELAY);
 }
+
+// void setup()
+// {
+//     Serial.begin(115200);
+
+//     delay(3000);
+
+//     Serial.println("BOOT SUCCESS");
+// }
+
+// void loop()
+// {
+//     Serial.println("RUNNING...");
+//     delay(2000);
+// }

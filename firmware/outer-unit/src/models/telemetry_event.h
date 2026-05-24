@@ -1,38 +1,44 @@
-#pragma once
+#ifndef TELEMETRY_EVENT_H
+#define TELEMETRY_EVENT_H
 
 #include <Arduino.h>
 
-enum EventType {
-    EVENT_DOSE,
-    EVENT_GLUCOSE,
-    EVENT_TEMPERATURE,
-    EVENT_INVENTORY,
-    EVENT_BATTERY
+enum EventTrigger
+{
+    DOSE_EVENT,
+    GLUCOSE_EVENT,
+    TEMPERATURE_ALERT,
+    INVENTORY_LOW,
+    BATTERY_LOW
 };
 
-enum EventPriority {
-    PRIORITY_HIGH,
-    PRIORITY_MEDIUM,
-    PRIORITY_LOW
-};
+struct TelemetryEvent
+{
+    char eventId[32];
 
-struct TelemetryEvent {
-    String eventId;
+    EventTrigger trigger;
 
-    EventType type;
-    EventPriority priority;
+    char timestamp[32];
 
-    uint64_t timestamp;
+    bool replayedEvent;
 
+    // Storage
     float temperatureC;
+    bool doorOpen;
 
+    // Glucose
     int glucoseMgDl;
 
-    int insulinUnits;
+    // Dose
+    int insulinDoseUnits;
 
-    float inventoryWeight;
+    // Inventory
+    float inventoryWeightG;
 
-    int batteryPercent;
-
-    bool replayed;
+    // Battery
+    int innerBatteryPercent;
+    int penBatteryPercent;
+    int outerBatteryPercent;
 };
+
+#endif

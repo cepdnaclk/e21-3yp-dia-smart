@@ -6,9 +6,10 @@ import com.diasmart.springapi.dashboard.dto.DashboardSummaryResponse;
 import com.diasmart.springapi.dose.dto.DoseEventResponse;
 import com.diasmart.springapi.glucose.dto.GlucoseReadingResponse;
 import com.diasmart.springapi.inventory.dto.InventoryReadingResponse;
+import com.diasmart.springapi.shared.enums.Permission;
+import com.diasmart.springapi.shared.security.AuthorizationService;
 import com.diasmart.springapi.storage.dto.StorageReadingResponse;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,13 +31,15 @@ public class DashboardService {
     private final InventoryServiceBridge inventoryServiceBridge;
 
     private final AlertService alertService;
+    private final AuthorizationService authorizationService;
 
     public DashboardService(
             GlucoseServiceBridge glucoseServiceBridge,
             DoseServiceBridge doseServiceBridge,
             StorageServiceBridge storageServiceBridge,
             InventoryServiceBridge inventoryServiceBridge,
-            AlertService alertService
+            AlertService alertService,
+            AuthorizationService authorizationService
     ) {
         this.glucoseServiceBridge =
                 glucoseServiceBridge;
@@ -51,12 +54,14 @@ public class DashboardService {
                 inventoryServiceBridge;
 
         this.alertService = alertService;
+        this.authorizationService = authorizationService;
     }
 
     public DashboardSummaryResponse
     getDashboardSummary(
             Long patientId
     ) {
+        authorizationService.authorize(Permission.READ_DASHBOARD, patientId);
 
         DashboardSummaryResponse response =
                 new DashboardSummaryResponse();
@@ -79,10 +84,7 @@ public class DashboardService {
 
         List<AlertResponse> alerts =
                 alertService
-                        .getAlerts(
-                                PageRequest.of(0, 5)
-                        )
-                        .getContent();
+                        .getLatestAlertsForPatient(patientId, 5);
 
         response.setLatestGlucoseReading(
                 glucose

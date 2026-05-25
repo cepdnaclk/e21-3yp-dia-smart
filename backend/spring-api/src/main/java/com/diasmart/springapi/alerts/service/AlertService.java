@@ -61,6 +61,15 @@ public class AlertService {
                                 .map(this::mapToResponse);
         }
 
+        public List<AlertResponse> getLatestAlertsForPatient(Long patientId, int limit) {
+                return alertRepository
+                                .findByPatientIdOrderByCreatedAtDesc(
+                                                patientId,
+                                                org.springframework.data.domain.PageRequest.of(0, limit))
+                                .map(this::mapToResponse)
+                                .getContent();
+        }
+
         public AlertResponse getAlert(Long alertId) {
                 Alert alert = alertRepository
                                 .findById(alertId)

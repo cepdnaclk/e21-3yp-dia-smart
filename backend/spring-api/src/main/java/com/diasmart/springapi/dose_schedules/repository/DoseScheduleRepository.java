@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface DoseScheduleRepository
         extends JpaRepository<DoseSchedule, Long> {
 
@@ -15,5 +17,6 @@ public interface DoseScheduleRepository
             Pageable pageable
     );
 
-    
+    List<DoseSchedule> findByPatientIdAndActiveTrue(Long patientId);
+
 }

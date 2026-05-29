@@ -223,7 +223,6 @@ void bleManagerTask(void* pvParams) {
                 penClient = nullptr;
             }
 
-            BLEDevice::setEncryptionLevel(ESP_BLE_SEC_NONE);
             penClient = BLEDevice::createClient();
 
             Serial.println("[BLE] Connecting to pen...");
@@ -391,7 +390,6 @@ void bleManagerTask(void* pvParams) {
             vTaskDelay(pdMS_TO_TICKS(500));
 
             BLEDevice::init("DiaSmart-Outer");
-            BLEDevice::setEncryptionLevel(ESP_BLE_SEC_NONE);
             pScan = setupScan(scanCb);
 
             glucSyncTimer = millis();

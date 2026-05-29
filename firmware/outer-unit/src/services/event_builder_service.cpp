@@ -25,7 +25,7 @@ TelemetryEvent buildMockDoseEvent()
 
     event.glucoseMgDl = 118;
 
-    event.insulinDoseUnits = random(4, 15);
+    event.doseUnits = (float)random(4, 15);
 
     event.inventoryWeightG = 41.8;
 

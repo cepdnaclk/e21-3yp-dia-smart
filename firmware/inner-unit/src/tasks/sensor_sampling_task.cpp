@@ -36,16 +36,19 @@ static void initEspNow() {
     }
     esp_now_register_send_cb(onEspNowSent);
 
-    // Register broadcast peer
+    // Register broadcast peer.
+    // peer.channel = 0 means "use whatever channel the WiFi radio is on".
+    // This is critical — if WiFi connected on ch9, a hardcoded ch1 peer will fail.
     esp_now_peer_info_t peer = {};
     memcpy(peer.peer_addr, broadcastMac, 6);
-    peer.channel = ESPNOW_CHANNEL;
+    peer.channel = 0;   // 0 = follow current WiFi channel automatically
     peer.encrypt = false;
     if (esp_now_add_peer(&peer) != ESP_OK) {
         Serial.println("[ESP-NOW] Add broadcast peer failed — halting");
         while (true) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
-    Serial.println("[ESP-NOW] Initialised, broadcast peer registered");
+    Serial.printf("[ESP-NOW] Initialised on channel %d, broadcast peer registered\n",
+                  (int)WiFi.channel());
 }
 
 // ---- Task ----------------------------------------------------------------- //
@@ -66,6 +69,10 @@ void sensorSamplingTask(void* pvParams) {
 
     // ---- Sequence counter ----------------------------------------------- //
     uint32_t seq = 0;
+
+    // ESP-NOW must be initialised inside the task AFTER WiFi is connected
+    // (main.cpp locks the channel first, then spawns this task).
+    initEspNow();
 
     Serial.println("[Sensors] Task started");
 

@@ -41,6 +41,7 @@ void eventAggregatorTask(void* parameter) {
     strncpy(lastDose.injectedAt, "1970-01-01T00:00:00Z", sizeof(lastDose.injectedAt));
 
     static uint32_t seq = 0;
+    uint32_t lastPeriodicMs = 0;   // tracks 30s periodic publish
 
     Serial.println("[EventAgg] Task started");
 
@@ -48,10 +49,20 @@ void eventAggregatorTask(void* parameter) {
         // ---- Drain InnerPacket queue — keep only the newest packet ------- //
         {
             InnerPacket pkt;
+            bool gotInner = false;
             while (xQueueReceive(innerPacketQueue, &pkt, 0) == pdTRUE) {
                 if (pkt.magic == INNER_MAGIC) {
                     lastInner = pkt;
+                    gotInner = true;
                 }
+            }
+            if (gotInner) {
+                Serial.printf("[EventAgg] InnerPacket seq=%lu  temp=%.2f°C  weight=%.1fg  pct=%.1f%%  door=%s\n",
+                              (unsigned long)lastInner.seq,
+                              lastInner.temperatureC,
+                              lastInner.weightG,
+                              lastInner.estimatedPercent,
+                              lastInner.doorOpen ? "OPEN" : "CLOSED");
             }
         }
 
@@ -71,15 +82,19 @@ void eventAggregatorTask(void* parameter) {
             Serial.printf("[EventAgg] New glucose: %d mg/dL\n", lastGlucose.valueMgDl);
         }
 
+        // ---- Periodic publish every 30s (for monitoring/debug) ---------- //
+        bool periodicTick = (millis() - lastPeriodicMs) >= 30000;
+        if (periodicTick) lastPeriodicMs = millis();
+
         // ---- Only build and enqueue an event when something new arrived -- //
-        if (hasDose || hasGlucose) {
+        if (hasDose || hasGlucose || periodicTick) {
             TelemetryEvent event = {};
 
             // Root
             snprintf(event.eventId, sizeof(event.eventId),
                      "EVT-%s-%lu", DEVICE_UID_OUTER, (unsigned long)seq);
             event.sequenceNumber = seq++;
-            event.trigger        = hasDose ? DOSE_EVENT : GLUCOSE_EVENT;
+            event.trigger        = hasDose ? DOSE_EVENT : (hasGlucose ? GLUCOSE_EVENT : DOSE_EVENT);
             event.replayedEvent  = false;
             getTimestamp(event.timestamp, sizeof(event.timestamp));
 

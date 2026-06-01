@@ -31,6 +31,7 @@ void mqttPublishTask(void *parameter)
 
             Serial.print("\n[MQTTPublishTask] Publishing Event: ");
             Serial.println(receivedEvent.eventId);
+            Serial.println(jsonPayload);
             
             // 4. Send to AWS!
             publishTelemetry(jsonPayload);

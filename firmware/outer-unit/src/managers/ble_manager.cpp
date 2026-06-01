@@ -99,48 +99,36 @@ static void onPenDoseNotify(BLERemoteCharacteristic* pChar,
     }
 }
 
-// ---- Glucometer measurement callback ------------------------------------- //
-// Parses Glucose Measurement characteristic (0x2A18, Bluetooth GATT spec).
+// ---- Glucometer measurement callback ------------------------------------ //
+// Parses Glucose Measurement characteristic (0x2A18).
+// Accu-Chek Guide Me byte layout (verified against legacy working firmware):
+//   [0]        flags
+//   [1..2]     sequence number (uint16 LE)
+//   [3..4]     year (uint16 LE)
+//   [5]        month
+//   [6]        day
+//   [7]        hours
+//   [8]        minutes
+//   [9]        seconds
+//   [10..11]   time offset (int16 LE) — present only if flags & 0x01
+//   [12..13]   glucose as raw uint16 LE; mantissa = value & 0x0FFF = mg/dL directly
 static void onGlucoseMeasNotify(BLERemoteCharacteristic* pChar,
                                 uint8_t* pData, size_t length, bool isNotify) {
-    if (length < 10) return;  // minimum valid length
+    if (length < 14) return;
 
-    uint8_t  flags  = pData[0];
-    uint16_t seqNum = (uint16_t)(pData[1] | (pData[2] << 8));
-
-    // Byte layout after flags(1) + sequenceNumber(2) + baseTime(7):
-    int offset = 10;
-    if (flags & 0x01) offset += 2;  // time offset present (int16)
+    uint16_t seqNum     = (uint16_t)(pData[1] | (pData[2] << 8));
+    uint16_t rawGlucose = (uint16_t)(pData[12] | (pData[13] << 8));
+    int      mgDl       = (int)(rawGlucose & 0x0FFF);  // mantissa = mg/dL directly
 
     GlucoseReading reading = {};
     reading.sequenceNumber = seqNum;
+    reading.valueMgDl      = mgDl;
     reading.timestampMs    = millis();
-
-    if ((flags & 0x02) && (int)length >= offset + 2) {
-        // Glucose concentration as IEEE 11073 SFLOAT (16-bit)
-        uint16_t sfloat   = (uint16_t)(pData[offset] | (pData[offset + 1] << 8));
-        int16_t  mantissa = (int16_t)(sfloat & 0x0FFF);
-        if (mantissa & 0x0800) mantissa |= (int16_t)0xF000;  // sign-extend 12→16
-        int8_t   exponent = (int8_t)((uint8_t)(sfloat >> 12));
-
-        float concentration = (float)mantissa;
-        for (int i = 0; i < abs(exponent); i++) {
-            concentration = (exponent > 0) ? concentration * 10.0f
-                                           : concentration / 10.0f;
-        }
-
-        if (flags & 0x04) {
-            // Units are mmol/L — convert to mg/dL (1 mmol/L = 18.0182 mg/dL)
-            concentration *= 18.0182f;
-        }
-        reading.valueMgDl = (int)concentration;
-    }
 
     if (xQueueSend(glucoseQueue, &reading, 0) != pdTRUE) {
         Serial.println("[BLE] glucoseQueue full — reading dropped");
     } else {
-        Serial.printf("[BLE] Glucose: %d mg/dL (seq=%d)\n",
-                      reading.valueMgDl, reading.sequenceNumber);
+        Serial.printf("[BLE] Glucose: %d mg/dL (seq=%d)\n", mgDl, seqNum);
     }
 }
 
@@ -185,11 +173,20 @@ static BLEScan* setupScan(BLEAdvertisedDeviceCallbacks* cb) {
 void bleManagerTask(void* pvParams) {
     BLEDevice::init("DiaSmart-Outer");
 
+    // Set up BLE security ONCE using BLESecurity object (same pattern as legacy working code).
+    // This must be done before any connection attempt.
+    BLEDevice::setSecurityCallbacks(new GlucometerSecurityCB());
+    BLESecurity* bleSec = new BLESecurity();
+    bleSec->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
+    bleSec->setCapability(ESP_IO_CAP_IN);
+    bleSec->setInitEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+    bleSec->setRespEncryptionKey(ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
+
     MyAdvertisedDeviceCB* scanCb = new MyAdvertisedDeviceCB();
     BLEScan* pScan = setupScan(scanCb);
 
     state         = BLE_SCANNING_PEN;
-    glucSyncTimer = millis();
+    glucSyncTimer = millis() - GLUCOMETER_SYNC_INTERVAL_MS;  // trigger glucometer sync on first pass
 
     Serial.println("[BLE] Manager task started");
 
@@ -209,8 +206,14 @@ void bleManagerTask(void* pvParams) {
             if (penFound) {
                 state = BLE_CONNECTING_PEN;
             } else {
-                Serial.println("[BLE] Pen not found, retrying in 2s...");
-                vTaskDelay(pdMS_TO_TICKS(2000));
+                // Even without pen, sync glucometer on schedule
+                if ((millis() - glucSyncTimer) >= GLUCOMETER_SYNC_INTERVAL_MS) {
+                    Serial.println("[BLE] Pen not found — switching to glucometer sync");
+                    state = BLE_GLUCOMETER_SYNC_START;
+                } else {
+                    Serial.println("[BLE] Pen not found, retrying in 2s...");
+                    vTaskDelay(pdMS_TO_TICKS(2000));
+                }
             }
             break;
         }
@@ -289,19 +292,9 @@ void bleManagerTask(void* pvParams) {
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
 
-            // Set security params for PIN-based pairing
-            BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT);
-            BLEDevice::setSecurityCallbacks(new GlucometerSecurityCB());
-            esp_ble_auth_req_t auth   = ESP_LE_AUTH_REQ_SC_MITM_BOND;
-            esp_ble_io_cap_t   iocap  = ESP_IO_CAP_IN;
-            uint8_t keySize = 16;
-            uint8_t initKey = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-            uint8_t rspKey  = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
-            esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth,    sizeof(auth));
-            esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE,      &iocap,   sizeof(iocap));
-            esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE,    &keySize, sizeof(keySize));
-            esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY,    &initKey, sizeof(initKey));
-            esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY,     &rspKey,  sizeof(rspKey));
+            // Reset glucSyncTimer so we don't immediately re-trigger after reconnect
+            glucSyncTimer = millis();
+            // Security is configured once at task init — no need to set again here.
 
             glucometerFound = false;
             if (glucometerDevice) { delete glucometerDevice; glucometerDevice = nullptr; }
@@ -311,8 +304,15 @@ void bleManagerTask(void* pvParams) {
             pScan->start(10, false);          // glucometer may take longer to appear
             vTaskDelay(pdMS_TO_TICKS(500));
 
-            state = glucometerFound ? BLE_GLUCOMETER_SYNCING : BLE_RECONNECTING_PEN;
-            if (!glucometerFound) Serial.println("[BLE] Glucometer not found, going back to pen");
+            if (glucometerFound) {
+                state = BLE_GLUCOMETER_SYNCING;
+            } else {
+                // Glucometer not advertising yet — keep retrying every 5s
+                // without going back to pen, so user just needs to turn it on
+                Serial.println("[BLE] Glucometer not found, retrying in 5s...");
+                vTaskDelay(pdMS_TO_TICKS(5000));
+                // stay in BLE_GLUCOMETER_SYNC_START
+            }
             break;
         }
 
@@ -332,8 +332,19 @@ void bleManagerTask(void* pvParams) {
                 break;
             }
 
-            // Wait for pairing to complete
-            vTaskDelay(pdMS_TO_TICKS(3000));
+            // Explicitly request encryption THEN wait 4s for pairing/bonding to complete.
+            // Without this explicit call the GATT client tries to discover services before
+            // the link is encrypted and fails with esp_ble_gattc_get_all_char: Unknown.
+            esp_ble_set_encryption(*glucometerDevice->getAddress().getNative(),
+                                   ESP_BLE_SEC_ENCRYPT_MITM);
+            vTaskDelay(pdMS_TO_TICKS(4000));
+
+            // BLERemoteService::getCharacteristic uses local GATT cache only.
+            // Refresh cache after bonding/service-changed and force a fresh search.
+            esp_ble_gattc_cache_refresh(*glucometerDevice->getAddress().getNative());
+            vTaskDelay(pdMS_TO_TICKS(500));
+            glucometerClient->getServices();
+            vTaskDelay(pdMS_TO_TICKS(2000));
 
             BLERemoteService* glucSvc =
                 glucometerClient->getService(BLEUUID((uint16_t)GLUCOMETER_SERVICE_UUID));
@@ -358,18 +369,20 @@ void bleManagerTask(void* pvParams) {
 
             // Subscribe to measurement NOTIFY (0x2A18)
             measChar->registerForNotify(onGlucoseMeasNotify, true);
-            // Subscribe to RACP INDICATE (0x2A52) — pass false for INDICATE mode
+            // Subscribe to RACP INDICATE (0x2A52)
             racpChar->registerForNotify(onRacpIndicate, false);
 
-            vTaskDelay(pdMS_TO_TICKS(500));
+            // Wait a moment after subscribing before sending RACP command
+            vTaskDelay(pdMS_TO_TICKS(1000));
 
-            // Send RACP "Report All Stored Records" (Op=0x01, Operator=0x01)
+            // RACP 0x01 0x06 = Report Stored Records, Last Record
+            // Accu-Chek Guide Me responds to 0x06 (last record) not 0x01 (all records)
             racpDone = false;
-            uint8_t racpCmd[2] = {0x01, 0x01};
-            racpChar->writeValue(racpCmd, 2, true);  // with response
-            Serial.println("[BLE] RACP: requested all records");
+            uint8_t racpCmd[2] = {0x01, 0x06};
+            racpChar->writeValue(racpCmd, 2, true);
+            Serial.println("[BLE] RACP: requested last record (0x01 0x06)");
 
-            // Wait up to 15 s for RACP completion indication
+            // Wait up to 15s for RACP completion indication
             uint32_t racpStart = millis();
             while (!racpDone && (millis() - racpStart) < 15000) {
                 vTaskDelay(pdMS_TO_TICKS(200));
@@ -384,14 +397,11 @@ void bleManagerTask(void* pvParams) {
 
         // ------------------------------------------------------------------ //
         case BLE_RECONNECTING_PEN: {
-            // Deinit and reinit BLE so the pen scan starts fresh
-            Serial.println("[BLE] Reinitialising BLE for pen reconnect...");
-            BLEDevice::deinit(true);
+            // Just clear the scan results and go back to pen scanning.
+            // Do NOT call BLEDevice::deinit() — it crashes the BLE stack on ESP32-S3.
+            Serial.println("[BLE] Glucometer sync done, back to scanning for pen...");
+            pScan->clearResults();
             vTaskDelay(pdMS_TO_TICKS(500));
-
-            BLEDevice::init("DiaSmart-Outer");
-            pScan = setupScan(scanCb);
-
             glucSyncTimer = millis();
             state = BLE_SCANNING_PEN;
             break;

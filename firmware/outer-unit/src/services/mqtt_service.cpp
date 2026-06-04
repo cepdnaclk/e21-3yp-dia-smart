@@ -10,6 +10,8 @@ WiFiClientSecure secureClient;
 // MQTT Client instance
 PubSubClient mqttClient(secureClient);
 
+static constexpr uint16_t MQTT_BUFFER_BYTES = 2048;
+
 void setupMQTT()
 {
     // Load the AWS certificates into the secure client
@@ -19,9 +21,11 @@ void setupMQTT()
 
     // Configure the MQTT broker endpoint and port (8883 for MQTTS)
     mqttClient.setServer(AWS_IOT_ENDPOINT, AWS_IOT_PORT);
-    
-    // Ensure the buffer is large enough for our nested JSON payload
-    mqttClient.setBufferSize(1024);
+
+    // Increase limits for full COMBINED_TELEMETRY payloads over TLS.
+    mqttClient.setBufferSize(MQTT_BUFFER_BYTES);
+    mqttClient.setKeepAlive(30);
+    mqttClient.setSocketTimeout(10);
 }
 
 void connectMQTT()
@@ -54,6 +58,19 @@ void publishTelemetry(String payload)
         connectMQTT();
     }
 
+    // Pump client once before publish to reduce stale-socket failures.
+    mqttClient.loop();
+
+    size_t payloadLen = payload.length();
+    if (payloadLen >= MQTT_BUFFER_BYTES)
+    {
+        Serial.print("[MQTT] ERROR: Payload too large for buffer. len=");
+        Serial.print(payloadLen);
+        Serial.print(", buffer=");
+        Serial.println(MQTT_BUFFER_BYTES);
+        return;
+    }
+
     // Publish the JSON payload to the defined topic
     if (mqttClient.publish(AWS_IOT_PUBLISH_TOPIC, payload.c_str()))
     {
@@ -61,7 +78,14 @@ void publishTelemetry(String payload)
     }
     else
     {
-        Serial.println("[MQTT] ERROR: Failed to deliver payload.");
+        Serial.print("[MQTT] ERROR: Failed to deliver payload. state=");
+        Serial.print(mqttClient.state());
+        Serial.print(", connected=");
+        Serial.print(mqttClient.connected() ? "true" : "false");
+        Serial.print(", topic=");
+        Serial.print(AWS_IOT_PUBLISH_TOPIC);
+        Serial.print(", len=");
+        Serial.println(payloadLen);
     }
 }
 

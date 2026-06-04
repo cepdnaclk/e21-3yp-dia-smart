@@ -19,7 +19,8 @@
 // ---- AWS IoT Core --------------------------------------------------------- //
 #define AWS_IOT_ENDPOINT             "a36biie00zvpfg-ats.iot.eu-north-1.amazonaws.com"
 #define AWS_IOT_PORT                 8883
-#define AWS_IOT_PUBLISH_TOPIC        "diasmart/patient/1/telemetry"
+// Must match backend MQTT_TOPIC subscription.
+#define AWS_IOT_PUBLISH_TOPIC        "diasmart/device/telemetry"
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200

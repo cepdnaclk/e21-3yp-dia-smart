@@ -64,6 +64,8 @@ void doseDetectionTask(void* pvParams) {
     // Button state tracking for debounce
     bool    lastButtonState = HIGH;
     uint32_t buttonPressedAt = 0;
+    bool    pressDebounced = false;
+    uint32_t lastLiveLogAtMs = 0;
 
     Serial.println("[DoseDetect] Task started");
 
@@ -71,6 +73,9 @@ void doseDetectionTask(void* pvParams) {
         // ---- Read current angle ------------------------------------------ //
         int16_t rawNow = readRawAngle();
         float   curDeg = (rawNow >= 0) ? rawToDegrees(rawNow) : refDeg;
+        float   delta = angleDelta(refDeg, curDeg);
+        float   absDelta = fabsf(delta);
+        float   doseUnits = absDelta / DEGREES_PER_UNIT;
 
         // ---- Button debounce --------------------------------------------- //
         bool currentButton = (bool)digitalRead(BUTTON_PIN);
@@ -78,17 +83,18 @@ void doseDetectionTask(void* pvParams) {
         if (lastButtonState == HIGH && currentButton == LOW) {
             // Falling edge — button just pressed
             buttonPressedAt = millis();
+            pressDebounced = false;
         }
 
-        bool buttonConfirmed = (currentButton == LOW)
-            && ((millis() - buttonPressedAt) >= BUTTON_DEBOUNCE_MS);
+        // While held LOW, mark as a valid debounced press once stable.
+        if (currentButton == LOW
+            && !pressDebounced
+            && ((millis() - buttonPressedAt) >= BUTTON_DEBOUNCE_MS)) {
+            pressDebounced = true;
+        }
 
-        if (lastButtonState == LOW && currentButton == HIGH && buttonConfirmed) {
+        if (lastButtonState == LOW && currentButton == HIGH && pressDebounced) {
             // Rising edge after debounce — button released: process dose
-
-            float delta     = angleDelta(refDeg, curDeg);
-            float absDelta  = fabsf(delta);
-            float doseUnits = absDelta / DEGREES_PER_UNIT;
 
             // Validate dose is within sane range
             if (doseUnits >= DOSE_MIN_UNITS && doseUnits <= DOSE_MAX_UNITS) {
@@ -115,12 +121,23 @@ void doseDetectionTask(void* pvParams) {
 
                     // Reset reference angle after a confirmed dose
                     refDeg = curDeg;
+                    Serial.println("[DoseDetect] Reference reset after confirmed dose");
                 } else {
                     Serial.printf("[DoseDetect] Low confidence (%.0f%%), dose ignored\n", confidence);
                 }
             } else if (doseUnits > 0.0f) {
                 Serial.printf("[DoseDetect] Dose out of range (%.1f units), ignored\n", doseUnits);
             }
+
+            // Release handled; wait for next press cycle.
+            pressDebounced = false;
+        }
+
+        // Legacy-style live logging so serial monitor always shows activity.
+        if ((millis() - lastLiveLogAtMs) >= 200) {
+            Serial.printf("[DoseDetect] Live Dial: %.2f u | Button: %d | Raw: %d\n",
+                          doseUnits, currentButton ? 1 : 0, rawNow);
+            lastLiveLogAtMs = millis();
         }
 
         lastButtonState = currentButton;

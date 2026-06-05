@@ -1,12 +1,18 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <stdio.h>
 #include "../config/app_config.h"
 #include "../models/dose_event.h"
+#include "../models/persistent_dose_record.h"
+#include "../services/storage_service.h"
 
 // Declared in main.cpp, shared with bleTransferTask
 extern QueueHandle_t doseEventQueue;
+extern PenDoseStorageService doseStorage;
+extern bool doseStorageReady;
 
 // ---- AS5600 I2C helpers -------------------------------------------------- //
 
@@ -47,6 +53,28 @@ static float angleDelta(float from, float to) {
 
 // ---- Task ----------------------------------------------------------------- //
 
+static PersistentDoseRecord buildPersistentRecord(const DoseEvent& event,
+                                                  uint32_t sequence,
+                                                  uint32_t bootNonce) {
+    PersistentDoseRecord record = {};
+    record.identity.sourceSequence = sequence;
+    snprintf(record.identity.eventUid,
+             sizeof(record.identity.eventUid),
+             "PEN-%08lX-%lu-%lu",
+             (unsigned long)bootNonce,
+             (unsigned long)sequence,
+             (unsigned long)event.timestampMs);
+    record.timing.sourceTimestampMs = event.timestampMs;
+    record.timing.receivedAtMs = 0;
+    record.doseUnits = event.doseUnits;
+    record.angleDegrees = event.angleDegrees;
+    record.confidencePercent = event.confidencePercent;
+    record.status = DOSE_RECORD_PENDING;
+    record.retryCount = 0;
+    record.reserved = 0;
+    return record;
+}
+
 void doseDetectionTask(void* pvParams) {
     // Initialise I2C bus
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
@@ -66,6 +94,8 @@ void doseDetectionTask(void* pvParams) {
     uint32_t buttonPressedAt = 0;
     bool    pressDebounced = false;
     uint32_t lastLiveLogAtMs = 0;
+    uint32_t doseSequence = 0;
+    const uint32_t bootNonce = esp_random();
 
     Serial.println("[DoseDetect] Task started");
 
@@ -112,11 +142,19 @@ void doseDetectionTask(void* pvParams) {
                     event.confidencePercent = confidence;
                     event.timestampMs       = millis();
 
-                    if (xQueueSend(doseEventQueue, &event, 0) == pdTRUE) {
-                        Serial.printf("[DoseDetect] Dose queued: %.1f units (%.1f deg, conf %.0f%%)\n",
-                                      doseUnits, absDelta, confidence);
+                    PersistentDoseRecord record = buildPersistentRecord(event, ++doseSequence, bootNonce);
+
+                    if (!doseStorageReady) {
+                        Serial.println("[DoseDetect] ERROR: dose storage unavailable, dose not queued");
+                    } else if (doseStorage.appendPending(record)) {
+                        if (xQueueSend(doseEventQueue, &event, 0) == pdTRUE) {
+                            Serial.printf("[DoseDetect] Dose saved and queued: %.1f units (%.1f deg, conf %.0f%%)\n",
+                                          doseUnits, absDelta, confidence);
+                        } else {
+                            Serial.println("[DoseDetect] WARNING: doseEventQueue full, saved dose will remain pending");
+                        }
                     } else {
-                        Serial.println("[DoseDetect] WARNING: doseEventQueue full, event dropped");
+                        Serial.println("[DoseDetect] ERROR: dose storage full, dose not queued");
                     }
 
                     // Reset reference angle after a confirmed dose

@@ -25,5 +25,5 @@ struct PersistentDoseRecord {
     uint16_t reserved;
 };
 
-static const uint8_t PEN_DOSE_RECORD_CAPACITY = 16;
+static const uint8_t PEN_DOSE_RECORD_CAPACITY = 8;
 static const uint8_t PEN_DOSE_RECORD_FORMAT_VERSION = 1;

@@ -3,6 +3,7 @@
 #include <freertos/queue.h>
 #include "config/app_config.h"
 #include "models/dose_event.h"
+#include "services/storage_service.h"
 
 // Forward declarations for tasks defined in tasks/
 void doseDetectionTask(void* pvParams);
@@ -10,11 +11,22 @@ void bleTransferTask(void* pvParams);
 
 // Shared queue: doseDetectionTask → bleTransferTask
 QueueHandle_t doseEventQueue = nullptr;
+PenDoseStorageService doseStorage;
+bool doseStorageReady = false;
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
     delay(200);
     Serial.println("=== Dia-Smart Pen Unit Starting ===");
+
+    doseStorageReady = doseStorage.begin();
+    if (doseStorageReady) {
+        Serial.printf("[Main] Dose storage ready: %u pending / %u capacity\n",
+                      doseStorage.countByStatus(DOSE_RECORD_PENDING),
+                      doseStorage.capacity());
+    } else {
+        Serial.println("[Main] ERROR: dose storage unavailable; confirmed doses will not be queued");
+    }
 
     // Create shared queue before starting tasks
     doseEventQueue = xQueueCreate(DOSE_QUEUE_LENGTH, sizeof(DoseEvent));

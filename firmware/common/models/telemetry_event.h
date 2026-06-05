@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "../config/event_types.h"
+#include "event_identity.h"
 
 struct TelemetryEvent {
     // Root
@@ -34,4 +35,9 @@ struct TelemetryEvent {
     int          wifiRssiDbm;
     int          bleRssiDbm;
     uint32_t     freeHeapBytes;
+
+    // Internal metadata for future inter-device reliability work.
+    EventIdentity identity;
+    SourceIdentity source;
+    SourceTiming timing;
 };

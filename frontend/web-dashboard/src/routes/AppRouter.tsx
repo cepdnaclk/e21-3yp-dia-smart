@@ -8,23 +8,76 @@ import AnalyticsPage from "../pages/analytics/AnalyticsPage";
 import PatientsPage from "../pages/patients/PatientsPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import PrescriptionsPage from "../pages/prescriptions/PrescriptionsPage";
+import ProfilePage from "../pages/profile/ProfilePage";
+
+import LoginPage from "../pages/auth/LoginPage";
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+
+import ProtectedRoute from "./ProtectedRoute";
 
 const AppRouter = () => {
   return (
     <BrowserRouter>
-      <DashboardLayout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Routes>
 
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/patients" element={<PatientsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/prescriptions" element={<PrescriptionsPage />}
-/>
-        </Routes>
-      </DashboardLayout>
+        {/* Public */}
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
+
+        {/* Protected */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route
+            path="/"
+            element={<Navigate to="/dashboard" replace />}
+          />
+
+          <Route
+            path="/dashboard"
+            element={<DashboardPage />}
+          />
+
+          <Route
+            path="/alerts"
+            element={<AlertsPage />}
+          />
+
+          <Route
+            path="/analytics"
+            element={<AnalyticsPage />}
+          />
+
+          <Route
+            path="/patients"
+            element={<PatientsPage />}
+          />
+
+          <Route
+            path="/prescriptions"
+            element={<PrescriptionsPage />}
+          />
+
+          <Route
+            path="/profile"
+            element={<ProfilePage />}
+          />
+
+          <Route
+            path="/settings"
+            element={<SettingsPage />}
+          />
+        </Route>
+
+      </Routes>
     </BrowserRouter>
   );
 };

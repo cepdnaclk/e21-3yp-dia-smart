@@ -1,12 +1,10 @@
 import { Box, Toolbar } from "@mui/material";
+import { Outlet } from "react-router-dom";
+
 import Sidebar from "../../components/navigation/Sidebar";
 import Topbar from "../../components/navigation/Topbar";
 
-interface Props {
-  children: React.ReactNode;
-}
-
-const DashboardLayout = ({ children }: Props) => {
+const DashboardLayout = () => {
   return (
     <Box sx={{ display: "flex" }}>
       <Topbar />
@@ -21,7 +19,8 @@ const DashboardLayout = ({ children }: Props) => {
         }}
       >
         <Toolbar />
-        {children}
+
+        <Outlet />
       </Box>
     </Box>
   );

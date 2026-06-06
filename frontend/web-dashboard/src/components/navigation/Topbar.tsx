@@ -11,7 +11,11 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 
 import logo from "../../assets/logo/diasmart-logo.png";
 
+import { useAuth } from "../../context/AuthContext";
+
 const Topbar = () => {
+  const { role } = useAuth();
+
   return (
     <AppBar
       position="fixed"
@@ -46,13 +50,8 @@ const Topbar = () => {
           <NotificationsIcon />
         </IconButton>
 
-        <Avatar
-          sx={{
-            ml: 2,
-            bgcolor: "#4CB5E8",
-          }}
-        >
-          A
+        <Avatar>
+          {role.charAt(0)}
         </Avatar>
       </Toolbar>
     </AppBar>

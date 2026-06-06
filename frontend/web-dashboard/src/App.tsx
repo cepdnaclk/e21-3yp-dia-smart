@@ -1,5 +1,7 @@
+import AppRouter from "./routes/AppRouter";
+
 function App() {
-  return <h1>Dia-Smart Dashboard</h1>;
+  return <AppRouter />;
 }
 
 export default App;

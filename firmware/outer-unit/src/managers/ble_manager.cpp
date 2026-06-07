@@ -36,6 +36,8 @@ static bool glucometerFound  = false;
 static bool racpDone         = false;
 static uint32_t glucSyncTimer = 0;
 static volatile uint16_t pendingPenAckMask = 0;
+static bool hasLastGlucoseSeq = false;
+static uint16_t lastAcceptedGlucoseSeq = 0;
 
 // ---- Helpers -------------------------------------------------------------- //
 static void getTimestamp(char* buf, size_t len) {
@@ -233,6 +235,11 @@ static void onGlucoseMeasNotify(BLERemoteCharacteristic* pChar,
     uint16_t rawGlucose = (uint16_t)(pData[12] | (pData[13] << 8));
     int      mgDl       = (int)(rawGlucose & 0x0FFF);  // mantissa = mg/dL directly
 
+    if (hasLastGlucoseSeq && seqNum == lastAcceptedGlucoseSeq) {
+        Serial.printf("[BLE] Duplicate glucose seq=%u ignored\n", seqNum);
+        return;
+    }
+
     GlucoseReading reading = {};
     reading.sequenceNumber = seqNum;
     reading.valueMgDl      = mgDl;
@@ -241,6 +248,8 @@ static void onGlucoseMeasNotify(BLERemoteCharacteristic* pChar,
     if (xQueueSend(glucoseQueue, &reading, 0) != pdTRUE) {
         Serial.println("[BLE] glucoseQueue full — reading dropped");
     } else {
+        lastAcceptedGlucoseSeq = seqNum;
+        hasLastGlucoseSeq = true;
         Serial.printf("[BLE] Glucose: %d mg/dL (seq=%d)\n", mgDl, seqNum);
     }
 }

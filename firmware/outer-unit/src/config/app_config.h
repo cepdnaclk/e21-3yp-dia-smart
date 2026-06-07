@@ -59,21 +59,22 @@
 
 // ---- TFT Display (8-bit parallel, PCB pin map) --------------------------- //
 #define DISPLAY_ENABLED              1
+#define DISPLAY_RAW_DIAGNOSTIC       0
 #define DISPLAY_WIDTH                320
 #define DISPLAY_HEIGHT               480
 #define DISPLAY_REFRESH_MS           1000
-#define DISPLAY_PIN_LCD_CS           21
-#define DISPLAY_PIN_LCD_D0           35
-#define DISPLAY_PIN_LCD_D1           36
-#define DISPLAY_PIN_LCD_D2           37
-#define DISPLAY_PIN_LCD_D3           39
-#define DISPLAY_PIN_LCD_D4           40
-#define DISPLAY_PIN_LCD_D5           41
-#define DISPLAY_PIN_LCD_D6           42
-#define DISPLAY_PIN_LCD_D7           47
-#define DISPLAY_PIN_LCD_WR           48
-#define DISPLAY_PIN_LCD_RS           10
-#define DISPLAY_PIN_LCD_RST          11
+#define DISPLAY_PIN_LCD_CS           9
+#define DISPLAY_PIN_LCD_D0           12
+#define DISPLAY_PIN_LCD_D1           13
+#define DISPLAY_PIN_LCD_D2           14
+#define DISPLAY_PIN_LCD_D3           15
+#define DISPLAY_PIN_LCD_D4           16
+#define DISPLAY_PIN_LCD_D5           17
+#define DISPLAY_PIN_LCD_D6           18
+#define DISPLAY_PIN_LCD_D7           21
+#define DISPLAY_PIN_LCD_WR           7
+#define DISPLAY_PIN_LCD_RS           8
+#define DISPLAY_PIN_LCD_RST          6
 // LCD_RD is pulled up to 3.3V through 10k on the PCB; firmware uses write-only mode.
 
 // ---- FreeRTOS Queue lengths ---------------------------------------------- //

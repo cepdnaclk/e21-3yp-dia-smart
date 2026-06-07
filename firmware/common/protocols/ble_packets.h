@@ -15,4 +15,7 @@ struct DoseReading {
     float    angleDegrees;
     char     injectedAt[32];
     uint32_t timestampMs;
+    uint8_t  penRecordSlot;
+    uint32_t penTakenEpochSec;
+    bool     hasPenTakenEpoch;
 };

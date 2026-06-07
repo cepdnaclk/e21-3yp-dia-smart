@@ -45,6 +45,91 @@ static void getTimestamp(char* buf, size_t len) {
     }
 }
 
+static bool getCurrentEpochSec(uint32_t* epochSec) {
+    if (epochSec == nullptr) {
+        return false;
+    }
+
+    time_t now = time(nullptr);
+    if (now <= 1700000000) {
+        return false;
+    }
+
+    *epochSec = (uint32_t)now;
+    return true;
+}
+
+static void getTimestampFromEpoch(char* buf, size_t len, uint32_t epochSec) {
+    time_t injected = (time_t)epochSec;
+    struct tm ti;
+    gmtime_r(&injected, &ti);
+    strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", &ti);
+}
+
+static void writePenTimeSync(BLERemoteCharacteristic* penChar) {
+    if (penChar == nullptr || !penChar->canWrite()) {
+        Serial.println("[BLE] Pen characteristic does not support time sync write");
+        return;
+    }
+
+    uint32_t epochSec = 0;
+    if (!getCurrentEpochSec(&epochSec)) {
+        Serial.println("[BLE] Time sync skipped; outer NTP time is not ready");
+        return;
+    }
+
+    char payload[24];
+    snprintf(payload, sizeof(payload), "t,%lu", (unsigned long)epochSec);
+    penChar->writeValue((uint8_t*)payload, strlen(payload), true);
+    Serial.printf("[BLE] Time sync sent to pen: %s\n", payload);
+}
+
+static bool parseCompactDosePayload(const char* buf, DoseReading* dose) {
+    if (buf == nullptr || dose == nullptr || strncmp(buf, "d,", 2) != 0) {
+        return false;
+    }
+
+    int slot = -1;
+    int doseTenths = 0;
+    unsigned long takenEpochSec = 0;
+    if (sscanf(buf, "d,%d,%d,%lu", &slot, &doseTenths, &takenEpochSec) != 3) {
+        return false;
+    }
+
+    if (slot < 0 || doseTenths <= 0 || takenEpochSec < 1700000000UL) {
+        return false;
+    }
+
+    dose->doseUnits = doseTenths / 10.0f;
+    dose->angleDegrees = 0.0f;
+    dose->timestampMs = millis();
+    dose->penRecordSlot = (uint8_t)slot;
+    dose->penTakenEpochSec = (uint32_t)takenEpochSec;
+    dose->hasPenTakenEpoch = true;
+    getTimestampFromEpoch(dose->injectedAt, sizeof(dose->injectedAt), dose->penTakenEpochSec);
+    return true;
+}
+
+static bool parseLegacyDosePayload(const char* buf, DoseReading* dose) {
+    if (buf == nullptr || dose == nullptr || strncmp(buf, "dose,", 5) != 0) {
+        return false;
+    }
+
+    float units = atof(buf + 5);
+    if (units <= 0.0f) {
+        return false;
+    }
+
+    dose->doseUnits = units;
+    dose->angleDegrees = 0.0f;
+    dose->timestampMs = millis();
+    dose->penRecordSlot = 0xFF;
+    dose->penTakenEpochSec = 0;
+    dose->hasPenTakenEpoch = false;
+    getTimestamp(dose->injectedAt, sizeof(dose->injectedAt));
+    return true;
+}
+
 // ---- BLE scan callback ---------------------------------------------------- //
 class MyAdvertisedDeviceCB : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) override {
@@ -71,7 +156,7 @@ class MyAdvertisedDeviceCB : public BLEAdvertisedDeviceCallbacks {
 };
 
 // ---- Pen notify callback -------------------------------------------------- //
-// Pen sends "dose,<N.N>" over BLE notify. Parse and push to doseQueue.
+// Pen sends either legacy "dose,<N.N>" or compact "d,<slot>,<tenths>,<takenEpochSec>".
 static void onPenDoseNotify(BLERemoteCharacteristic* pChar,
                             uint8_t* pData, size_t length, bool isNotify) {
     if (length == 0) return;
@@ -81,21 +166,17 @@ static void onPenDoseNotify(BLERemoteCharacteristic* pChar,
     size_t copyLen = (length < sizeof(buf) - 1) ? length : sizeof(buf) - 1;
     memcpy(buf, pData, copyLen);
 
-    if (strncmp(buf, "dose,", 5) != 0) return;
-
-    float units = atof(buf + 5);
-    if (units <= 0.0f) return;
-
     DoseReading dose = {};
-    dose.doseUnits   = units;
-    dose.angleDegrees = 0.0f;
-    dose.timestampMs  = millis();
-    getTimestamp(dose.injectedAt, sizeof(dose.injectedAt));
+    if (!parseCompactDosePayload(buf, &dose) && !parseLegacyDosePayload(buf, &dose)) {
+        return;
+    }
 
     if (xQueueSend(doseQueue, &dose, 0) != pdTRUE) {
         Serial.println("[BLE] doseQueue full — dose dropped");
     } else {
-        Serial.printf("[BLE] Pen dose received: %.1f units\n", units);
+        Serial.printf("[BLE] Pen dose received: %.1f units injectedAt=%s\n",
+                      dose.doseUnits,
+                      dose.injectedAt);
     }
 }
 
@@ -254,6 +335,7 @@ void bleManagerTask(void* pvParams) {
             }
 
             penChar->registerForNotify(onPenDoseNotify);
+            writePenTimeSync(penChar);
             g_lastBleRssi = penClient->getRssi();
             Serial.printf("[BLE] Pen connected, RSSI=%d dBm\n", g_lastBleRssi);
 

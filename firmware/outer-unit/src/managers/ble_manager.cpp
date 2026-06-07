@@ -30,10 +30,12 @@ static BLEAdvertisedDevice* penDevice        = nullptr;
 static BLEAdvertisedDevice* glucometerDevice  = nullptr;
 static BLEClient*           penClient        = nullptr;
 static BLEClient*           glucometerClient = nullptr;
+static BLERemoteCharacteristic* penDoseChar  = nullptr;
 static bool penFound         = false;
 static bool glucometerFound  = false;
 static bool racpDone         = false;
 static uint32_t glucSyncTimer = 0;
+static volatile uint16_t pendingPenAckMask = 0;
 
 // ---- Helpers -------------------------------------------------------------- //
 static void getTimestamp(char* buf, size_t len) {
@@ -82,6 +84,33 @@ static void writePenTimeSync(BLERemoteCharacteristic* penChar) {
     snprintf(payload, sizeof(payload), "t,%lu", (unsigned long)epochSec);
     penChar->writeValue((uint8_t*)payload, strlen(payload), true);
     Serial.printf("[BLE] Time sync sent to pen: %s\n", payload);
+}
+
+static void queuePenAck(uint8_t slot) {
+    if (slot >= 16) {
+        return;
+    }
+    pendingPenAckMask |= (uint16_t)(1U << slot);
+}
+
+static void sendPendingPenAcks() {
+    if (penDoseChar == nullptr || !penDoseChar->canWrite()) {
+        return;
+    }
+
+    uint16_t mask = pendingPenAckMask;
+    for (uint8_t slot = 0; slot < 16; ++slot) {
+        uint16_t bit = (uint16_t)(1U << slot);
+        if ((mask & bit) == 0) {
+            continue;
+        }
+
+        char payload[8];
+        snprintf(payload, sizeof(payload), "a,%u", slot);
+        penDoseChar->writeValue((uint8_t*)payload, strlen(payload), true);
+        pendingPenAckMask &= (uint16_t)~bit;
+        Serial.printf("[BLE] ACK sent to pen for slot %u\n", slot);
+    }
 }
 
 static bool parseCompactDosePayload(const char* buf, DoseReading* dose) {
@@ -177,6 +206,9 @@ static void onPenDoseNotify(BLERemoteCharacteristic* pChar,
         Serial.printf("[BLE] Pen dose received: %.1f units injectedAt=%s\n",
                       dose.doseUnits,
                       dose.injectedAt);
+        if (dose.hasPenTakenEpoch) {
+            queuePenAck(dose.penRecordSlot);
+        }
     }
 }
 
@@ -306,6 +338,7 @@ void bleManagerTask(void* pvParams) {
                 delete penClient;
                 penClient = nullptr;
             }
+            penDoseChar = nullptr;
 
             penClient = BLEDevice::createClient();
 
@@ -330,10 +363,12 @@ void bleManagerTask(void* pvParams) {
             if (!penChar || !penChar->canNotify()) {
                 Serial.println("[BLE] Pen characteristic not found or no NOTIFY");
                 penClient->disconnect();
+                penDoseChar = nullptr;
                 state = BLE_SCANNING_PEN;
                 break;
             }
 
+            penDoseChar = penChar;
             penChar->registerForNotify(onPenDoseNotify);
             writePenTimeSync(penChar);
             g_lastBleRssi = penClient->getRssi();
@@ -348,12 +383,14 @@ void bleManagerTask(void* pvParams) {
         case BLE_PEN_CONNECTED: {
             if (!penClient->isConnected()) {
                 Serial.println("[BLE] Pen disconnected unexpectedly");
+                penDoseChar = nullptr;
                 state = BLE_SCANNING_PEN;
                 break;
             }
 
             // Periodically update RSSI
             g_lastBleRssi = penClient->getRssi();
+            sendPendingPenAcks();
 
             // Trigger glucometer sync on interval
             if ((millis() - glucSyncTimer) >= GLUCOMETER_SYNC_INTERVAL_MS) {
@@ -370,7 +407,9 @@ void bleManagerTask(void* pvParams) {
             // Must disconnect pen before connecting glucometer
             if (penClient && penClient->isConnected()) {
                 Serial.println("[BLE] Disconnecting pen for glucometer sync...");
+                sendPendingPenAcks();
                 penClient->disconnect();
+                penDoseChar = nullptr;
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
 
@@ -389,11 +428,8 @@ void bleManagerTask(void* pvParams) {
             if (glucometerFound) {
                 state = BLE_GLUCOMETER_SYNCING;
             } else {
-                // Glucometer not advertising yet — keep retrying every 5s
-                // without going back to pen, so user just needs to turn it on
-                Serial.println("[BLE] Glucometer not found, retrying in 5s...");
-                vTaskDelay(pdMS_TO_TICKS(5000));
-                // stay in BLE_GLUCOMETER_SYNC_START
+                Serial.println("[BLE] Glucometer not found; returning to pen scan");
+                state = BLE_SCANNING_PEN;
             }
             break;
         }

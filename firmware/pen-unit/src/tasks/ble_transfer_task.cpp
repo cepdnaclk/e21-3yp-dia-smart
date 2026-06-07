@@ -42,6 +42,20 @@ static bool parseTimeSyncPayload(const char* payload, uint32_t* epochSec) {
     return true;
 }
 
+static bool parseAckPayload(const char* payload, uint8_t* slot) {
+    if (payload == nullptr || slot == nullptr || strncmp(payload, "a,", 2) != 0) {
+        return false;
+    }
+
+    int parsedSlot = -1;
+    if (sscanf(payload, "a,%d", &parsedSlot) != 1 || parsedSlot < 0) {
+        return false;
+    }
+
+    *slot = (uint8_t)parsedSlot;
+    return true;
+}
+
 static uint32_t calculateTakenEpochSec(uint32_t doseTakenMillis) {
     int32_t deltaMs = (int32_t)(doseTakenMillis - timeSyncMillis);
     int64_t takenEpoch = (int64_t)timeSyncEpochSec + (deltaMs / 1000);
@@ -126,18 +140,33 @@ class DoseCharacteristicCallbacks : public BLECharacteristicCallbacks {
         memcpy(payload, value.data(), copyLen);
 
         uint32_t epochSec = 0;
-        if (!parseTimeSyncPayload(payload, &epochSec)) {
-            Serial.printf("[BLE] Ignored write payload: \"%s\"\n", payload);
+        if (parseTimeSyncPayload(payload, &epochSec)) {
+            timeSyncEpochSec = epochSec;
+            timeSyncMillis = millis();
+            timeSyncReady = true;
+            connectionTimeSyncReady = true;
+            Serial.printf("[BLE] Time sync received: epoch=%lu at penMillis=%lu\n",
+                          (unsigned long)timeSyncEpochSec,
+                          (unsigned long)timeSyncMillis);
             return;
         }
 
-        timeSyncEpochSec = epochSec;
-        timeSyncMillis = millis();
-        timeSyncReady = true;
-        connectionTimeSyncReady = true;
-        Serial.printf("[BLE] Time sync received: epoch=%lu at penMillis=%lu\n",
-                      (unsigned long)timeSyncEpochSec,
-                      (unsigned long)timeSyncMillis);
+        uint8_t ackSlot = 0;
+        if (parseAckPayload(payload, &ackSlot)) {
+            if (!doseStorageReady || ackSlot >= doseStorage.capacity()) {
+                Serial.printf("[BLE] Ignored ACK for invalid slot %u\n", ackSlot);
+                return;
+            }
+
+            if (doseStorage.updateStatus(ackSlot, DOSE_RECORD_EMPTY)) {
+                Serial.printf("[BLE] ACK received; cleared stored dose slot %u\n", ackSlot);
+            } else {
+                Serial.printf("[BLE] ACK received but slot %u was not clearable\n", ackSlot);
+            }
+            return;
+        }
+
+        Serial.printf("[BLE] Ignored write payload: \"%s\"\n", payload);
     }
 };
 

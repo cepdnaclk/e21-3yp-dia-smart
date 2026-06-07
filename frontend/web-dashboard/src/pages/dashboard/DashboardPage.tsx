@@ -1,7 +1,31 @@
+import { useEffect, useState } from "react";
+
 import { Grid, Typography } from "@mui/material";
+
 import StatCard from "../../components/dashboard/StatCard";
 
+import type { DashboardData } from "../types/dashboard";
+import { dashboardService } from "../../services/dashboardService";
+
 const DashboardPage = () => {
+  const [dashboardData, setDashboardData] =
+    useState<DashboardData | null>(null);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      const data =
+        await dashboardService.getDashboardData();
+
+      setDashboardData(data);
+    };
+
+    loadDashboard();
+  }, []);
+
+  if (!dashboardData) {
+    return <Typography>Loading...</Typography>;
+  }
+
   return (
     <>
       <Typography
@@ -15,28 +39,28 @@ const DashboardPage = () => {
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Glucose"
-            value="118 mg/dL"
+            value={`${dashboardData.glucose} mg/dL`}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Inventory"
-            value="41.8 Units"
+            value={`${dashboardData.inventory} Units`}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Temperature"
-            value="5.4 °C"
+            value={`${dashboardData.temperature} °C`}
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Last Dose"
-            value="10 Units"
+            value={`${dashboardData.lastDose} Units`}
           />
         </Grid>
       </Grid>

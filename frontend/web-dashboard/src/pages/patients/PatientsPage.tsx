@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
   Typography,
   Paper,
@@ -10,31 +12,25 @@ import {
   Chip,
 } from "@mui/material";
 
-const patients = [
-  {
-    id: 1,
-    name: "John Silva",
-    glucose: 118,
-    dose: 10,
-    status: "Stable",
-  },
-  {
-    id: 2,
-    name: "Mary Perera",
-    glucose: 145,
-    dose: 12,
-    status: "Warning",
-  },
-  {
-    id: 3,
-    name: "Nimal Fernando",
-    glucose: 105,
-    dose: 8,
-    status: "Stable",
-  },
-];
+import { patientsService } from "../../services/patientsService";
+import type { Patient } from "../../types/patient";
 
 const PatientsPage = () => {
+  const [patients, setPatients] = useState<
+    Patient[]
+  >([]);
+
+  useEffect(() => {
+    const loadPatients = async () => {
+      const data =
+        await patientsService.getPatients();
+
+      setPatients(data);
+    };
+
+    loadPatients();
+  }, []);
+
   return (
     <>
       <Typography variant="h4" sx={{ mb: 3 }}>
@@ -46,8 +42,9 @@ const PatientsPage = () => {
           <TableHead>
             <TableRow>
               <TableCell>Patient</TableCell>
+              <TableCell>Age</TableCell>
               <TableCell>Glucose (mg/dL)</TableCell>
-              <TableCell>Last Dose (Units)</TableCell>
+              <TableCell>Inventory</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>
           </TableHead>
@@ -55,9 +52,21 @@ const PatientsPage = () => {
           <TableBody>
             {patients.map((patient) => (
               <TableRow key={patient.id}>
-                <TableCell>{patient.name}</TableCell>
-                <TableCell>{patient.glucose}</TableCell>
-                <TableCell>{patient.dose}</TableCell>
+                <TableCell>
+                  {patient.name}
+                </TableCell>
+
+                <TableCell>
+                  {patient.age}
+                </TableCell>
+
+                <TableCell>
+                  {patient.glucose}
+                </TableCell>
+
+                <TableCell>
+                  {patient.inventory} Units
+                </TableCell>
 
                 <TableCell>
                   <Chip
@@ -65,7 +74,7 @@ const PatientsPage = () => {
                     color={
                       patient.status === "Stable"
                         ? "success"
-                        : "warning"
+                        : "error"
                     }
                   />
                 </TableCell>

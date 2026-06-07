@@ -41,7 +41,15 @@
 #define GLUCOMETER_MEAS_UUID         ((uint16_t)0x2A18)   // NOTIFY
 #define GLUCOMETER_RACP_UUID         ((uint16_t)0x2A52)   // INDICATE
 
-// How often the outer unit disconnects from pen and syncs the glucometer
+// BLE scan/session scheduling. Keep pen checks short/frequent and glucometer
+// checks longer/less frequent so one peripheral does not starve the other.
+#define PEN_SCAN_WINDOW_SEC          2
+#define PEN_SCAN_IDLE_DELAY_MS       3000
+#define PEN_SESSION_HOLD_MS          2500
+#define GLUCOMETER_SCAN_WINDOW_SEC   10
+#define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
+
+// How often the outer unit attempts to sync the glucometer
 #define GLUCOMETER_SYNC_INTERVAL_MS  30000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //

@@ -34,12 +34,17 @@ static BLERemoteCharacteristic* penDoseChar  = nullptr;
 static bool penFound         = false;
 static bool glucometerFound  = false;
 static bool racpDone         = false;
-static uint32_t glucSyncTimer = 0;
+static uint32_t lastGlucometerSyncMs = 0;
+static uint32_t penSessionStartMs = 0;
 static volatile uint16_t pendingPenAckMask = 0;
 static bool hasLastGlucoseSeq = false;
 static uint16_t lastAcceptedGlucoseSeq = 0;
 
 // ---- Helpers -------------------------------------------------------------- //
+static bool isGlucometerSyncDue() {
+    return (millis() - lastGlucometerSyncMs) >= GLUCOMETER_SYNC_INTERVAL_MS;
+}
+
 static void getTimestamp(char* buf, size_t len) {
     struct tm ti;
     if (getLocalTime(&ti)) {
@@ -308,7 +313,7 @@ void bleManagerTask(void* pvParams) {
     BLEScan* pScan = setupScan(scanCb);
 
     state         = BLE_SCANNING_PEN;
-    glucSyncTimer = millis() - GLUCOMETER_SYNC_INTERVAL_MS;  // trigger glucometer sync on first pass
+    lastGlucometerSyncMs = millis() - (GLUCOMETER_SYNC_INTERVAL_MS - GLUCOMETER_INITIAL_SCAN_DELAY_MS);
 
     Serial.println("[BLE] Manager task started");
 
@@ -317,25 +322,25 @@ void bleManagerTask(void* pvParams) {
 
         // ------------------------------------------------------------------ //
         case BLE_SCANNING_PEN: {
+            if (isGlucometerSyncDue()) {
+                Serial.println("[BLE] Glucometer sync due; scanning glucometer before pen");
+                state = BLE_GLUCOMETER_SYNC_START;
+                break;
+            }
+
             penFound = false;
             if (penDevice) { delete penDevice; penDevice = nullptr; }
 
-            Serial.println("[BLE] Scanning for pen...");
+            Serial.println("[BLE] Scanning for pen window...");
             pScan->clearResults();
-            pScan->start(5, false);           // blocks up to 5 s
+            pScan->start(PEN_SCAN_WINDOW_SEC, false);
             vTaskDelay(pdMS_TO_TICKS(500));   // let callback finish
 
             if (penFound) {
                 state = BLE_CONNECTING_PEN;
             } else {
-                // Even without pen, sync glucometer on schedule
-                if ((millis() - glucSyncTimer) >= GLUCOMETER_SYNC_INTERVAL_MS) {
-                    Serial.println("[BLE] Pen not found — switching to glucometer sync");
-                    state = BLE_GLUCOMETER_SYNC_START;
-                } else {
-                    Serial.println("[BLE] Pen not found, retrying in 2s...");
-                    vTaskDelay(pdMS_TO_TICKS(2000));
-                }
+                Serial.println("[BLE] Pen not found in window; idle before next scan");
+                vTaskDelay(pdMS_TO_TICKS(PEN_SCAN_IDLE_DELAY_MS));
             }
             break;
         }
@@ -383,7 +388,7 @@ void bleManagerTask(void* pvParams) {
             g_lastBleRssi = penClient->getRssi();
             Serial.printf("[BLE] Pen connected, RSSI=%d dBm\n", g_lastBleRssi);
 
-            glucSyncTimer = millis();
+            penSessionStartMs = millis();
             state = BLE_PEN_CONNECTED;
             break;
         }
@@ -401,13 +406,23 @@ void bleManagerTask(void* pvParams) {
             g_lastBleRssi = penClient->getRssi();
             sendPendingPenAcks();
 
-            // Trigger glucometer sync on interval
-            if ((millis() - glucSyncTimer) >= GLUCOMETER_SYNC_INTERVAL_MS) {
+            if (isGlucometerSyncDue()) {
+                Serial.println("[BLE] Pen session yielding to glucometer sync");
                 state = BLE_GLUCOMETER_SYNC_START;
                 break;
             }
 
-            vTaskDelay(pdMS_TO_TICKS(500));
+            if ((millis() - penSessionStartMs) >= PEN_SESSION_HOLD_MS &&
+                pendingPenAckMask == 0) {
+                Serial.println("[BLE] Pen session complete; disconnecting to resume scan windows");
+                penClient->disconnect();
+                penDoseChar = nullptr;
+                vTaskDelay(pdMS_TO_TICKS(300));
+                state = BLE_SCANNING_PEN;
+                break;
+            }
+
+            vTaskDelay(pdMS_TO_TICKS(200));
             break;
         }
 
@@ -422,8 +437,8 @@ void bleManagerTask(void* pvParams) {
                 vTaskDelay(pdMS_TO_TICKS(500));
             }
 
-            // Reset glucSyncTimer so we don't immediately re-trigger after reconnect
-            glucSyncTimer = millis();
+            // Reset attempt timer so we do not immediately re-trigger this window.
+            lastGlucometerSyncMs = millis();
             // Security is configured once at task init — no need to set again here.
 
             glucometerFound = false;
@@ -431,7 +446,7 @@ void bleManagerTask(void* pvParams) {
 
             Serial.println("[BLE] Scanning for glucometer...");
             pScan->clearResults();
-            pScan->start(10, false);          // glucometer may take longer to appear
+            pScan->start(GLUCOMETER_SCAN_WINDOW_SEC, false);
             vTaskDelay(pdMS_TO_TICKS(500));
 
             if (glucometerFound) {
@@ -529,7 +544,7 @@ void bleManagerTask(void* pvParams) {
             Serial.println("[BLE] Glucometer sync done, back to scanning for pen...");
             pScan->clearResults();
             vTaskDelay(pdMS_TO_TICKS(500));
-            glucSyncTimer = millis();
+            lastGlucometerSyncMs = millis();
             state = BLE_SCANNING_PEN;
             break;
         }

@@ -6,6 +6,7 @@
 #include "models/telemetry_event.h"
 #include "include/system_queues.h"
 #include "config/app_config.h"
+#include "managers/display_state_manager.h"
 
 // Shared variable written by bleManagerTask, read here for battery section.
 // Declared extern in ble_manager.cpp.
@@ -121,6 +122,8 @@ void eventAggregatorTask(void* parameter) {
             event.wifiRssiDbm         = WiFi.RSSI();
             event.bleRssiDbm          = g_lastBleRssi;
             event.freeHeapBytes       = esp_get_free_heap_size();
+
+            updateDisplayStateFromTelemetry(event);
 
             if (xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500)) != pdTRUE) {
                 Serial.println("[EventAgg] telemetryQueue full — event dropped");

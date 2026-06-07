@@ -57,6 +57,25 @@
 #define TEMP_MAX_C                   8.0f
 #define FULL_BOTTLE_WEIGHT_G         300.0f
 
+// ---- TFT Display (8-bit parallel, PCB pin map) --------------------------- //
+#define DISPLAY_ENABLED              1
+#define DISPLAY_WIDTH                320
+#define DISPLAY_HEIGHT               480
+#define DISPLAY_REFRESH_MS           1000
+#define DISPLAY_PIN_LCD_CS           21
+#define DISPLAY_PIN_LCD_D0           35
+#define DISPLAY_PIN_LCD_D1           36
+#define DISPLAY_PIN_LCD_D2           37
+#define DISPLAY_PIN_LCD_D3           39
+#define DISPLAY_PIN_LCD_D4           40
+#define DISPLAY_PIN_LCD_D5           41
+#define DISPLAY_PIN_LCD_D6           42
+#define DISPLAY_PIN_LCD_D7           47
+#define DISPLAY_PIN_LCD_WR           48
+#define DISPLAY_PIN_LCD_RS           10
+#define DISPLAY_PIN_LCD_RST          11
+// LCD_RD is pulled up to 3.3V through 10k on the PCB; firmware uses write-only mode.
+
 // ---- FreeRTOS Queue lengths ---------------------------------------------- //
 #define QUEUE_TELEMETRY_LEN          10
 #define QUEUE_INNER_PACKET_LEN       5
@@ -67,5 +86,6 @@
 #define STACK_EVENT_AGG              8192
 #define STACK_MQTT_PUBLISH           8192
 #define STACK_BLE_MANAGER            16384   // BLE client stack is large
+#define STACK_DISPLAY_UI             8192
 
 #endif

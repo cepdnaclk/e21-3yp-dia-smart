@@ -18,6 +18,7 @@ QueueHandle_t doseQueue;
 void eventAggregatorTask(void* parameter);
 void mqttPublishTask(void* parameter);
 void bleManagerTask(void* parameter);
+void displayUiTask(void* parameter);
 
 // ---- ESP-NOW receive callback --------------------------------------------- //
 // Runs in WiFi/ESP-NOW task context (NOT in our FreeRTOS task).
@@ -105,6 +106,11 @@ void setup() {
     xTaskCreatePinnedToCore(
         bleManagerTask, "BLEMgr",
         STACK_BLE_MANAGER, nullptr, 1, nullptr, 0);
+
+    // displayUiTask - TFT dashboard. It reads the latest telemetry snapshot only.
+    xTaskCreatePinnedToCore(
+        displayUiTask, "DisplayUI",
+        STACK_DISPLAY_UI, nullptr, 1, nullptr, 1);
 
     Serial.println("[Main] All tasks started");
 }

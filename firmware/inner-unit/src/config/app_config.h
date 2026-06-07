@@ -1,48 +1,64 @@
 #pragma once
 
 // =============================================================================
-// Inner Unit — App Configuration
-// ALL hardware-specific values live here. Change only this file when hardware
-// changes (different pin wiring, re-calibration, new WiFi, etc.)
+// Inner Unit - App Configuration
+// Keep hardware pins, sensor calibration values, and event-trigger thresholds
+// here. Change this file when wiring, calibration, or trigger sensitivity changes.
 // =============================================================================
 
 // ---- Serial ----------------------------------------------------------------
 #define SERIAL_BAUD              115200
 
-// ---- WiFi (needed only to lock ESP-NOW channel — not used for data) --------
+// ---- WiFi (needed only to lock ESP-NOW channel; not used for data) ----------
 #define WIFI_SSID                "ananthu73"
 #define WIFI_PASSWORD            "123123123@@"
-// How long to wait for WiFi before falling back to manual channel set (ms)
+// How long to wait for WiFi before falling back to manual channel set (ms).
 #define WIFI_CONNECT_TIMEOUT_MS  10000
 
 // ---- ESP-NOW ---------------------------------------------------------------
-// Must match outer unit's WiFi channel
+// Must match outer unit's WiFi channel.
 #define ESPNOW_CHANNEL           1
 
-// ---- DS18B20 Temperature sensor (OneWire) ----------------------------------
+// ---- DS18B20 temperature sensor (OneWire) ----------------------------------
 #define TEMP_SENSOR_PIN          21
-// DS18B20 returns exactly 85.0 on parasite-power wiring error — treat as NAN
+// DS18B20 returns exactly 85.0 on parasite-power wiring error; treat as NAN.
 #define DS18B20_ERROR_TEMP       85.0f
-// Acceptable temperature range for fridge (°C). Outside = alert.
+// Acceptable fridge temperature range in Celsius. Outside this range should be
+// treated as an alert by the event-trigger logic.
 #define TEMP_MIN_C               2.0f
 #define TEMP_MAX_C               8.0f
 
 // ---- Reed switch (door open/closed) ----------------------------------------
-// INPUT_PULLUP: HIGH = door OPEN (magnet away), LOW = CLOSED (magnet shorts pin)
+// INPUT_PULLUP: HIGH = door OPEN (magnet away), LOW = CLOSED (magnet shorts pin).
 #define DOOR_SENSOR_PIN          4
 
-// ---- HX711 load cell (insulin bottle weight) --------------------------------
+// ---- HX711 load cell (insulin bottle weight) -------------------------------
 #define HX711_DOUT_PIN           5
 #define HX711_CLK_PIN            18
-// Calibration factor — adjust after calibrating with known weight
+// Calibration factor from HX711 calibration. Tune until scale.get_units()
+// reports the known calibration weight in grams.
 #define LOAD_CELL_CALIBRATION    245.0f
-// Number of readings to average per sample (reduces noise)
+// Number of readings to average per sample. Increase to reduce noise; this also
+// makes each sample slower.
 #define HX711_AVERAGES           3
-// Reference weight of a full insulin bottle (grams) — for % calculation
+// Measured weight of the full bottle/package in grams. This drives inventory %.
 #define FULL_BOTTLE_WEIGHT_G     300.0f
 
-// ---- Sensor sampling interval ----------------------------------------------
+// ---- Sensor sampling / event trigger tuning --------------------------------
+// Raw sensors are sampled every SAMPLE_INTERVAL_MS. Event-triggered sending
+// should compare the new sample with the last sent sample and send only when a
+// threshold below is crossed, plus a periodic heartbeat.
 #define SAMPLE_INTERVAL_MS       3000
+// Send when temperature changes by at least this many Celsius.
+#define TEMP_EVENT_DELTA_C       0.5f
+// Send when weight changes by at least this many grams.
+#define WEIGHT_EVENT_DELTA_G     2.0f
+// Send when calculated inventory percent changes by at least this amount.
+#define INVENTORY_EVENT_DELTA_PERCENT 2.0f
+// Send when door state changes and remains stable for this debounce duration.
+#define DOOR_EVENT_DEBOUNCE_MS   250
+// Send even when nothing changed, so outer knows the inner unit is alive.
+#define INNER_HEARTBEAT_MS       60000
 
 // ---- Device identity -------------------------------------------------------
 #define DEVICE_UID_INNER         "DS-INNER-0001"

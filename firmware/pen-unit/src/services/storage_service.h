@@ -12,6 +12,7 @@ public:
     bool read(uint8_t index, PersistentDoseRecord* out) const;
     bool updateStatus(uint8_t index, DoseRecordStatus status);
     uint8_t countByStatus(DoseRecordStatus status) const;
+    uint8_t pendingDoseCount() const;
     void clearVolatileMirror();
 
 private:

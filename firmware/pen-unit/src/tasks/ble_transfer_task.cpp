@@ -24,9 +24,53 @@ static volatile bool connectionTimeSyncReady = false;
 static uint32_t timeSyncEpochSec = 0;
 static uint32_t timeSyncMillis = 0;
 static uint32_t lastTimeSyncWaitLogMs = 0;
+static uint32_t lastAdvertisingStateCheckMs = 0;
 
 static BLEServer* pServer = nullptr;
 static BLECharacteristic* pDoseCharistic = nullptr;
+
+enum AdvertisingMode {
+    ADV_MODE_UNKNOWN = 0,
+    ADV_MODE_SLOW,
+    ADV_MODE_FAST
+};
+
+static AdvertisingMode currentAdvertisingMode = ADV_MODE_UNKNOWN;
+
+static uint8_t activeDoseCount() {
+    if (!doseStorageReady) {
+        return 0;
+    }
+    return doseStorage.pendingDoseCount();
+}
+
+static void applyAdvertisingMode(bool force) {
+    if (deviceConnected) {
+        return;
+    }
+
+    uint8_t pendingCount = activeDoseCount();
+    AdvertisingMode targetMode = (pendingCount > 0) ? ADV_MODE_FAST : ADV_MODE_SLOW;
+    if (!force && targetMode == currentAdvertisingMode) {
+        return;
+    }
+
+    BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
+    if (targetMode == ADV_MODE_FAST) {
+        pAdvertising->setMinInterval(BLE_ADV_FAST_MIN_INTERVAL);
+        pAdvertising->setMaxInterval(BLE_ADV_FAST_MAX_INTERVAL);
+    } else {
+        pAdvertising->setMinInterval(BLE_ADV_SLOW_MIN_INTERVAL);
+        pAdvertising->setMaxInterval(BLE_ADV_SLOW_MAX_INTERVAL);
+    }
+
+    BLEDevice::startAdvertising();
+    currentAdvertisingMode = targetMode;
+
+    Serial.printf("[BLE] Advertising %s (pending=%u)\n",
+                  targetMode == ADV_MODE_FAST ? "FAST" : "SLOW",
+                  pendingCount);
+}
 
 static bool parseTimeSyncPayload(const char* payload, uint32_t* epochSec) {
     if (payload == nullptr || epochSec == nullptr || strncmp(payload, "t,", 2) != 0) {
@@ -120,7 +164,8 @@ static void notifyPendingStoredDoses() {
         }
 
         PersistentDoseRecord record = {};
-        if (doseStorage.read(i, &record) && record.status == DOSE_RECORD_PENDING) {
+        if (doseStorage.read(i, &record) &&
+            (record.status == DOSE_RECORD_PENDING || record.status == DOSE_RECORD_SENT)) {
             notifyStoredDose(i, record);
         }
     }
@@ -160,6 +205,7 @@ class DoseCharacteristicCallbacks : public BLECharacteristicCallbacks {
 
             if (doseStorage.updateStatus(ackSlot, DOSE_RECORD_EMPTY)) {
                 Serial.printf("[BLE] ACK received; cleared stored dose slot %u\n", ackSlot);
+                applyAdvertisingMode(false);
             } else {
                 Serial.printf("[BLE] ACK received but slot %u was not clearable\n", ackSlot);
             }
@@ -179,10 +225,10 @@ class DoseServerCallbacks : public BLEServerCallbacks {
     }
 
     void onDisconnect(BLEServer* pSrv) override {
+        (void)pSrv;
         deviceConnected = false;
         Serial.println("[BLE] Client disconnected");
-        pSrv->startAdvertising();
-        Serial.println("[BLE] Advertising restarted");
+        applyAdvertisingMode(true);
     }
 };
 
@@ -212,9 +258,9 @@ static void setupBLE() {
     pAdvertising->addServiceUUID(BLE_SERVICE_UUID);
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06);
-    BLEDevice::startAdvertising();
 
-    Serial.printf("[BLE] Advertising as \"%s\"\n", BLE_DEVICE_NAME);
+    Serial.printf("[BLE] Ready as \"%s\"\n", BLE_DEVICE_NAME);
+    applyAdvertisingMode(true);
 }
 
 // ---- Task ---------------------------------------------------------------- //
@@ -227,6 +273,12 @@ void bleTransferTask(void* pvParams) {
         if (deviceConnected) {
             drainDoseQueueSignals();
             notifyPendingStoredDoses();
+        } else {
+            uint32_t nowMs = millis();
+            if ((nowMs - lastAdvertisingStateCheckMs) >= BLE_ADV_STATE_CHECK_MS) {
+                lastAdvertisingStateCheckMs = nowMs;
+                applyAdvertisingMode(false);
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

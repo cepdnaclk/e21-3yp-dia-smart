@@ -97,6 +97,10 @@ uint8_t PenDoseStorageService::countByStatus(DoseRecordStatus status) const {
     return count;
 }
 
+uint8_t PenDoseStorageService::pendingDoseCount() const {
+    return countByStatus(DOSE_RECORD_PENDING) + countByStatus(DOSE_RECORD_SENT);
+}
+
 void PenDoseStorageService::clearVolatileMirror() {
     memset(records, 0, sizeof(records));
 }

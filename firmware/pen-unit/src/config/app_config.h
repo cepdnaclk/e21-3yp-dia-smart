@@ -42,3 +42,10 @@
 
 // ---- BLE notify pacing ----
 #define BLE_NOTIFY_INTERVAL_MS   100
+
+// Advertising interval units are 0.625 ms.
+#define BLE_ADV_FAST_MIN_INTERVAL 0x0030
+#define BLE_ADV_FAST_MAX_INTERVAL 0x0060
+#define BLE_ADV_SLOW_MIN_INTERVAL 0x0640
+#define BLE_ADV_SLOW_MAX_INTERVAL 0x0C80
+#define BLE_ADV_STATE_CHECK_MS    1000

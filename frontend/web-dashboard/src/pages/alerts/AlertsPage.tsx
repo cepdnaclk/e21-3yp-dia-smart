@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
   Typography,
   Stack,
@@ -5,7 +7,24 @@ import {
 
 import AlertCard from "../../components/alerts/AlertCard";
 
+import { alertsService } from "../../services/alertsService";
+import type { Alert } from "../../types/alert";
+
 const AlertsPage = () => {
+  const [alerts, setAlerts] =
+    useState<Alert[]>([]);
+
+  useEffect(() => {
+    const loadAlerts = async () => {
+      const data =
+        await alertsService.getAlerts();
+
+      setAlerts(data);
+    };
+
+    loadAlerts();
+  }, []);
+
   return (
     <>
       <Typography
@@ -16,29 +35,14 @@ const AlertsPage = () => {
       </Typography>
 
       <Stack spacing={2}>
-        <AlertCard
-          severity="error"
-          title="Inventory Low"
-          description="Insulin inventory dropped below 20 units."
-        />
-
-        <AlertCard
-          severity="warning"
-          title="Temperature Warning"
-          description="Refrigerator temperature exceeded 8°C."
-        />
-
-        <AlertCard
-          severity="warning"
-          title="Missed Dose"
-          description="Patient missed scheduled insulin dose."
-        />
-
-        <AlertCard
-          severity="info"
-          title="Glucose Reading Received"
-          description="New BLE glucose reading synced successfully."
-        />
+        {alerts.map((alert) => (
+          <AlertCard
+            key={alert.id}
+            severity={alert.severity}
+            title={alert.title}
+            description={alert.description}
+          />
+        ))}
       </Stack>
     </>
   );

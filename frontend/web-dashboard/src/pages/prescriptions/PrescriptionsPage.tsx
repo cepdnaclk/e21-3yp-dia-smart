@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
   Typography,
   Paper,
@@ -10,24 +12,25 @@ import {
   Chip,
 } from "@mui/material";
 
-const prescriptions = [
-  {
-    id: 1,
-    medication: "Insulin Glargine",
-    dosage: "10 Units",
-    frequency: "Daily",
-    status: "Active",
-  },
-  {
-    id: 2,
-    medication: "Rapid Insulin",
-    dosage: "5 Units",
-    frequency: "Before Meals",
-    status: "Active",
-  },
-];
+import { prescriptionsService } from "../../services/prescriptionsService";
+import type { Prescription } from "../../types/prescription";
 
 const PrescriptionsPage = () => {
+  const [prescriptions, setPrescriptions] = useState<
+    Prescription[]
+  >([]);
+
+  useEffect(() => {
+    const loadPrescriptions = async () => {
+      const data =
+        await prescriptionsService.getPrescriptions();
+
+      setPrescriptions(data);
+    };
+
+    loadPrescriptions();
+  }, []);
+
   return (
     <>
       <Typography variant="h4" sx={{ mb: 3 }}>
@@ -48,13 +51,26 @@ const PrescriptionsPage = () => {
           <TableBody>
             {prescriptions.map((item) => (
               <TableRow key={item.id}>
-                <TableCell>{item.medication}</TableCell>
-                <TableCell>{item.dosage}</TableCell>
-                <TableCell>{item.frequency}</TableCell>
+                <TableCell>
+                  {item.medication}
+                </TableCell>
+
+                <TableCell>
+                  {item.dosage}
+                </TableCell>
+
+                <TableCell>
+                  {item.frequency}
+                </TableCell>
+
                 <TableCell>
                   <Chip
                     label={item.status}
-                    color="success"
+                    color={
+                      item.status === "Active"
+                        ? "success"
+                        : "default"
+                    }
                   />
                 </TableCell>
               </TableRow>

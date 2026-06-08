@@ -13,6 +13,8 @@ struct InnerPacket {
     float    temperatureC;     // NAN if sensor read failed
     float    weightG;          // last valid HX711 reading in grams
     float    estimatedPercent; // clamped 0-100 remaining estimate
+    float    batteryVoltageV;   // measured one-cell battery voltage
+    uint8_t  batteryPercent;    // estimated 0-100 Li-ion percentage
 };
 #pragma pack(pop)
 

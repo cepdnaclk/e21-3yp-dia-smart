@@ -11,6 +11,7 @@ struct DisplayState {
     int glucoseMgDl;
     int glucometerSequenceNumber;
     float doseUnits;
+    int innerBatteryPercent;
     int wifiRssiDbm;
     int bleRssiDbm;
     uint32_t freeHeapBytes;

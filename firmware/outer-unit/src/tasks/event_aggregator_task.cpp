@@ -32,6 +32,8 @@ void eventAggregatorTask(void* parameter) {
     lastInner.doorOpen       = 0;
     lastInner.weightG        = 0.0f;
     lastInner.estimatedPercent = 0.0f;
+    lastInner.batteryVoltageV = 0.0f;
+    lastInner.batteryPercent = 0;
 
     GlucoseReading lastGlucose = {};
     lastGlucose.valueMgDl      = 0;
@@ -64,6 +66,9 @@ void eventAggregatorTask(void* parameter) {
                               lastInner.weightG,
                               lastInner.estimatedPercent,
                               lastInner.doorOpen ? "OPEN" : "CLOSED");
+                Serial.printf("[EventAgg] Inner battery %.2fV (%u%%)\n",
+                              lastInner.batteryVoltageV,
+                              lastInner.batteryPercent);
             }
         }
 
@@ -116,7 +121,7 @@ void eventAggregatorTask(void* parameter) {
             strncpy(event.injectedAt, lastDose.injectedAt, sizeof(event.injectedAt));
 
             // Battery / system — real WiFi RSSI, heap, BLE RSSI from shared var
-            event.innerBatteryPercent = 87;   // TODO: read from inner unit BLE battery service
+            event.innerBatteryPercent = lastInner.batteryPercent;
             event.penBatteryPercent   = 76;   // TODO: read from pen unit BLE battery service
             event.outerBatteryPercent = 94;   // TODO: ADC voltage divider
             event.wifiRssiDbm         = WiFi.RSSI();

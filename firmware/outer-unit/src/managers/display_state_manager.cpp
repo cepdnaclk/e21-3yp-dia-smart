@@ -18,6 +18,7 @@ void updateDisplayStateFromTelemetry(const TelemetryEvent& event) {
     next.glucoseMgDl = event.glucoseMgDl;
     next.glucometerSequenceNumber = event.glucometerSequenceNumber;
     next.doseUnits = event.doseUnits;
+    next.innerBatteryPercent = event.innerBatteryPercent;
     next.wifiRssiDbm = event.wifiRssiDbm;
     next.bleRssiDbm = event.bleRssiDbm;
     next.freeHeapBytes = event.freeHeapBytes;

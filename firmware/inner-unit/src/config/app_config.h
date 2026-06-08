@@ -32,6 +32,17 @@
 // INPUT_PULLUP: HIGH = door OPEN (magnet away), LOW = CLOSED (magnet shorts pin).
 #define DOOR_SENSOR_PIN          4
 
+// ---- Battery monitor (ADC1 through 100k/100k divider) ----------------------
+// Wiring: Battery+ -> 100k -> GPIO34 ADC node -> 100k -> GND, Battery- -> GND.
+// Use ADC1, not ADC2, because WiFi/ESP-NOW can block ADC2 reads on ESP32.
+#define BATTERY_ADC_PIN          34
+#define BATTERY_ADC_SAMPLES      16
+#define BATTERY_DIVIDER_TOP_OHMS 100000.0f
+#define BATTERY_DIVIDER_BOTTOM_OHMS 100000.0f
+// First-pass Li-ion estimate. Tune after comparing with multimeter readings.
+#define BATTERY_EMPTY_MV         3300
+#define BATTERY_FULL_MV          4200
+
 // ---- HX711 load cell (insulin bottle weight) -------------------------------
 #define HX711_DOUT_PIN           5
 #define HX711_CLK_PIN            18

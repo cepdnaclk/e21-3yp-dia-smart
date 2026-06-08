@@ -247,11 +247,11 @@ void drawDashboard(const DisplayState& state) {
     }
 
     rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
-    char footer[48];
+    char footer[56];
     if (state.hasTelemetry) {
-        snprintf(footer, sizeof(footer), "WIFI %d | BLE %d | HEAP %luK",
+        snprintf(footer, sizeof(footer), "INBAT %d%% | WIFI %d | HEAP %luK",
+                 state.innerBatteryPercent,
                  state.wifiRssiDbm,
-                 state.bleRssiDbm,
                  (unsigned long)(state.freeHeapBytes / 1024));
     } else {
         snprintf(footer, sizeof(footer), "WAITING FOR TELEMETRY");

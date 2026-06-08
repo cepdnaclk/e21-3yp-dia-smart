@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <math.h>
+#include <string.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <HX711.h>
@@ -72,16 +73,33 @@ static bool sendInnerPacket(uint32_t& seq,
     pkt.batteryVoltageV = batteryVoltageV;
     pkt.batteryPercent = batteryPercent;
 
-    esp_err_t result = esp_now_send(
-        broadcastMac,
-        reinterpret_cast<uint8_t*>(&pkt),
-        sizeof(InnerPacket));
+    const uint8_t burstCount = (strcmp(reason, "door") == 0)
+                                   ? ESPNOW_DOOR_BURST_COUNT
+                                   : ESPNOW_SAMPLE_BURST_COUNT;
+    bool sentAny = false;
+    esp_err_t lastResult = ESP_OK;
 
-    if (result == ESP_OK) {
-        Serial.printf("[Sensors] Sent seq=%u reason=%s temp=%.2fC weight=%.1fg "
+    for (uint8_t i = 0; i < burstCount; ++i) {
+        lastResult = esp_now_send(
+            broadcastMac,
+            reinterpret_cast<uint8_t*>(&pkt),
+            sizeof(InnerPacket));
+
+        if (lastResult == ESP_OK) {
+            sentAny = true;
+        }
+
+        if ((i + 1) < burstCount) {
+            vTaskDelay(pdMS_TO_TICKS(ESPNOW_BURST_GAP_MS));
+        }
+    }
+
+    if (sentAny) {
+        Serial.printf("[Sensors] Sent seq=%u reason=%s burst=%u temp=%.2fC weight=%.1fg "
                       "percent=%.1f%% door=%s battery=%.2fV/%u%%\n",
                       pkt.seq,
                       reason,
+                      burstCount,
                       isnan(pkt.temperatureC) ? 0.0f : pkt.temperatureC,
                       pkt.weightG,
                       pkt.estimatedPercent,
@@ -91,7 +109,7 @@ static bool sendInnerPacket(uint32_t& seq,
         return true;
     }
 
-    Serial.printf("[Sensors] esp_now_send error: %d\n", result);
+    Serial.printf("[Sensors] esp_now_send error: %d\n", lastResult);
     return false;
 }
 

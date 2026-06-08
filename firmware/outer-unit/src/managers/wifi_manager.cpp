@@ -1,5 +1,6 @@
 #include "wifi_manager.h"
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include "config/app_config.h"
 
 void setupWiFi()
@@ -38,7 +39,10 @@ void setupWiFi()
     else
     {
         Serial.println("\n[ERROR] Wi-Fi Connection Failed. Will retry automatically.");
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+        Serial.printf("[WiFi] Forced ESP-NOW fallback channel %d\n", ESPNOW_CHANNEL);
     }
+    Serial.printf("[WiFi] Current radio channel: %d\n", WiFi.channel());
     
     // Enable auto-reconnect in the background if the signal drops
     WiFi.setAutoReconnect(true);

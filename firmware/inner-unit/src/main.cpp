@@ -33,10 +33,13 @@ static void lockEspNowChannel() {
         Serial.print(".");
     }
 
-    Serial.printf("\n[WiFi] Connected on channel %d — disconnecting\n",
-                  WiFi.channel());
+    uint8_t lockedChannel = WiFi.channel();
+    Serial.printf("\n[WiFi] Connected on channel %d - locking ESP-NOW radio\n",
+                  lockedChannel);
     // Disconnect from AP but keep radio in STA mode for ESP-NOW
     WiFi.disconnect(false);
+    esp_wifi_set_channel(lockedChannel, WIFI_SECOND_CHAN_NONE);
+    Serial.printf("[WiFi] ESP-NOW channel locked to %d\n", lockedChannel);
 }
 
 // -------------------------------------------------------------------------- //

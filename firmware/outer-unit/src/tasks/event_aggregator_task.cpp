@@ -11,6 +11,12 @@
 // Shared variable written by bleManagerTask, read here for battery section.
 // Declared extern in ble_manager.cpp.
 extern volatile int g_lastBleRssi;
+extern volatile uint32_t g_espNowRxTotal;
+extern volatile uint32_t g_espNowRxQueued;
+extern volatile uint32_t g_espNowRxLenDrop;
+extern volatile uint32_t g_espNowRxMagicDrop;
+extern volatile uint32_t g_espNowRxQueueDrop;
+extern volatile uint32_t g_espNowRxDuplicateDrop;
 
 // ---- ISO-8601 timestamp helper ------------------------------------------- //
 static void getTimestamp(char* buf, size_t len) {
@@ -70,11 +76,23 @@ void eventAggregatorTask(void* parameter) {
 
     static uint32_t seq = 0;
     uint32_t lastPeriodicMs = 0;   // tracks 30s periodic publish
+    uint32_t lastRxStatsLogMs = 0;
 
     Serial.println("[EventAgg] Task started");
 
     for (;;) {
         bool gotInner = false;
+        uint32_t nowMs = millis();
+        if ((nowMs - lastRxStatsLogMs) >= 5000) {
+            lastRxStatsLogMs = nowMs;
+            Serial.printf("[ESP-NOW RX] total=%lu queued=%lu dupDrop=%lu lenDrop=%lu magicDrop=%lu queueDrop=%lu\n",
+                          (unsigned long)g_espNowRxTotal,
+                          (unsigned long)g_espNowRxQueued,
+                          (unsigned long)g_espNowRxDuplicateDrop,
+                          (unsigned long)g_espNowRxLenDrop,
+                          (unsigned long)g_espNowRxMagicDrop,
+                          (unsigned long)g_espNowRxQueueDrop);
+        }
         // ---- Drain InnerPacket queue — keep only the newest packet ------- //
         {
             InnerPacket pkt;
@@ -115,7 +133,7 @@ void eventAggregatorTask(void* parameter) {
         // ---- Periodic publish every 30s (for monitoring/debug) ---------- //
         bool periodicTick = (millis() - lastPeriodicMs) >= 30000;
         if (periodicTick) lastPeriodicMs = millis();
-        bool innerTriggered = gotInner && innerPacketShouldPublish(lastInner, lastPublishedInner, hasPublishedInner);
+        bool innerTriggered = gotInner;
 
         // ---- Only build and enqueue an event when something new arrived -- //
         if (hasDose || hasGlucose || innerTriggered || periodicTick) {
@@ -163,6 +181,13 @@ void eventAggregatorTask(void* parameter) {
                 lastPublishedInner = lastInner;
                 hasPublishedInner = true;
             }
+
+            Serial.printf("[EventAgg] Enqueue telemetry door=%s temp=%.2fC weight=%.1fg innerBat=%u%% trigger=%d\n",
+                          event.doorOpen ? "OPEN" : "CLOSED",
+                          event.temperatureC,
+                          event.inventoryWeightG,
+                          event.innerBatteryPercent,
+                          (int)event.trigger);
 
             if (xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500)) != pdTRUE) {
                 Serial.println("[EventAgg] telemetryQueue full — event dropped");

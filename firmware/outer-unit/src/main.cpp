@@ -14,6 +14,16 @@ QueueHandle_t innerPacketQueue;
 QueueHandle_t glucoseQueue;
 QueueHandle_t doseQueue;
 
+volatile uint32_t g_espNowRxTotal = 0;
+volatile uint32_t g_espNowRxQueued = 0;
+volatile uint32_t g_espNowRxLenDrop = 0;
+volatile uint32_t g_espNowRxMagicDrop = 0;
+volatile uint32_t g_espNowRxQueueDrop = 0;
+volatile uint32_t g_espNowRxDuplicateDrop = 0;
+
+static uint32_t lastQueuedInnerSeq = 0;
+static bool hasLastQueuedInnerSeq = false;
+
 // ---- Task forward declarations -------------------------------------------- //
 void eventAggregatorTask(void* parameter);
 void mqttPublishTask(void* parameter);
@@ -24,15 +34,34 @@ void displayUiTask(void* parameter);
 // Runs in WiFi/ESP-NOW task context (NOT in our FreeRTOS task).
 // Must be fast — just copy and enqueue, no Serial.print inside.
 static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
-    if (len != sizeof(InnerPacket)) return;
+    (void)mac;
+    g_espNowRxTotal++;
+    if (len != sizeof(InnerPacket)) {
+        g_espNowRxLenDrop++;
+        return;
+    }
 
     const InnerPacket* pkt = reinterpret_cast<const InnerPacket*>(data);
-    if (pkt->magic != INNER_MAGIC) return;   // ignore packets from unknown sources
+    if (pkt->magic != INNER_MAGIC) {
+        g_espNowRxMagicDrop++;
+        return;
+    }
+    if (hasLastQueuedInnerSeq && pkt->seq == lastQueuedInnerSeq) {
+        g_espNowRxDuplicateDrop++;
+        return;
+    }
+    if (innerPacketQueue == nullptr) {
+        g_espNowRxQueueDrop++;
+        return;
+    }
 
-    // Non-blocking send — drop if aggregator is not keeping up
-    BaseType_t woken = pdFALSE;
-    xQueueSendFromISR(innerPacketQueue, pkt, &woken);
-    if (woken) portYIELD_FROM_ISR();
+    if (xQueueSend(innerPacketQueue, pkt, 0) == pdTRUE) {
+        lastQueuedInnerSeq = pkt->seq;
+        hasLastQueuedInnerSeq = true;
+        g_espNowRxQueued++;
+    } else {
+        g_espNowRxQueueDrop++;
+    }
 }
 
 // ---- ESP-NOW init --------------------------------------------------------- //
@@ -78,10 +107,7 @@ void setup() {
     // NTP time sync (non-fatal — timestamps degrade gracefully)
     syncNtp();
 
-    // ESP-NOW — init after WiFi so channel is already set by the AP association
-    initEspNow();
-
-    // Create all queues
+    // Create all queues before ESP-NOW registration so receive callback can enqueue.
     telemetryQueue   = xQueueCreate(QUEUE_TELEMETRY_LEN,    sizeof(TelemetryEvent));
     innerPacketQueue = xQueueCreate(QUEUE_INNER_PACKET_LEN, sizeof(InnerPacket));
     glucoseQueue     = xQueueCreate(QUEUE_GLUCOSE_LEN,      sizeof(GlucoseReading));
@@ -91,6 +117,11 @@ void setup() {
         Serial.println("[Main] Queue creation failed — halting");
         while (true) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
+
+    Serial.printf("[Main] InnerPacket size=%u bytes\n", (unsigned)sizeof(InnerPacket));
+
+    // ESP-NOW — init after WiFi so channel is already set by the AP association
+    initEspNow();
 
     // eventAggregatorTask — reads sensor + dose + glucose queues → builds TelemetryEvent
     xTaskCreatePinnedToCore(

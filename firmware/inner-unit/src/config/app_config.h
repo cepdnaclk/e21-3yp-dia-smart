@@ -73,6 +73,11 @@
 #define DOOR_EVENT_DEBOUNCE_MS   250
 // Send even when nothing changed, so outer knows the inner unit is alive.
 #define INNER_HEARTBEAT_MS       60000
+// Broadcast ESP-NOW has no end-to-end ACK from the outer application. Send a
+// short burst so packets survive BLE/WiFi coexistence gaps on the outer unit.
+#define ESPNOW_SAMPLE_BURST_COUNT 3
+#define ESPNOW_DOOR_BURST_COUNT   6
+#define ESPNOW_BURST_GAP_MS       40
 
 // ---- Device identity -------------------------------------------------------
 #define DEVICE_UID_INNER         "DS-INNER-0001"

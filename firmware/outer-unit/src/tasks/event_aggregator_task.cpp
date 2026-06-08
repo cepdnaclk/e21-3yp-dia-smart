@@ -23,6 +23,28 @@ static void getTimestamp(char* buf, size_t len) {
     }
 }
 
+static bool validDelta(float current, float previous, float threshold) {
+    if (isnan(current) || isnan(previous)) {
+        return isnan(current) != isnan(previous);
+    }
+    return fabsf(current - previous) >= threshold;
+}
+
+static bool innerPacketShouldPublish(const InnerPacket& current,
+                                     const InnerPacket& previous,
+                                     bool hasPrevious) {
+    if (!hasPrevious) return true;
+    if (current.doorOpen != previous.doorOpen) return true;
+    if (validDelta(current.temperatureC, previous.temperatureC, INNER_TEMP_EVENT_DELTA_C)) return true;
+    if (fabsf(current.weightG - previous.weightG) >= INNER_WEIGHT_EVENT_DELTA_G) return true;
+    if (fabsf(current.estimatedPercent - previous.estimatedPercent) >= INNER_INVENTORY_EVENT_DELTA_PERCENT) return true;
+    if (current.batteryPercent <= INNER_BATTERY_LOW_PERCENT &&
+        previous.batteryPercent > INNER_BATTERY_LOW_PERCENT) {
+        return true;
+    }
+    return false;
+}
+
 // -------------------------------------------------------------------------- //
 
 void eventAggregatorTask(void* parameter) {
@@ -34,6 +56,9 @@ void eventAggregatorTask(void* parameter) {
     lastInner.estimatedPercent = 0.0f;
     lastInner.batteryVoltageV = 0.0f;
     lastInner.batteryPercent = 0;
+    InnerPacket lastPublishedInner = lastInner;
+    bool hasInnerSnapshot = false;
+    bool hasPublishedInner = false;
 
     GlucoseReading lastGlucose = {};
     lastGlucose.valueMgDl      = 0;
@@ -49,14 +74,15 @@ void eventAggregatorTask(void* parameter) {
     Serial.println("[EventAgg] Task started");
 
     for (;;) {
+        bool gotInner = false;
         // ---- Drain InnerPacket queue — keep only the newest packet ------- //
         {
             InnerPacket pkt;
-            bool gotInner = false;
             while (xQueueReceive(innerPacketQueue, &pkt, 0) == pdTRUE) {
                 if (pkt.magic == INNER_MAGIC) {
                     lastInner = pkt;
                     gotInner = true;
+                    hasInnerSnapshot = true;
                 }
             }
             if (gotInner) {
@@ -91,16 +117,21 @@ void eventAggregatorTask(void* parameter) {
         // ---- Periodic publish every 30s (for monitoring/debug) ---------- //
         bool periodicTick = (millis() - lastPeriodicMs) >= 30000;
         if (periodicTick) lastPeriodicMs = millis();
+        bool innerTriggered = gotInner && innerPacketShouldPublish(lastInner, lastPublishedInner, hasPublishedInner);
 
         // ---- Only build and enqueue an event when something new arrived -- //
-        if (hasDose || hasGlucose || periodicTick) {
+        if (hasDose || hasGlucose || innerTriggered || periodicTick) {
             TelemetryEvent event = {};
 
             // Root
             snprintf(event.eventId, sizeof(event.eventId),
                      "EVT-%s-%lu", DEVICE_UID_OUTER, (unsigned long)seq);
             event.sequenceNumber = seq++;
-            event.trigger        = hasDose ? DOSE_EVENT : (hasGlucose ? GLUCOSE_EVENT : DOSE_EVENT);
+            event.trigger        = hasDose ? DOSE_EVENT :
+                                   (hasGlucose ? GLUCOSE_EVENT :
+                                   (lastInner.batteryPercent <= INNER_BATTERY_LOW_PERCENT ? BATTERY_LOW :
+                                   (lastInner.estimatedPercent < 20.0f ? INVENTORY_LOW :
+                                   (lastInner.temperatureC < TEMP_MIN_C || lastInner.temperatureC > TEMP_MAX_C ? TEMPERATURE_ALERT : DOSE_EVENT))));
             event.replayedEvent  = false;
             getTimestamp(event.timestamp, sizeof(event.timestamp));
 
@@ -129,6 +160,11 @@ void eventAggregatorTask(void* parameter) {
             event.freeHeapBytes       = esp_get_free_heap_size();
 
             updateDisplayStateFromTelemetry(event);
+
+            if (hasInnerSnapshot) {
+                lastPublishedInner = lastInner;
+                hasPublishedInner = true;
+            }
 
             if (xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500)) != pdTRUE) {
                 Serial.println("[EventAgg] telemetryQueue full — event dropped");

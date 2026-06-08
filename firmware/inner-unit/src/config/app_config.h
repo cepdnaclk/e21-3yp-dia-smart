@@ -39,9 +39,10 @@
 #define BATTERY_ADC_SAMPLES      16
 #define BATTERY_DIVIDER_TOP_OHMS 100000.0f
 #define BATTERY_DIVIDER_BOTTOM_OHMS 100000.0f
-// First-pass Li-ion estimate. Tune after comparing with multimeter readings.
+// First-pass estimate for the current 3.7V test battery/source.
+// If using a fully charged Li-ion cell later, this may need to return to 4200.
 #define BATTERY_EMPTY_MV         3300
-#define BATTERY_FULL_MV          4200
+#define BATTERY_FULL_MV          3700
 
 // ---- HX711 load cell (insulin bottle weight) -------------------------------
 #define HX711_DOUT_PIN           5

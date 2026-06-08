@@ -56,6 +56,11 @@
 #define TEMP_MIN_C                   2.0f
 #define TEMP_MAX_C                   8.0f
 #define FULL_BOTTLE_WEIGHT_G         300.0f
+// Inner packet changes that should immediately produce a backend/display event.
+#define INNER_TEMP_EVENT_DELTA_C     0.5f
+#define INNER_WEIGHT_EVENT_DELTA_G   2.0f
+#define INNER_INVENTORY_EVENT_DELTA_PERCENT 2.0f
+#define INNER_BATTERY_LOW_PERCENT    20
 
 // ---- TFT Display (8-bit parallel, PCB pin map) --------------------------- //
 #define DISPLAY_ENABLED              1

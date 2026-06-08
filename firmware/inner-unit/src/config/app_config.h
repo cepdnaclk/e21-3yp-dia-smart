@@ -61,6 +61,8 @@
 // should compare the new sample with the last sent sample and send only when a
 // threshold below is crossed, plus a periodic heartbeat.
 #define SAMPLE_INTERVAL_MS       3000
+// Door is cheap to read; poll it quickly so open/close sends over ESP-NOW fast.
+#define DOOR_POLL_INTERVAL_MS    50
 // Send when temperature changes by at least this many Celsius.
 #define TEMP_EVENT_DELTA_C       0.5f
 // Send when weight changes by at least this many grams.

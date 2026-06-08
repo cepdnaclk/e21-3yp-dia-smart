@@ -24,6 +24,15 @@ So door open/close could look like it was not sent, because it waited until the 
 
 The outer unit now compares the newest inner packet against the last published inner snapshot.
 
+The inner unit was also updated so the door reed switch is no longer blocked by the full sensor sampling cycle:
+
+```text
+Door poll interval: 50ms
+Door debounce: 250ms
+Door packet send: immediate after debounce
+Full temp/weight/battery sample: every 3000ms
+```
+
 It immediately publishes when any of these change:
 
 - First valid inner packet after boot
@@ -43,6 +52,8 @@ Configured in `firmware/outer-unit/src/config/app_config.h`:
 #define INNER_INVENTORY_EVENT_DELTA_PERCENT 2.0f
 #define INNER_BATTERY_LOW_PERCENT    20
 ```
+
+The outer unit processes one queued inner packet per aggregator loop instead of draining the queue and keeping only the newest state. This prevents fast open/close transitions from being collapsed before JSON is built.
 
 ## Battery Percentage Test Scale
 

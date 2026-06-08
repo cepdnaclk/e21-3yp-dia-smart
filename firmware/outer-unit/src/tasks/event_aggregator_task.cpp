@@ -78,12 +78,10 @@ void eventAggregatorTask(void* parameter) {
         // ---- Drain InnerPacket queue — keep only the newest packet ------- //
         {
             InnerPacket pkt;
-            while (xQueueReceive(innerPacketQueue, &pkt, 0) == pdTRUE) {
-                if (pkt.magic == INNER_MAGIC) {
-                    lastInner = pkt;
-                    gotInner = true;
-                    hasInnerSnapshot = true;
-                }
+            if (xQueueReceive(innerPacketQueue, &pkt, 0) == pdTRUE && pkt.magic == INNER_MAGIC) {
+                lastInner = pkt;
+                gotInner = true;
+                hasInnerSnapshot = true;
             }
             if (gotInner) {
                 Serial.printf("[EventAgg] InnerPacket seq=%lu  temp=%.2f°C  weight=%.1fg  pct=%.1f%%  door=%s\n",

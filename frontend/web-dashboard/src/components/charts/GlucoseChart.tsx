@@ -7,23 +7,28 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const data = [
-  { day: "Mon", glucose: 112 },
-  { day: "Tue", glucose: 118 },
-  { day: "Wed", glucose: 115 },
-  { day: "Thu", glucose: 121 },
-  { day: "Fri", glucose: 117 },
-  { day: "Sat", glucose: 114 },
-  { day: "Sun", glucose: 118 },
-];
+interface Props {
+  data: {
+    date: string;
+    glucose: number;
+  }[];
+}
 
-const GlucoseChart = () => {
+const GlucoseChart = ({
+  data,
+}: Props) => {
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer
+      width="100%"
+      height={300}
+    >
       <LineChart data={data}>
-        <XAxis dataKey="day" />
+        <XAxis dataKey="date" />
+
         <YAxis />
+
         <Tooltip />
+
         <Line
           type="monotone"
           dataKey="glucose"

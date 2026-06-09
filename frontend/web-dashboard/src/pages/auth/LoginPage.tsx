@@ -75,7 +75,8 @@ const LoginPage = () => {
 
     login(
       data.accessToken,
-      data.user.role
+      data.user.role,
+      data.user.patientId
     );
 
     console.log("AuthContext login success");

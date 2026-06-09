@@ -10,31 +10,66 @@ interface AuthContextType {
   isAuthenticated: boolean;
   role: UserRole;
 
-  login: (role: UserRole) => void;
+  token: string | null;
+
+  login: (
+    token: string,
+    role: UserRole
+  ) => void;
+
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(
-  null
-);
+const AuthContext =
+  createContext<AuthContextType | null>(
+    null
+  );
 
 export const AuthProvider = ({
   children,
 }: {
   children: React.ReactNode;
 }) => {
-  const [isAuthenticated, setIsAuthenticated] =
-    useState(true);
+  const [token, setToken] =
+    useState<string | null>(
+      localStorage.getItem("token")
+    );
 
   const [role, setRole] =
-    useState<UserRole>(UserRole.ADMIN);
+    useState<UserRole>(
+      (localStorage.getItem(
+        "role"
+      ) as UserRole) ||
+        UserRole.PATIENT
+    );
 
-  const login = (userRole: UserRole) => {
+  const [isAuthenticated, setIsAuthenticated] =
+    useState(!!localStorage.getItem("token"));
+
+  const login = (
+    jwtToken: string,
+    userRole: UserRole
+  ) => {
+    localStorage.setItem(
+      "token",
+      jwtToken
+    );
+
+    localStorage.setItem(
+      "role",
+      userRole
+    );
+
+    setToken(jwtToken);
     setRole(userRole);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+
+    setToken(null);
     setIsAuthenticated(false);
   };
 
@@ -43,6 +78,7 @@ export const AuthProvider = ({
       value={{
         isAuthenticated,
         role,
+        token,
         login,
         logout,
       }}
@@ -53,7 +89,8 @@ export const AuthProvider = ({
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context =
+    useContext(AuthContext);
 
   if (!context) {
     throw new Error(

@@ -10,30 +10,74 @@ import {
   TableHead,
   TableRow,
   Chip,
+  CircularProgress,
+  Alert,
+  Box,
 } from "@mui/material";
 
 import { prescriptionsService } from "../../services/prescriptionsService";
 import type { Prescription } from "../../types/prescription";
 
 const PrescriptionsPage = () => {
-  const [prescriptions, setPrescriptions] = useState<
-    Prescription[]
-  >([]);
+  const [prescriptions, setPrescriptions] =
+    useState<Prescription[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
     const loadPrescriptions = async () => {
-      const data =
-        await prescriptionsService.getPrescriptions();
+      try {
+        const data =
+          await prescriptionsService.getPrescriptions();
 
-      setPrescriptions(data);
+        setPrescriptions(data);
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          "Failed to load prescriptions"
+        );
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadPrescriptions();
   }, []);
 
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "300px",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        {error}
+      </Alert>
+    );
+  }
+
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 3 }}>
+      <Typography
+        variant="h4"
+        sx={{ mb: 3 }}
+      >
         Prescriptions
       </Typography>
 
@@ -41,40 +85,87 @@ const PrescriptionsPage = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Medication</TableCell>
-              <TableCell>Dosage</TableCell>
-              <TableCell>Frequency</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell>
+                Prescription
+              </TableCell>
+
+              <TableCell>
+                Start Date
+              </TableCell>
+
+              <TableCell>
+                End Date
+              </TableCell>
+
+              <TableCell>
+                Status
+              </TableCell>
+
+              <TableCell>
+                Notes
+              </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {prescriptions.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  {item.medication}
-                </TableCell>
-
-                <TableCell>
-                  {item.dosage}
-                </TableCell>
-
-                <TableCell>
-                  {item.frequency}
-                </TableCell>
-
-                <TableCell>
-                  <Chip
-                    label={item.status}
-                    color={
-                      item.status === "Active"
-                        ? "success"
-                        : "default"
-                    }
-                  />
+            {prescriptions.length ===
+            0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  align="center"
+                >
+                  No prescriptions
+                  available
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              prescriptions.map(
+                (item) => (
+                  <TableRow
+                    key={
+                      item.prescriptionId
+                    }
+                  >
+                    <TableCell>
+                      {
+                        item.prescriptionName
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      {
+                        item.startDate
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      {item.endDate}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={
+                          item.active
+                            ? "Active"
+                            : "Inactive"
+                        }
+                        color={
+                          item.active
+                            ? "success"
+                            : "default"
+                        }
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      {item.notes ??
+                        "No notes"}
+                    </TableCell>
+                  </TableRow>
+                )
+              )
+            )}
           </TableBody>
         </Table>
       </TableContainer>

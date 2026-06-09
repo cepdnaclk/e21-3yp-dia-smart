@@ -1,7 +1,15 @@
 export interface Prescription {
-  id: number;
-  medication: string;
-  dosage: string;
-  frequency: string;
-  status: string;
+  prescriptionId: number;
+  insulinProductId: number;
+
+  prescriptionName: string;
+
+  startDate: string;
+  endDate: string;
+
+  active: boolean;
+
+  notes: string | null;
+
+  createdAt: string;
 }

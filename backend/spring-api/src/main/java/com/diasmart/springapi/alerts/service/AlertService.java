@@ -109,7 +109,7 @@ public class AlertService {
                 response.setTitle(alert.getTitle());
                 response.setMessage(alert.getMessage());
                 response.setStatus(alert.getStatus());
-                response.setAlertDomain(alert.getAlertDomain());
+                //response.setAlertDomain(alert.getAlertDomain());
                 response.setCreatedAt(alert.getCreatedAt());
                 response.setAcknowledgedAt(alert.getAcknowledgedAt());
                 response.setResolvedAt(alert.getResolvedAt());

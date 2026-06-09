@@ -43,8 +43,8 @@ public class Alert {
     @Column(name = "dedupe_key")
     private String dedupeKey;
 
-    @Column(name = "alert_domain")
-    private String alertDomain;
+    // @Column(name = "alert_domain")
+    // private String alertDomain;
 
     @Column(name = "status")
     private String status;
@@ -125,9 +125,9 @@ public class Alert {
         return dedupeKey;
     }
 
-    public String getAlertDomain() {
-        return alertDomain;
-    }
+    // public String getAlertDomain() {
+        //return alertDomain;
+    //}
 
     public String getStatus() {
         return status;
@@ -217,9 +217,9 @@ public class Alert {
         this.dedupeKey = dedupeKey;
     }
 
-    public void setAlertDomain(String alertDomain) {
-        this.alertDomain = alertDomain;
-    }
+    // public void setAlertDomain(String alertDomain) {
+    //     this.alertDomain = alertDomain;
+    // }
 
     public void setStatus(String status) {
         this.status = status;

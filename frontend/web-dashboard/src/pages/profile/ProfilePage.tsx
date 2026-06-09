@@ -3,21 +3,69 @@ import {
   Box,
   Card,
   CardContent,
+  CircularProgress,
   Divider,
   Grid,
   Typography,
+  Alert,
 } from "@mui/material";
 
+import { useEffect, useState } from "react";
+
+import { profileService } from "../../services/profileService";
+import type { Profile } from "../../types/profile";
+
 const ProfilePage = () => {
-  const patient = {
-    name: "John Silva",
-    age: 68,
-    gender: "Male",
-    diabetesType: "Type 2",
-    doctor: "Dr. Perera",
-    caregiver: "Mary Silva",
-    emergencyContact: "+94 77 123 4567",
-  };
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data =
+          await profileService.getProfile();
+
+        setProfile(data);
+      } catch (error) {
+        console.error(error);
+
+        setError(
+          "Failed to load profile"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="300px"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        {error}
+      </Alert>
+    );
+  }
 
   return (
     <>
@@ -41,15 +89,17 @@ const ProfilePage = () => {
                 bgcolor: "primary.main",
               }}
             >
-              J
+              {profile?.displayName
+                ?.charAt(0)
+                .toUpperCase()}
             </Avatar>
 
             <Typography variant="h5" mt={2}>
-              {patient.name}
+              {profile?.displayName}
             </Typography>
 
             <Typography color="text.secondary">
-              Patient
+              {profile?.role}
             </Typography>
           </Box>
 
@@ -58,40 +108,56 @@ const ProfilePage = () => {
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Age:</strong> {patient.age}
+                <strong>Email:</strong>{" "}
+                {profile?.email}
               </Typography>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Gender:</strong> {patient.gender}
+                <strong>Role:</strong>{" "}
+                {profile?.role}
               </Typography>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Diabetes Type:</strong>{" "}
-                {patient.diabetesType}
+                <strong>Contact Number:</strong>{" "}
+                {profile?.contactNumber ||
+                  "Not Available"}
               </Typography>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Doctor:</strong> {patient.doctor}
+                <strong>Status:</strong>{" "}
+                {profile?.active
+                  ? "Active"
+                  : "Inactive"}
               </Typography>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Caregiver:</strong>{" "}
-                {patient.caregiver}
+                <strong>User ID:</strong>{" "}
+                {profile?.userId}
               </Typography>
             </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography>
-                <strong>Emergency Contact:</strong>{" "}
-                {patient.emergencyContact}
+                <strong>Last Login:</strong>{" "}
+                {profile?.lastLoginAt ??
+                  "Never"}
+              </Typography>
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Typography>
+                <strong>Email Verified Account:</strong>{" "}
+                {profile?.active
+                  ? "Yes"
+                  : "No"}
               </Typography>
             </Grid>
           </Grid>

@@ -2,8 +2,8 @@
 #define APP_CONFIG_H
 
 // ---- Wi-Fi ---------------------------------------------------------------- //
-#define WIFI_SSID                    "ananthu73"
-#define WIFI_PASSWORD                "123123123@@"
+#define WIFI_SSID                    "SLT-4G-74699C"
+#define WIFI_PASSWORD                "Arnikan1811"
 
 // ---- Device UIDs (must match backend DB exactly) ------------------------- //
 #define DEVICE_UID                   "DS-OUTER-0001"   // MQTT client ID (keep alias)

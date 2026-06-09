@@ -1,9 +1,12 @@
 export interface Profile {
-  fullName: string;
-  age: number;
-  gender: string;
-  diabetesType: string;
-  doctor: string;
-  caregiver: string;
-  emergencyContact: string;
+  userId: number;
+  userUuid: string;
+  displayName: string;
+  email: string;
+  role: string;
+  contactNumber: string;
+  active: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

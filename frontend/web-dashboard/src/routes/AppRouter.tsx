@@ -20,15 +20,24 @@ const AppRouter = () => {
     <BrowserRouter>
       <Routes>
 
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
+        {/* Default Route */}
+        <Route
+          path="/"
+          element={<Navigate to="/login" replace />}
+        />
+
+        {/* Public Routes */}
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
 
         <Route
           path="/forgot-password"
           element={<ForgotPasswordPage />}
         />
 
-        {/* Protected */}
+        {/* Protected Routes */}
         <Route
           element={
             <ProtectedRoute>
@@ -36,11 +45,6 @@ const AppRouter = () => {
             </ProtectedRoute>
           }
         >
-          <Route
-            path="/"
-            element={<Navigate to="/dashboard" replace />}
-          />
-
           <Route
             path="/dashboard"
             element={<DashboardPage />}
@@ -76,6 +80,12 @@ const AppRouter = () => {
             element={<SettingsPage />}
           />
         </Route>
+
+        {/* Unknown Routes */}
+        <Route
+          path="*"
+          element={<Navigate to="/login" replace />}
+        />
 
       </Routes>
     </BrowserRouter>

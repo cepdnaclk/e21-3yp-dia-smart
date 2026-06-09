@@ -1,6 +1,18 @@
 export interface Alert {
-  id: number;
+  alertId: number;
+  patientId?: number;
+
+  alertType: string;
+  alertDomain?: string;
+
+  severity: string;
+
   title: string;
-  description: string;
-  severity: "error" | "warning" | "info" | "success";
+  message: string;
+
+  status: string;
+
+  createdAt: string;
+  acknowledgedAt?: string | null;
+  resolvedAt?: string | null;
 }

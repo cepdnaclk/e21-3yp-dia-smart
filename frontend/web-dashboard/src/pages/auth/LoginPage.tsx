@@ -14,6 +14,8 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 
+import { patientAccessService } from "../../services/patientAccessService";
+
 const LoginPage = () => {
   const navigate = useNavigate();
 
@@ -66,32 +68,67 @@ const LoginPage = () => {
       password,
     });
 
-    const data = await authService.login(
-      email,
-      password
+    const data =
+      await authService.login(
+        email,
+        password
+      );
+
+    console.log(
+      "Login API Success:",
+      data
     );
 
-    console.log("Login API Success:", data);
-
+    // Save token and role
     login(
       data.accessToken,
-      data.user.role,
-      data.user.patientId
+      data.user.role
     );
 
-    console.log("AuthContext login success");
+    // Get patient access records
+    const accesses =
+      await patientAccessService.getMyPatientAccess();
+
+    console.log(
+      "Patient Access:",
+      accesses
+    );
+
+    if (
+      accesses &&
+      accesses.length > 0
+    ) {
+      localStorage.setItem(
+        "patientId",
+        accesses[0].patientId.toString()
+      );
+    }
 
     navigate("/dashboard");
   } catch (err: any) {
-  console.error("LOGIN ERROR:", err);
+    console.error(
+      "LOGIN ERROR:",
+      err
+    );
 
-  if (err.response) {
-    console.log("Status:", err.response.status);
-    console.log("Data:", err.response.data);
+    if (err.response) {
+      console.log(
+        "Status:",
+        err.response.status
+      );
+
+      console.log(
+        "Data:",
+        err.response.data
+      );
+    }
+
+    setError(
+      "Invalid email or password"
+    );
+  } finally {
+    setLoading(false);
   }
-
-  setError("Login failed");
-}
 };
 
   return (

@@ -14,9 +14,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * JwtService handles JWT access token generation and validation.
- */
 @Service
 public class JwtService {
 
@@ -28,7 +25,8 @@ public class JwtService {
 
     public String generateAccessToken(AppUser user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
+
+        claims.put("userId", user.getUserId());
         claims.put("role", user.getRole().name());
         claims.put("email", user.getEmail());
 
@@ -60,6 +58,7 @@ public class JwtService {
 
     private boolean isTokenExpired(String token) {
         Date expiration = extractAllClaims(token).getExpiration();
+
         return expiration.before(new Date());
     }
 
@@ -73,11 +72,11 @@ public class JwtService {
 
     private SecretKey getSigningKey() {
         if (jwtSecret == null || jwtSecret.isBlank()) {
-            throw new IllegalStateException("JWT_SECRET environment variable is not configured");
+            throw new IllegalStateException("JWT secret is not configured");
         }
 
         if (jwtSecret.length() < 32) {
-            throw new IllegalStateException("JWT_SECRET must be at least 32 characters long");
+            throw new IllegalStateException("JWT secret must be at least 32 characters long");
         }
 
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));

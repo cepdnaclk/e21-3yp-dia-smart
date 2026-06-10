@@ -52,9 +52,14 @@ client.on('connect', () => {
         },
 
         storage: {
-            temperatureC: 65.0,
-            doorStatus: 'OPEN',
+            temperatureC: 16.0,
+            doorStatus: 'CLOSED',
         },
+    //     storage: {
+    //     temperatureC: 30,
+    //     doorStatus: 'CLOSED',
+    //     temperatureStatus: 'HIGH'
+    // },
 
         glucose: {
             valueMgDl: 150,

@@ -8,17 +8,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * CurrentUserService is a reusable helper for all backend modules.
- *
- * Other team members can use this service to get:
- * - current logged-in user
- * - current user ID
- * - current user role
- * - current user email
- *
- * The logged-in user is identified from the JWT token.
- */
 @Service
 public class CurrentUserService {
 
@@ -28,12 +17,6 @@ public class CurrentUserService {
         this.appUserRepository = appUserRepository;
     }
 
-    /**
-     * Returns the currently authenticated AppUser entity.
-     *
-     * This depends on JwtAuthenticationFilter setting the authentication
-     * object inside Spring SecurityContext.
-     */
     @Transactional(readOnly = true)
     public AppUser getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -44,12 +27,12 @@ public class CurrentUserService {
 
         String email = authentication.getName().trim().toLowerCase();
 
-        return appUserRepository.findByEmail(email)
+        return appUserRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new IllegalStateException("Authenticated user was not found"));
     }
 
     public Long getCurrentUserId() {
-        return getCurrentUser().getId();
+        return getCurrentUser().getUserId();
     }
 
     public String getCurrentUserEmail() {

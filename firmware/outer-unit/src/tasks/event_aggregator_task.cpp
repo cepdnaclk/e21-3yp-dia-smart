@@ -51,6 +51,44 @@ static bool innerPacketShouldPublish(const InnerPacket& current,
     return false;
 }
 
+struct PendingDoseConfirmation {
+    bool active;
+    bool editing;
+    DoseReading original;
+    int roundedUnits;
+    char editBuffer[DOSE_EDIT_MAX_DIGITS + 1];
+    uint8_t editLen;
+    uint32_t startedAtMs;
+};
+
+static int roundedDoseUnits(float doseUnits) {
+    int units = (int)lroundf(doseUnits);
+    if (units < 1) units = 1;
+    if (units > DOSE_CONFIRM_MAX_UNITS) units = DOSE_CONFIRM_MAX_UNITS;
+    return units;
+}
+
+static uint8_t dosePromptRemainingSec(const PendingDoseConfirmation& pending, uint32_t nowMs) {
+    uint32_t elapsedMs = nowMs - pending.startedAtMs;
+    if (elapsedMs >= DOSE_CONFIRM_TIMEOUT_MS) {
+        return 0;
+    }
+    return (uint8_t)((DOSE_CONFIRM_TIMEOUT_MS - elapsedMs + 999) / 1000);
+}
+
+static void refreshDosePrompt(const PendingDoseConfirmation& pending, uint32_t nowMs) {
+    updateDisplayDosePrompt(pending.active,
+                            pending.editing,
+                            pending.roundedUnits,
+                            roundedDoseUnits(pending.original.doseUnits),
+                            dosePromptRemainingSec(pending, nowMs),
+                            pending.editBuffer);
+}
+
+static void clearDosePrompt() {
+    updateDisplayDosePrompt(false, false, 0, 0, 0, "");
+}
+
 // -------------------------------------------------------------------------- //
 
 void eventAggregatorTask(void* parameter) {
@@ -65,6 +103,7 @@ void eventAggregatorTask(void* parameter) {
     InnerPacket lastPublishedInner = lastInner;
     bool hasInnerSnapshot = false;
     bool hasPublishedInner = false;
+    PendingDoseConfirmation pendingDose = {};
 
     GlucoseReading lastGlucose = {};
     lastGlucose.valueMgDl      = 0;
@@ -114,12 +153,95 @@ void eventAggregatorTask(void* parameter) {
             }
         }
 
-        // ---- Check for new dose event (primary trigger) ------------------ //
-        DoseReading doseReading;
-        bool hasDose = (xQueueReceive(doseQueue, &doseReading, 0) == pdTRUE);
-        if (hasDose) {
-            lastDose = doseReading;
-            Serial.printf("[EventAgg] New dose: %.1f units\n", lastDose.doseUnits);
+        bool confirmedDose = false;
+
+        // ---- Check for new dose event, then wait for patient confirmation - //
+        if (!pendingDose.active) {
+            DoseReading doseReading;
+            if (xQueueReceive(doseQueue, &doseReading, 0) == pdTRUE) {
+                pendingDose = {};
+                pendingDose.active = true;
+                pendingDose.editing = false;
+                pendingDose.original = doseReading;
+                pendingDose.roundedUnits = roundedDoseUnits(doseReading.doseUnits);
+                pendingDose.startedAtMs = millis();
+                refreshDosePrompt(pendingDose, pendingDose.startedAtMs);
+                Serial.printf("[EventAgg] Dose pending confirmation: raw=%.1f rounded=%d timeout=%lus\n",
+                              doseReading.doseUnits,
+                              pendingDose.roundedUnits,
+                              (unsigned long)(DOSE_CONFIRM_TIMEOUT_MS / 1000));
+            }
+        }
+
+        // ---- Keypad controls for pending dose ---------------------------- //
+        KeypadEvent keyEvent;
+        while (xQueueReceive(keypadQueue, &keyEvent, 0) == pdTRUE) {
+            if (!pendingDose.active) {
+                continue;
+            }
+
+            char key = keyEvent.key;
+            if (!pendingDose.editing) {
+                if (key == 'A') {
+                    lastDose = pendingDose.original;
+                    lastDose.doseUnits = (float)pendingDose.roundedUnits;
+                    confirmedDose = true;
+                    Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
+                                  pendingDose.roundedUnits);
+                    pendingDose = {};
+                    clearDosePrompt();
+                } else if (key == 'B') {
+                    pendingDose.editing = true;
+                    pendingDose.editLen = 0;
+                    pendingDose.editBuffer[0] = '\0';
+                    refreshDosePrompt(pendingDose, millis());
+                    Serial.println("[EventAgg] Dose edit mode started");
+                }
+            } else {
+                if (key >= '0' && key <= '9') {
+                    if (pendingDose.editLen < DOSE_EDIT_MAX_DIGITS) {
+                        pendingDose.editBuffer[pendingDose.editLen++] = key;
+                        pendingDose.editBuffer[pendingDose.editLen] = '\0';
+                        refreshDosePrompt(pendingDose, millis());
+                    }
+                } else if (key == '#') {
+                    pendingDose.editLen = 0;
+                    pendingDose.editBuffer[0] = '\0';
+                    refreshDosePrompt(pendingDose, millis());
+                } else if (key == 'C') {
+                    pendingDose.editing = false;
+                    pendingDose.editLen = 0;
+                    pendingDose.editBuffer[0] = '\0';
+                    refreshDosePrompt(pendingDose, millis());
+                } else if (key == 'D' && pendingDose.editLen > 0) {
+                    int editedUnits = atoi(pendingDose.editBuffer);
+                    if (editedUnits < 1) editedUnits = 1;
+                    if (editedUnits > DOSE_CONFIRM_MAX_UNITS) editedUnits = DOSE_CONFIRM_MAX_UNITS;
+                    lastDose = pendingDose.original;
+                    lastDose.doseUnits = (float)editedUnits;
+                    confirmedDose = true;
+                    Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
+                                  pendingDose.original.doseUnits,
+                                  editedUnits);
+                    pendingDose = {};
+                    clearDosePrompt();
+                }
+            }
+        }
+
+        if (pendingDose.active) {
+            uint32_t promptNowMs = millis();
+            if ((promptNowMs - pendingDose.startedAtMs) >= DOSE_CONFIRM_TIMEOUT_MS) {
+                lastDose = pendingDose.original;
+                lastDose.doseUnits = (float)pendingDose.roundedUnits;
+                confirmedDose = true;
+                Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
+                              pendingDose.roundedUnits);
+                pendingDose = {};
+                clearDosePrompt();
+            } else {
+                refreshDosePrompt(pendingDose, promptNowMs);
+            }
         }
 
         // ---- Check for new glucose reading ------------------------------- //
@@ -136,14 +258,14 @@ void eventAggregatorTask(void* parameter) {
         bool innerTriggered = gotInner;
 
         // ---- Only build and enqueue an event when something new arrived -- //
-        if (hasDose || hasGlucose || innerTriggered || periodicTick) {
+        if (confirmedDose || hasGlucose || innerTriggered || periodicTick) {
             TelemetryEvent event = {};
 
             // Root
             snprintf(event.eventId, sizeof(event.eventId),
                      "EVT-%s-%lu", DEVICE_UID_OUTER, (unsigned long)seq);
             event.sequenceNumber = seq++;
-            event.trigger        = hasDose ? DOSE_EVENT :
+            event.trigger        = confirmedDose ? DOSE_EVENT :
                                    (hasGlucose ? GLUCOSE_EVENT :
                                    (lastInner.batteryPercent <= INNER_BATTERY_LOW_PERCENT ? BATTERY_LOW :
                                    (lastInner.estimatedPercent < 20.0f ? INVENTORY_LOW :

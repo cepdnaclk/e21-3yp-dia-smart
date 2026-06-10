@@ -151,6 +151,8 @@ uint8_t glyphRow(char c, uint8_t row) {
         case '%': { static const uint8_t g[7] = {0x19,0x1A,0x02,0x04,0x08,0x0B,0x13}; return g[row]; }
         case '/': { static const uint8_t g[7] = {0x01,0x02,0x02,0x04,0x08,0x08,0x10}; return g[row]; }
         case '|': { static const uint8_t g[7] = {0x04,0x04,0x04,0x04,0x04,0x04,0x04}; return g[row]; }
+        case '#': { static const uint8_t g[7] = {0x0A,0x0A,0x1F,0x0A,0x1F,0x0A,0x0A}; return g[row]; }
+        case '_': { static const uint8_t g[7] = {0x00,0x00,0x00,0x00,0x00,0x00,0x1F}; return g[row]; }
         default: return 0x00;
     }
 }
@@ -232,7 +234,7 @@ void drawDashboard(const DisplayState& state) {
 
     char doseBuf[24];
     if (state.hasTelemetry && state.doseUnits > 0.0f) {
-        snprintf(doseBuf, sizeof(doseBuf), "%.1fU", state.doseUnits);
+        snprintf(doseBuf, sizeof(doseBuf), "%dU", (int)lroundf(state.doseUnits));
     } else {
         snprintf(doseBuf, sizeof(doseBuf), "--");
     }
@@ -257,6 +259,47 @@ void drawDashboard(const DisplayState& state) {
         snprintf(footer, sizeof(footer), "WAITING FOR TELEMETRY");
     }
     drawText(10, 450, footer, COLOR_MUTED, COLOR_BG, 1);
+}
+
+void drawDosePrompt(const DisplayState& state) {
+    rawFillScreen(COLOR_BG);
+    rawFillRect(0, 0, DISPLAY_WIDTH, 54, COLOR_WARN);
+    drawText(12, 12, "CONFIRM DOSE", COLOR_BG, COLOR_WARN, 3);
+
+    rawFillRect(12, 72, 296, 126, COLOR_PANEL);
+    drawText(28, 92, "PEN DOSE", COLOR_MUTED, COLOR_PANEL, 2);
+
+    char doseBuf[20];
+    snprintf(doseBuf, sizeof(doseBuf), "%dU", state.pendingDoseUnits);
+    drawText(68, 124, doseBuf, COLOR_TEXT, COLOR_PANEL, 7);
+
+    char originalBuf[32];
+    snprintf(originalBuf, sizeof(originalBuf), "ORIGINAL %dU", state.originalDoseUnits);
+    drawText(28, 180, originalBuf, COLOR_MUTED, COLOR_PANEL, 1);
+
+    rawFillRect(12, 214, 296, 92, state.dosePromptEditing ? COLOR_PANEL_ALT : COLOR_PANEL);
+    if (state.dosePromptEditing) {
+        drawText(28, 230, "ENTER CORRECT UNITS", COLOR_MUTED, COLOR_PANEL_ALT, 2);
+        char editBuf[24];
+        if (state.doseEditBuffer[0] != '\0') {
+            snprintf(editBuf, sizeof(editBuf), "%sU", state.doseEditBuffer);
+        } else {
+            snprintf(editBuf, sizeof(editBuf), "_");
+        }
+        drawText(28, 260, editBuf, COLOR_TEXT, COLOR_PANEL_ALT, 4);
+    } else {
+        drawText(28, 232, "A YES  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(28, 262, "AUTO SEND IF NO REPLY", COLOR_MUTED, COLOR_PANEL, 1);
+    }
+
+    rawFillRect(12, 322, 296, 74, COLOR_PANEL);
+    char timeoutBuf[40];
+    snprintf(timeoutBuf, sizeof(timeoutBuf), "AUTO SEND IN %uS", state.dosePromptRemainingSec);
+    drawText(28, 344, timeoutBuf, COLOR_WARN, COLOR_PANEL, 2);
+    drawText(28, 372, "D SUBMIT  # CLEAR", COLOR_MUTED, COLOR_PANEL, 1);
+
+    rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
+    drawText(10, 450, "ONLY INTEGER DOSES ARE SENT", COLOR_MUTED, COLOR_BG, 1);
 }
 
 void rawBusInit() {
@@ -291,7 +334,7 @@ void rawDisplayInit() {
     rawCommand(0x3A);
     rawData(0x55);
     rawCommand(0x36);
-    rawData(0x40); // Portrait, corrected RGB order for the verified bus.
+    rawData(0x80); // Portrait rotated 180 degrees for current enclosure side.
     rawCommand(0x13);
     rawCommand(0x29);
     delay(80);
@@ -306,7 +349,11 @@ void displayUiTask(void* parameter) {
 
     for (;;) {
         DisplayState state = getDisplayStateSnapshot();
-        drawDashboard(state);
+        if (state.dosePromptActive) {
+            drawDosePrompt(state);
+        } else {
+            drawDashboard(state);
+        }
         vTaskDelay(pdMS_TO_TICKS(DISPLAY_REFRESH_MS));
     }
 }

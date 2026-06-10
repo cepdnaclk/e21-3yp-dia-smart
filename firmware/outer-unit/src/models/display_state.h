@@ -18,5 +18,12 @@ struct DisplayState {
     uint32_t lastUpdateMs;
     char timestamp[32];
     char injectedAt[32];
+
+    bool dosePromptActive;
+    bool dosePromptEditing;
+    int pendingDoseUnits;
+    int originalDoseUnits;
+    uint8_t dosePromptRemainingSec;
+    char doseEditBuffer[8];
 };
 

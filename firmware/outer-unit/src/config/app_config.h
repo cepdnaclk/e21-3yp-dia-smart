@@ -82,16 +82,35 @@
 #define DISPLAY_PIN_LCD_RST          6
 // LCD_RD is pulled up to 3.3V through 10k on the PCB; firmware uses write-only mode.
 
+// ---- 4x4 Keypad ---------------------------------------------------------- //
+#define KEYPAD_ROW1_PIN              1
+#define KEYPAD_ROW2_PIN              2
+#define KEYPAD_ROW3_PIN              3
+#define KEYPAD_ROW4_PIN              4
+#define KEYPAD_COL1_PIN              35
+#define KEYPAD_COL2_PIN              36
+#define KEYPAD_COL3_PIN              37
+#define KEYPAD_COL4_PIN              38
+#define KEYPAD_SCAN_INTERVAL_MS      25
+#define KEYPAD_DEBOUNCE_MS           80
+
+// Dose confirmation: auto-send rounded pen dose if patient does not respond.
+#define DOSE_CONFIRM_TIMEOUT_MS      40000
+#define DOSE_EDIT_MAX_DIGITS         3
+#define DOSE_CONFIRM_MAX_UNITS       100
+
 // ---- FreeRTOS Queue lengths ---------------------------------------------- //
 #define QUEUE_TELEMETRY_LEN          10
 #define QUEUE_INNER_PACKET_LEN       5
 #define QUEUE_GLUCOSE_LEN            5
 #define QUEUE_DOSE_LEN               10
+#define QUEUE_KEYPAD_LEN             8
 
 // ---- FreeRTOS Stack sizes (bytes) ---------------------------------------- //
 #define STACK_EVENT_AGG              8192
 #define STACK_MQTT_PUBLISH           8192
 #define STACK_BLE_MANAGER            16384   // BLE client stack is large
 #define STACK_DISPLAY_UI             8192
+#define STACK_KEYPAD                 3072
 
 #endif

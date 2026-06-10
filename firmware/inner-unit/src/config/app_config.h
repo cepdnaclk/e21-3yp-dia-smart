@@ -10,8 +10,8 @@
 #define SERIAL_BAUD              115200
 
 // ---- WiFi (needed only to lock ESP-NOW channel; not used for data) ----------
-#define WIFI_SSID                "SLT-4G-74699C"
-#define WIFI_PASSWORD            "Arnikan1811"
+#define WIFI_SSID                "ananthu73"
+#define WIFI_PASSWORD            "123123123@@"
 // How long to wait for WiFi before falling back to manual channel set (ms).
 #define WIFI_CONNECT_TIMEOUT_MS  10000
 

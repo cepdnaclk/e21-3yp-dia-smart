@@ -27,7 +27,32 @@ void updateDisplayStateFromTelemetry(const TelemetryEvent& event) {
     strncpy(next.injectedAt, event.injectedAt, sizeof(next.injectedAt) - 1);
 
     portENTER_CRITICAL(&displayStateMux);
+    next.dosePromptActive = latestState.dosePromptActive;
+    next.dosePromptEditing = latestState.dosePromptEditing;
+    next.pendingDoseUnits = latestState.pendingDoseUnits;
+    next.originalDoseUnits = latestState.originalDoseUnits;
+    next.dosePromptRemainingSec = latestState.dosePromptRemainingSec;
+    strncpy(next.doseEditBuffer, latestState.doseEditBuffer, sizeof(next.doseEditBuffer) - 1);
     latestState = next;
+    portEXIT_CRITICAL(&displayStateMux);
+}
+
+void updateDisplayDosePrompt(bool active,
+                             bool editing,
+                             int pendingDoseUnits,
+                             int originalDoseUnits,
+                             uint8_t remainingSec,
+                             const char* editBuffer) {
+    portENTER_CRITICAL(&displayStateMux);
+    latestState.dosePromptActive = active;
+    latestState.dosePromptEditing = editing;
+    latestState.pendingDoseUnits = pendingDoseUnits;
+    latestState.originalDoseUnits = originalDoseUnits;
+    latestState.dosePromptRemainingSec = remainingSec;
+    latestState.doseEditBuffer[0] = '\0';
+    if (editBuffer != nullptr) {
+        strncpy(latestState.doseEditBuffer, editBuffer, sizeof(latestState.doseEditBuffer) - 1);
+    }
     portEXIT_CRITICAL(&displayStateMux);
 }
 

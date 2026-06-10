@@ -13,6 +13,7 @@ QueueHandle_t telemetryQueue;
 QueueHandle_t innerPacketQueue;
 QueueHandle_t glucoseQueue;
 QueueHandle_t doseQueue;
+QueueHandle_t keypadQueue;
 
 volatile uint32_t g_espNowRxTotal = 0;
 volatile uint32_t g_espNowRxQueued = 0;
@@ -29,6 +30,7 @@ void eventAggregatorTask(void* parameter);
 void mqttPublishTask(void* parameter);
 void bleManagerTask(void* parameter);
 void displayUiTask(void* parameter);
+void keypadTask(void* parameter);
 
 // ---- ESP-NOW receive callback --------------------------------------------- //
 // Runs in WiFi/ESP-NOW task context (NOT in our FreeRTOS task).
@@ -112,8 +114,9 @@ void setup() {
     innerPacketQueue = xQueueCreate(QUEUE_INNER_PACKET_LEN, sizeof(InnerPacket));
     glucoseQueue     = xQueueCreate(QUEUE_GLUCOSE_LEN,      sizeof(GlucoseReading));
     doseQueue        = xQueueCreate(QUEUE_DOSE_LEN,         sizeof(DoseReading));
+    keypadQueue      = xQueueCreate(QUEUE_KEYPAD_LEN,       sizeof(KeypadEvent));
 
-    if (!telemetryQueue || !innerPacketQueue || !glucoseQueue || !doseQueue) {
+    if (!telemetryQueue || !innerPacketQueue || !glucoseQueue || !doseQueue || !keypadQueue) {
         Serial.println("[Main] Queue creation failed — halting");
         while (true) { vTaskDelay(pdMS_TO_TICKS(1000)); }
     }
@@ -142,6 +145,11 @@ void setup() {
     xTaskCreatePinnedToCore(
         displayUiTask, "DisplayUI",
         STACK_DISPLAY_UI, nullptr, 1, nullptr, 1);
+
+    // keypadTask - scans 4x4 keypad and sends key events to eventAggregatorTask.
+    xTaskCreatePinnedToCore(
+        keypadTask, "Keypad",
+        STACK_KEYPAD, nullptr, 1, nullptr, 1);
 
     Serial.println("[Main] All tasks started");
 }

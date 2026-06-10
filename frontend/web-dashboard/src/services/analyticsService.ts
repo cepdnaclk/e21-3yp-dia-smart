@@ -1,4 +1,5 @@
 import api from "./api";
+import { getPatientId } from "../utils/patient";
 
 import type {
   AnalyticsData,
@@ -7,18 +8,27 @@ import type {
 
 export const analyticsService = {
   async getAnalytics(): Promise<AnalyticsData> {
+    const patientId =
+      getPatientId();
+
     const response = await api.get(
       "/analytics/adherence",
       {
         params: {
-          patientId: 2,
-          startDate: "2026-05-01",
-          endDate: "2026-06-09",
+          patientId:
+            Number(patientId),
+
+          startDate:
+            "2026-05-01",
+
+          endDate:
+            "2026-06-09",
         },
       }
     );
 
-    const data = response.data.data;
+    const data =
+      response.data.data;
 
     return {
       adherenceRate:
@@ -27,11 +37,14 @@ export const analyticsService = {
       totalScheduled:
         data.totalScheduled,
 
-      onTime: data.onTime,
+      onTime:
+        data.onTime,
 
-      late: data.late,
+      late:
+        data.late,
 
-      missed: data.missed,
+      missed:
+        data.missed,
 
       unscheduled:
         data.unscheduled,
@@ -41,9 +54,12 @@ export const analyticsService = {
   async getGlucoseHistory(): Promise<
     GlucoseReading[]
   > {
+    const patientId =
+      getPatientId();
+
     const response =
       await api.get(
-        "/patients/2/glucose-readings"
+        `/patients/${patientId}/glucose-readings`
       );
 
     return response.data.data.content;

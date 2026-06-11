@@ -1,4 +1,5 @@
 #include "mqtt_service.h"
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include "config/app_config.h"
@@ -28,34 +29,32 @@ void setupMQTT()
     mqttClient.setSocketTimeout(10);
 }
 
-void connectMQTT()
+bool connectMQTT()
 {
-    // Loop until we are connected
-    while (!mqttClient.connected())
-    {
-        Serial.print("Connecting to AWS IoT Core... ");
-        
-        // Connect using the Device UID as the unique Client ID
-        if (mqttClient.connect(DEVICE_UID))
-        {
-            Serial.println("CONNECTED!");
-        }
-        else
-        {
-            Serial.print("FAILED, Return Code: ");
-            Serial.print(mqttClient.state());
-            Serial.println(" - Retrying in 3 seconds...");
-            delay(3000);
-        }
+    if (mqttClient.connected()) {
+        return true;
     }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[MQTT] WiFi offline; MQTT connect skipped");
+        return false;
+    }
+
+    Serial.print("Connecting to AWS IoT Core... ");
+    if (mqttClient.connect(DEVICE_UID)) {
+        Serial.println("CONNECTED!");
+        return true;
+    }
+
+    Serial.print("FAILED, Return Code: ");
+    Serial.println(mqttClient.state());
+    return false;
 }
 
-void publishTelemetry(String payload)
+bool publishTelemetry(const String& payload)
 {
-    // Reconnect if the connection dropped
-    if (!mqttClient.connected())
-    {
-        connectMQTT();
+    if (!mqttClient.connected() && !connectMQTT()) {
+        return false;
     }
 
     // Pump client once before publish to reduce stale-socket failures.
@@ -68,25 +67,25 @@ void publishTelemetry(String payload)
         Serial.print(payloadLen);
         Serial.print(", buffer=");
         Serial.println(MQTT_BUFFER_BYTES);
-        return;
+        return false;
     }
 
     // Publish the JSON payload to the defined topic
     if (mqttClient.publish(AWS_IOT_PUBLISH_TOPIC, payload.c_str()))
     {
         Serial.println("[MQTT] SUCCESS: Payload delivered to AWS.");
+        return true;
     }
-    else
-    {
-        Serial.print("[MQTT] ERROR: Failed to deliver payload. state=");
-        Serial.print(mqttClient.state());
-        Serial.print(", connected=");
-        Serial.print(mqttClient.connected() ? "true" : "false");
-        Serial.print(", topic=");
-        Serial.print(AWS_IOT_PUBLISH_TOPIC);
-        Serial.print(", len=");
-        Serial.println(payloadLen);
-    }
+
+    Serial.print("[MQTT] ERROR: Failed to deliver payload. state=");
+    Serial.print(mqttClient.state());
+    Serial.print(", connected=");
+    Serial.print(mqttClient.connected() ? "true" : "false");
+    Serial.print(", topic=");
+    Serial.print(AWS_IOT_PUBLISH_TOPIC);
+    Serial.print(", len=");
+    Serial.println(payloadLen);
+    return false;
 }
 
 void mqttLoop()
@@ -98,4 +97,9 @@ void mqttLoop()
 bool isMqttConnected()
 {
     return mqttClient.connected();
+}
+
+int mqttState()
+{
+    return mqttClient.state();
 }

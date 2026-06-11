@@ -4,9 +4,10 @@
 #include <Arduino.h>
 
 void setupMQTT();
-void connectMQTT();
-void publishTelemetry(String payload);
+bool connectMQTT();
+bool publishTelemetry(const String& payload);
 void mqttLoop();
 bool isMqttConnected();
+int mqttState();
 
 #endif

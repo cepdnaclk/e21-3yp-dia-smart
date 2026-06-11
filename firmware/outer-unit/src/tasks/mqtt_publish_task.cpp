@@ -8,6 +8,7 @@ extern QueueHandle_t telemetryQueue;
 void mqttPublishTask(void *parameter)
 {
     TelemetryEvent receivedEvent;
+    uint32_t lastConnectAttemptMs = 0;
 
     // 1. Initialize TLS and connect to AWS IoT Core
     setupMQTT();
@@ -18,8 +19,9 @@ void mqttPublishTask(void *parameter)
         // 2. Keep the MQTT connection alive
         mqttLoop();
         
-        // Reconnect if network drops (USING OUR NEW HELPER FUNCTION)
-        if (!isMqttConnected()) {
+        // Reconnect without blocking this task forever while offline.
+        if (!isMqttConnected() && (millis() - lastConnectAttemptMs) >= 5000) {
+            lastConnectAttemptMs = millis();
             connectMQTT();
         }
 
@@ -33,8 +35,11 @@ void mqttPublishTask(void *parameter)
             Serial.println(receivedEvent.eventId);
             Serial.println(jsonPayload);
             
-            // 4. Send to AWS!
-            publishTelemetry(jsonPayload);
+            // 4. Send to AWS. Offline queue handling is added in the next step.
+            bool published = publishTelemetry(jsonPayload);
+            if (!published) {
+                Serial.println("[MQTTPublishTask] Publish failed; offline queue not enabled yet");
+            }
         }
     }
 }

@@ -1,7 +1,9 @@
 #include <Arduino.h>
+#include "config/app_config.h"
 #include "models/telemetry_event.h"
 #include "services/json_serializer_service.h"
 #include "services/mqtt_service.h"
+#include "services/offline_json_queue_service.h"
 
 extern QueueHandle_t telemetryQueue;
 
@@ -11,6 +13,7 @@ void mqttPublishTask(void *parameter)
     uint32_t lastConnectAttemptMs = 0;
 
     // 1. Initialize TLS and connect to AWS IoT Core
+    offlineJsonQueue.begin();
     setupMQTT();
     connectMQTT();
 
@@ -25,6 +28,26 @@ void mqttPublishTask(void *parameter)
             connectMQTT();
         }
 
+        // Queued payloads are older than live telemetry, so retry them first.
+        if (isMqttConnected() &&
+            offlineJsonQueue.ready() &&
+            offlineJsonQueue.count() > 0 &&
+            (millis() - lastConnectAttemptMs) >= OFFLINE_QUEUE_RETRY_INTERVAL_MS) {
+            lastConnectAttemptMs = millis();
+            String queuedPayload;
+            if (offlineJsonQueue.peek(queuedPayload)) {
+                Serial.printf("[MQTTPublishTask] Retrying queued JSON. queued=%u\n",
+                              offlineJsonQueue.count());
+                if (publishTelemetry(queuedPayload)) {
+                    offlineJsonQueue.pop();
+                    Serial.printf("[MQTTPublishTask] Queued JSON delivered. remaining=%u\n",
+                                  offlineJsonQueue.count());
+                } else {
+                    Serial.println("[MQTTPublishTask] Queued publish failed; retry later");
+                }
+            }
+        }
+
         // 3. Check for new events (Wait max 100ms so the loop can repeat and keep MQTT alive)
         if (xQueueReceive(telemetryQueue, &receivedEvent, pdMS_TO_TICKS(100)) == pdTRUE)
         {
@@ -35,10 +58,20 @@ void mqttPublishTask(void *parameter)
             Serial.println(receivedEvent.eventId);
             Serial.println(jsonPayload);
             
-            // 4. Send to AWS. Offline queue handling is added in the next step.
-            bool published = publishTelemetry(jsonPayload);
+            // Preserve ordering: if anything is queued, store this new payload too.
+            bool shouldQueue = offlineJsonQueue.ready() && offlineJsonQueue.count() > 0;
+            bool published = false;
+            if (!shouldQueue) {
+                published = publishTelemetry(jsonPayload);
+            }
+
             if (!published) {
-                Serial.println("[MQTTPublishTask] Publish failed; offline queue not enabled yet");
+                if (offlineJsonQueue.enqueue(jsonPayload)) {
+                    Serial.printf("[MQTTPublishTask] Payload queued for retry. queued=%u\n",
+                                  offlineJsonQueue.count());
+                } else {
+                    Serial.println("[MQTTPublishTask] ERROR: publish failed and offline queue save failed");
+                }
             }
         }
     }

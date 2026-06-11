@@ -99,6 +99,12 @@
 #define DOSE_EDIT_MAX_DIGITS         3
 #define DOSE_CONFIRM_MAX_UNITS       100
 
+// ---- Offline telemetry queue -------------------------------------------- //
+// Stores exact compact backend JSON payloads in LittleFS and retries later.
+#define OFFLINE_JSON_QUEUE_MAX_RECORDS 50
+#define OFFLINE_JSON_MAX_BYTES         2048
+#define OFFLINE_QUEUE_RETRY_INTERVAL_MS 5000
+
 // ---- FreeRTOS Queue lengths ---------------------------------------------- //
 #define QUEUE_TELEMETRY_LEN          10
 #define QUEUE_INNER_PACKET_LEN       5

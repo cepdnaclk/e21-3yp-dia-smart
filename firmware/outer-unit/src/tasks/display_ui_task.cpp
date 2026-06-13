@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ctype.h>
 #include <math.h>
+#include <string.h>
 
 #include "config/app_config.h"
 #include "managers/display_state_manager.h"
@@ -19,6 +20,8 @@ constexpr uint16_t COLOR_ACCENT = 0x07FF;
 constexpr uint16_t COLOR_OK = 0x07E0;
 constexpr uint16_t COLOR_WARN = 0xFFE0;
 constexpr uint16_t COLOR_BAD = 0xF800;
+
+bool forceFullRedraw = true;
 
 constexpr uint32_t pinBit(uint8_t pin) {
     return 1UL << pin;
@@ -104,6 +107,59 @@ void rawFillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 
 void rawFillScreen(uint16_t color) {
     rawFillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, color);
+}
+
+uint8_t visibleMode(const DisplayState& state) {
+    return state.dosePromptActive ? 100 : state.activePage;
+}
+
+bool textChanged(const char* left, const char* right, size_t len) {
+    return strncmp(left, right, len) != 0;
+}
+
+bool displayNeedsRedraw(const DisplayState& current,
+                        const DisplayState& previous,
+                        uint32_t lastDrawMs,
+                        bool hasPrevious) {
+    if (!hasPrevious) return true;
+    if (visibleMode(current) != visibleMode(previous)) return true;
+
+    if (current.dosePromptActive) {
+        return current.dosePromptEditing != previous.dosePromptEditing ||
+               fabsf(current.promptPenDoseUnits - previous.promptPenDoseUnits) >= 0.05f ||
+               current.pendingDoseUnits != previous.pendingDoseUnits ||
+               current.dosePromptRemainingSec != previous.dosePromptRemainingSec ||
+               textChanged(current.doseEditBuffer, previous.doseEditBuffer, sizeof(current.doseEditBuffer));
+    }
+
+    if (current.hasTelemetry != previous.hasTelemetry ||
+        current.doorOpen != previous.doorOpen ||
+        fabsf(current.temperatureC - previous.temperatureC) >= 0.05f ||
+        fabsf(current.estimatedPercent - previous.estimatedPercent) >= 0.5f ||
+        current.glucoseMgDl != previous.glucoseMgDl ||
+        current.glucometerSequenceNumber != previous.glucometerSequenceNumber ||
+        fabsf(current.doseUnits - previous.doseUnits) >= 0.05f ||
+        current.innerBatteryPercent != previous.innerBatteryPercent ||
+        current.wifiRssiDbm != previous.wifiRssiDbm ||
+        current.bleRssiDbm != previous.bleRssiDbm ||
+        current.freeHeapBytes / 1024 != previous.freeHeapBytes / 1024 ||
+        textChanged(current.injectedAt, previous.injectedAt, sizeof(current.injectedAt))) {
+        return true;
+    }
+
+    if (current.wifiConnected != previous.wifiConnected ||
+        current.mqttConnected != previous.mqttConnected ||
+        current.mqttRetrying != previous.mqttRetrying ||
+        current.offlineQueueReady != previous.offlineQueueReady ||
+        current.offlineQueueCount != previous.offlineQueueCount ||
+        current.lastPublishOk != previous.lastPublishOk ||
+        current.mqttState != previous.mqttState) {
+        return true;
+    }
+
+    bool agePage = current.activePage == DISPLAY_PAGE_DEVICE_STATUS ||
+                   current.activePage == DISPLAY_PAGE_QUEUE_STATUS;
+    return agePage && (millis() - lastDrawMs) >= 5000;
 }
 
 uint8_t glyphRow(char c, uint8_t row) {
@@ -248,7 +304,7 @@ void drawStatusRow(int y, const char* label, const char* value, uint16_t color) 
 }
 
 void drawDashboard(const DisplayState& state) {
-    rawFillScreen(COLOR_BG);
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "DASHBOARD");
 
     char tempBuf[24];
@@ -317,7 +373,7 @@ void drawDashboard(const DisplayState& state) {
 }
 
 void drawDeviceStatus(const DisplayState& state) {
-    rawFillScreen(COLOR_BG);
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "DEVICE");
 
     char value[32];
@@ -340,7 +396,7 @@ void drawDeviceStatus(const DisplayState& state) {
 }
 
 void drawAlerts(const DisplayState& state) {
-    rawFillScreen(COLOR_BG);
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "ALERTS");
 
     bool offline = !state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0;
@@ -376,7 +432,7 @@ void drawAlerts(const DisplayState& state) {
 }
 
 void drawQueueStatus(const DisplayState& state) {
-    rawFillScreen(COLOR_BG);
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "QUEUE");
 
     char value[32];
@@ -403,7 +459,7 @@ void drawQueueStatus(const DisplayState& state) {
 }
 
 void drawDosePrompt(const DisplayState& state) {
-    rawFillScreen(COLOR_BG);
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
     rawFillRect(0, 0, DISPLAY_WIDTH, 54, COLOR_WARN);
     drawText(12, 12, "CONFIRM DOSE", COLOR_BG, COLOR_WARN, 3);
 
@@ -487,27 +543,36 @@ void displayUiTask(void* parameter) {
     Serial.println("[Display] Raw portrait dashboard task started");
     rawDisplayInit();
     rawFillScreen(COLOR_BG);
+    DisplayState previousState = {};
+    bool hasPreviousState = false;
+    uint32_t lastDrawMs = 0;
 
     for (;;) {
         DisplayState state = getDisplayStateSnapshot();
-        if (state.dosePromptActive) {
-            drawDosePrompt(state);
-        } else {
-            switch (state.activePage) {
-                case DISPLAY_PAGE_DEVICE_STATUS:
-                    drawDeviceStatus(state);
-                    break;
-                case DISPLAY_PAGE_ALERTS:
-                    drawAlerts(state);
-                    break;
-                case DISPLAY_PAGE_QUEUE_STATUS:
-                    drawQueueStatus(state);
-                    break;
-                case DISPLAY_PAGE_DASHBOARD:
-                default:
-                    drawDashboard(state);
-                    break;
+        if (displayNeedsRedraw(state, previousState, lastDrawMs, hasPreviousState)) {
+            forceFullRedraw = !hasPreviousState || visibleMode(state) != visibleMode(previousState);
+            if (state.dosePromptActive) {
+                drawDosePrompt(state);
+            } else {
+                switch (state.activePage) {
+                    case DISPLAY_PAGE_DEVICE_STATUS:
+                        drawDeviceStatus(state);
+                        break;
+                    case DISPLAY_PAGE_ALERTS:
+                        drawAlerts(state);
+                        break;
+                    case DISPLAY_PAGE_QUEUE_STATUS:
+                        drawQueueStatus(state);
+                        break;
+                    case DISPLAY_PAGE_DASHBOARD:
+                    default:
+                        drawDashboard(state);
+                        break;
+                }
             }
+            previousState = state;
+            hasPreviousState = true;
+            lastDrawMs = millis();
         }
         vTaskDelay(pdMS_TO_TICKS(DISPLAY_REFRESH_MS));
     }

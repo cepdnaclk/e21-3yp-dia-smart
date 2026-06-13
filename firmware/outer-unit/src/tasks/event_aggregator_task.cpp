@@ -79,6 +79,7 @@ static uint8_t dosePromptRemainingSec(const PendingDoseConfirmation& pending, ui
 static void refreshDosePrompt(const PendingDoseConfirmation& pending, uint32_t nowMs) {
     updateDisplayDosePrompt(pending.active,
                             pending.editing,
+                            pending.original.doseUnits,
                             pending.roundedUnits,
                             roundedDoseUnits(pending.original.doseUnits),
                             dosePromptRemainingSec(pending, nowMs),
@@ -86,7 +87,7 @@ static void refreshDosePrompt(const PendingDoseConfirmation& pending, uint32_t n
 }
 
 static void clearDosePrompt() {
-    updateDisplayDosePrompt(false, false, 0, 0, 0, "");
+    updateDisplayDosePrompt(false, false, 0.0f, 0, 0, 0, "");
 }
 
 // -------------------------------------------------------------------------- //
@@ -112,6 +113,8 @@ void eventAggregatorTask(void* parameter) {
     DoseReading lastDose = {};
     lastDose.doseUnits   = 0.0f;
     strncpy(lastDose.injectedAt, "1970-01-01T00:00:00Z", sizeof(lastDose.injectedAt));
+    DoseReading doseToPublish = {};
+    bool hasDoseToPublish = false;
 
     static uint32_t seq = 0;
     uint32_t lastPeriodicMs = 0;   // tracks 30s periodic publish
@@ -185,6 +188,8 @@ void eventAggregatorTask(void* parameter) {
                 if (key == 'A') {
                     lastDose = pendingDose.original;
                     lastDose.doseUnits = (float)pendingDose.roundedUnits;
+                    doseToPublish = lastDose;
+                    hasDoseToPublish = true;
                     confirmedDose = true;
                     Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
                                   pendingDose.roundedUnits);
@@ -219,6 +224,8 @@ void eventAggregatorTask(void* parameter) {
                     if (editedUnits > DOSE_CONFIRM_MAX_UNITS) editedUnits = DOSE_CONFIRM_MAX_UNITS;
                     lastDose = pendingDose.original;
                     lastDose.doseUnits = (float)editedUnits;
+                    doseToPublish = lastDose;
+                    hasDoseToPublish = true;
                     confirmedDose = true;
                     Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
                                   pendingDose.original.doseUnits,
@@ -234,6 +241,8 @@ void eventAggregatorTask(void* parameter) {
             if ((promptNowMs - pendingDose.startedAtMs) >= DOSE_CONFIRM_TIMEOUT_MS) {
                 lastDose = pendingDose.original;
                 lastDose.doseUnits = (float)pendingDose.roundedUnits;
+                doseToPublish = lastDose;
+                hasDoseToPublish = true;
                 confirmedDose = true;
                 Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
                               pendingDose.roundedUnits);
@@ -258,14 +267,15 @@ void eventAggregatorTask(void* parameter) {
         bool innerTriggered = gotInner;
 
         // ---- Only build and enqueue an event when something new arrived -- //
-        if (confirmedDose || hasGlucose || innerTriggered || periodicTick) {
+        bool dosePublishPending = confirmedDose || hasDoseToPublish;
+        if (dosePublishPending || hasGlucose || innerTriggered || periodicTick) {
             TelemetryEvent event = {};
 
             // Root
             snprintf(event.eventId, sizeof(event.eventId),
                      "EVT-%s-%lu", DEVICE_UID_OUTER, (unsigned long)seq);
             event.sequenceNumber = seq++;
-            event.trigger        = confirmedDose ? DOSE_EVENT :
+            event.trigger        = dosePublishPending ? DOSE_EVENT :
                                    (hasGlucose ? GLUCOSE_EVENT :
                                    (lastInner.batteryPercent <= INNER_BATTERY_LOW_PERCENT ? BATTERY_LOW :
                                    (lastInner.estimatedPercent < 20.0f ? INVENTORY_LOW :
@@ -286,8 +296,9 @@ void eventAggregatorTask(void* parameter) {
             event.glucometerSequenceNumber = lastGlucose.sequenceNumber;
 
             // Dose
-            event.doseUnits = lastDose.doseUnits;
-            strncpy(event.injectedAt, lastDose.injectedAt, sizeof(event.injectedAt));
+            const DoseReading& eventDose = hasDoseToPublish ? doseToPublish : lastDose;
+            event.doseUnits = eventDose.doseUnits;
+            strncpy(event.injectedAt, eventDose.injectedAt, sizeof(event.injectedAt));
 
             // Battery / system — real WiFi RSSI, heap, BLE RSSI from shared var
             event.innerBatteryPercent = lastInner.batteryPercent;
@@ -311,8 +322,11 @@ void eventAggregatorTask(void* parameter) {
                           event.innerBatteryPercent,
                           (int)event.trigger);
 
-            if (xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500)) != pdTRUE) {
+            BaseType_t telemetrySendResult = xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500));
+            if (telemetrySendResult != pdTRUE) {
                 Serial.println("[EventAgg] telemetryQueue full — event dropped");
+            } else if (hasDoseToPublish) {
+                hasDoseToPublish = false;
             }
         }
 

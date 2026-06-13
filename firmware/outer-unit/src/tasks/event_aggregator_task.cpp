@@ -261,6 +261,10 @@ void eventAggregatorTask(void* parameter) {
             Serial.printf("[EventAgg] New glucose: %d mg/dL\n", lastGlucose.valueMgDl);
         }
 
+        if (gotInner || hasGlucose || confirmedDose) {
+            updateDisplayActivity(gotInner, hasGlucose, confirmedDose);
+        }
+
         // ---- Periodic publish every 30s (for monitoring/debug) ---------- //
         bool periodicTick = (millis() - lastPeriodicMs) >= 30000;
         if (periodicTick) lastPeriodicMs = millis();

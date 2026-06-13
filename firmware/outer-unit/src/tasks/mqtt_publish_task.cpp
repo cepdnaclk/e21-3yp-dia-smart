@@ -1,5 +1,7 @@
 #include <Arduino.h>
+#include <WiFi.h>
 #include "config/app_config.h"
+#include "managers/display_state_manager.h"
 #include "models/telemetry_event.h"
 #include "services/json_serializer_service.h"
 #include "services/mqtt_service.h"
@@ -7,15 +9,29 @@
 
 extern QueueHandle_t telemetryQueue;
 
+namespace {
+void refreshDisplayMqttStatus(bool retrying, bool lastPublishOk) {
+    updateDisplayConnectivity(WiFi.status() == WL_CONNECTED,
+                              isMqttConnected(),
+                              retrying,
+                              mqttState(),
+                              lastPublishOk);
+    updateDisplayOfflineQueue(offlineJsonQueue.ready(), offlineJsonQueue.count());
+}
+}
+
 void mqttPublishTask(void *parameter)
 {
     TelemetryEvent receivedEvent;
     uint32_t lastConnectAttemptMs = 0;
+    bool lastPublishOk = false;
 
     // 1. Initialize TLS and connect to AWS IoT Core
     offlineJsonQueue.begin();
+    refreshDisplayMqttStatus(false, lastPublishOk);
     setupMQTT();
-    connectMQTT();
+    bool connected = connectMQTT();
+    refreshDisplayMqttStatus(!connected, lastPublishOk);
 
     while (true)
     {
@@ -25,7 +41,9 @@ void mqttPublishTask(void *parameter)
         // Reconnect without blocking this task forever while offline.
         if (!isMqttConnected() && (millis() - lastConnectAttemptMs) >= 5000) {
             lastConnectAttemptMs = millis();
-            connectMQTT();
+            refreshDisplayMqttStatus(true, lastPublishOk);
+            connected = connectMQTT();
+            refreshDisplayMqttStatus(!connected, lastPublishOk);
         }
 
         // Queued payloads are older than live telemetry, so retry them first.
@@ -40,10 +58,14 @@ void mqttPublishTask(void *parameter)
                               offlineJsonQueue.count());
                 if (publishTelemetry(queuedPayload)) {
                     offlineJsonQueue.pop();
+                    lastPublishOk = true;
                     Serial.printf("[MQTTPublishTask] Queued JSON delivered. remaining=%u\n",
                                   offlineJsonQueue.count());
+                    refreshDisplayMqttStatus(false, lastPublishOk);
                 } else {
+                    lastPublishOk = false;
                     Serial.println("[MQTTPublishTask] Queued publish failed; retry later");
+                    refreshDisplayMqttStatus(true, lastPublishOk);
                 }
             }
         }
@@ -63,15 +85,21 @@ void mqttPublishTask(void *parameter)
             bool published = false;
             if (!shouldQueue) {
                 published = publishTelemetry(jsonPayload);
+                lastPublishOk = published;
+                refreshDisplayMqttStatus(!published && !isMqttConnected(), lastPublishOk);
             }
 
             if (!published) {
                 if (offlineJsonQueue.enqueue(jsonPayload)) {
                     Serial.printf("[MQTTPublishTask] Payload queued for retry. queued=%u\n",
                                   offlineJsonQueue.count());
+                    refreshDisplayMqttStatus(!isMqttConnected(), lastPublishOk);
                 } else {
                     Serial.println("[MQTTPublishTask] ERROR: publish failed and offline queue save failed");
+                    refreshDisplayMqttStatus(!isMqttConnected(), false);
                 }
+            } else {
+                refreshDisplayMqttStatus(false, lastPublishOk);
             }
         }
     }

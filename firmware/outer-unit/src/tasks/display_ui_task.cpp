@@ -191,10 +191,65 @@ void drawCard(int x, int y, int w, int h, const char* label, const char* value,
     drawText(x + 8, y + 36, value, valueColor, bg, 3);
 }
 
+bool recentMs(uint32_t timestampMs, uint32_t maxAgeMs) {
+    return timestampMs != 0 && (millis() - timestampMs) <= maxAgeMs;
+}
+
+uint32_t ageSeconds(uint32_t timestampMs) {
+    if (timestampMs == 0) return 0;
+    return (millis() - timestampMs) / 1000;
+}
+
+const char* okBad(bool ok) {
+    return ok ? "OK" : "BAD";
+}
+
+uint16_t okBadColor(bool ok) {
+    return ok ? COLOR_OK : COLOR_BAD;
+}
+
+bool mqttOk(const DisplayState& state) {
+    return state.mqttConnected && !state.mqttRetrying;
+}
+
+bool bleOk(const DisplayState& state) {
+    return state.bleRssiDbm != 0;
+}
+
+bool innerOk(const DisplayState& state) {
+    return recentMs(state.lastInnerPacketMs, 90000);
+}
+
+void drawTopBar(const DisplayState& state) {
+    bool allOk = state.wifiConnected && mqttOk(state) && bleOk(state) && innerOk(state);
+    uint16_t bg = allOk ? 0x0320 : (state.offlineQueueCount > 0 || state.mqttRetrying ? 0x7BE0 : 0x7800);
+    rawFillRect(0, 0, DISPLAY_WIDTH, 24, bg);
+
+    char top[64];
+    snprintf(top, sizeof(top), "WIFI %s | MQTT %s | BLE %s | IN %s | Q:%u",
+             okBad(state.wifiConnected),
+             okBad(mqttOk(state)),
+             okBad(bleOk(state)),
+             okBad(innerOk(state)),
+             state.offlineQueueCount);
+    drawText(6, 8, top, COLOR_TEXT, bg, 1);
+}
+
+void drawPageTitle(const DisplayState& state, const char* title) {
+    drawTopBar(state);
+    rawFillRect(0, 24, DISPLAY_WIDTH, 36, COLOR_ACCENT);
+    drawText(12, 34, title, COLOR_BG, COLOR_ACCENT, 3);
+}
+
+void drawStatusRow(int y, const char* label, const char* value, uint16_t color) {
+    rawFillRect(12, y, 296, 36, COLOR_PANEL);
+    drawText(22, y + 10, label, COLOR_MUTED, COLOR_PANEL, 2);
+    drawText(168, y + 10, value, color, COLOR_PANEL, 2);
+}
+
 void drawDashboard(const DisplayState& state) {
     rawFillScreen(COLOR_BG);
-    rawFillRect(0, 0, DISPLAY_WIDTH, 54, COLOR_ACCENT);
-    drawText(12, 12, "DIA-SMART", COLOR_BG, COLOR_ACCENT, 4);
+    drawPageTitle(state, "DASHBOARD");
 
     char tempBuf[24];
     if (!state.hasTelemetry || isnan(state.temperatureC)) {
@@ -202,10 +257,10 @@ void drawDashboard(const DisplayState& state) {
     } else {
         snprintf(tempBuf, sizeof(tempBuf), "%.1f C", state.temperatureC);
     }
-    drawCard(10, 68, 145, 82, "TEMP", tempBuf, tempColor(state.temperatureC));
+    drawCard(10, 72, 145, 76, "TEMP", tempBuf, tempColor(state.temperatureC));
 
     const char* doorValue = state.hasTelemetry ? (state.doorOpen ? "OPEN" : "CLOSED") : "--";
-    drawCard(165, 68, 145, 82, "DOOR", doorValue, state.doorOpen ? COLOR_WARN : COLOR_OK, true);
+    drawCard(165, 72, 145, 76, "DOOR", doorValue, state.doorOpen ? COLOR_WARN : COLOR_OK, true);
 
     char stockBuf[24];
     if (state.hasTelemetry) {
@@ -213,16 +268,8 @@ void drawDashboard(const DisplayState& state) {
     } else {
         snprintf(stockBuf, sizeof(stockBuf), "--%%");
     }
-    drawCard(10, 162, 145, 82, "STOCK", stockBuf,
+    drawCard(10, 160, 145, 76, "STOCK", stockBuf,
              state.estimatedPercent < 20.0f ? COLOR_WARN : COLOR_TEXT, true);
-
-    char weightBuf[24];
-    if (state.hasTelemetry) {
-        snprintf(weightBuf, sizeof(weightBuf), "%.0fG", state.inventoryWeightG);
-    } else {
-        snprintf(weightBuf, sizeof(weightBuf), "--G");
-    }
-    drawCard(165, 162, 145, 82, "WEIGHT", weightBuf, COLOR_TEXT);
 
     char glucoseBuf[24];
     if (state.hasTelemetry && state.glucoseMgDl > 0) {
@@ -230,7 +277,7 @@ void drawDashboard(const DisplayState& state) {
     } else {
         snprintf(glucoseBuf, sizeof(glucoseBuf), "--");
     }
-    drawCard(10, 256, 145, 82, "GLUCOSE", glucoseBuf, COLOR_TEXT);
+    drawCard(165, 160, 145, 76, "GLUCOSE", glucoseBuf, COLOR_TEXT);
 
     char doseBuf[24];
     if (state.hasTelemetry && state.doseUnits > 0.0f) {
@@ -238,27 +285,121 @@ void drawDashboard(const DisplayState& state) {
     } else {
         snprintf(doseBuf, sizeof(doseBuf), "--");
     }
-    drawCard(165, 256, 145, 82, "DOSE", doseBuf, COLOR_TEXT, true);
+    drawCard(10, 248, 145, 76, "LAST DOSE", doseBuf, COLOR_TEXT);
 
-    rawFillRect(10, 350, 300, 76, COLOR_PANEL);
-    drawText(20, 360, "LAST DOSE TIME", COLOR_MUTED, COLOR_PANEL, 2);
-    if (state.hasTelemetry && state.doseUnits > 0.0f) {
-        drawText(20, 386, state.injectedAt, COLOR_TEXT, COLOR_PANEL, 2);
+    char seqBuf[24];
+    if (state.hasTelemetry && state.glucometerSequenceNumber > 0) {
+        snprintf(seqBuf, sizeof(seqBuf), "#%d", state.glucometerSequenceNumber);
     } else {
-        drawText(20, 386, "NO DOSE YET", COLOR_TEXT, COLOR_PANEL, 2);
+        snprintf(seqBuf, sizeof(seqBuf), "--");
+    }
+    drawCard(165, 248, 145, 76, "GLUCOSE SEQ", seqBuf, COLOR_TEXT, true);
+
+    rawFillRect(10, 336, 300, 72, COLOR_PANEL);
+    drawText(20, 346, "INJECTED AT", COLOR_MUTED, COLOR_PANEL, 2);
+    if (state.hasTelemetry && state.doseUnits > 0.0f) {
+        drawText(20, 378, state.injectedAt, COLOR_TEXT, COLOR_PANEL, 1);
+    } else {
+        drawText(20, 378, "NO DOSE YET", COLOR_TEXT, COLOR_PANEL, 2);
     }
 
-    rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
+    rawFillRect(0, 424, DISPLAY_WIDTH, 56, COLOR_BG);
     char footer[56];
     if (state.hasTelemetry) {
-        snprintf(footer, sizeof(footer), "INBAT %d%% | WIFI %d | HEAP %luK",
+        snprintf(footer, sizeof(footer), "INBAT %d%% | WIFI %d | HEAP %luK | A HOME",
                  state.innerBatteryPercent,
                  state.wifiRssiDbm,
                  (unsigned long)(state.freeHeapBytes / 1024));
     } else {
-        snprintf(footer, sizeof(footer), "WAITING FOR TELEMETRY");
+        snprintf(footer, sizeof(footer), "WAITING FOR TELEMETRY | B STATUS C ALERT D QUEUE");
     }
-    drawText(10, 450, footer, COLOR_MUTED, COLOR_BG, 1);
+    drawText(10, 442, footer, COLOR_MUTED, COLOR_BG, 1);
+}
+
+void drawDeviceStatus(const DisplayState& state) {
+    rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "DEVICE");
+
+    char value[32];
+    snprintf(value, sizeof(value), "%s %d", okBad(state.wifiConnected), state.wifiRssiDbm);
+    drawStatusRow(76, "WIFI RSSI", value, okBadColor(state.wifiConnected));
+
+    snprintf(value, sizeof(value), "%s S:%d", state.mqttRetrying ? "RETRY" : okBad(state.mqttConnected), state.mqttState);
+    drawStatusRow(122, "MQTT", value, mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
+
+    snprintf(value, sizeof(value), "%d DBM", state.bleRssiDbm);
+    drawStatusRow(168, "BLE RSSI", value, okBadColor(bleOk(state)));
+
+    snprintf(value, sizeof(value), "%luS", (unsigned long)ageSeconds(state.lastInnerPacketMs));
+    drawStatusRow(214, "INNER AGE", value, okBadColor(innerOk(state)));
+
+    snprintf(value, sizeof(value), "%luK", (unsigned long)(state.freeHeapBytes / 1024));
+    drawStatusRow(260, "FREE HEAP", value, COLOR_TEXT);
+
+    drawText(16, 430, "A DASH  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+}
+
+void drawAlerts(const DisplayState& state) {
+    rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "ALERTS");
+
+    bool offline = !state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0;
+    drawStatusRow(76, "OFFLINE", offline ? "YES" : "NO", offline ? COLOR_BAD : COLOR_OK);
+
+    const char* tempStatus = "OK";
+    uint16_t tempStatusColor = COLOR_OK;
+    if (!state.hasTelemetry || isnan(state.temperatureC)) {
+        tempStatus = "UNKNOWN";
+        tempStatusColor = COLOR_WARN;
+    } else if (state.temperatureC < TEMP_MIN_C) {
+        tempStatus = "LOW";
+        tempStatusColor = COLOR_BAD;
+    } else if (state.temperatureC > TEMP_MAX_C) {
+        tempStatus = "HIGH";
+        tempStatusColor = COLOR_BAD;
+    }
+    drawStatusRow(122, "TEMP", tempStatus, tempStatusColor);
+
+    drawStatusRow(168, "DOOR", state.doorOpen ? "OPEN" : "CLOSED", state.doorOpen ? COLOR_WARN : COLOR_OK);
+
+    bool lowStock = state.hasTelemetry && state.estimatedPercent < 20.0f;
+    drawStatusRow(214, "INSULIN", lowStock ? "LOW" : "OK", lowStock ? COLOR_WARN : COLOR_OK);
+
+    bool lowBattery = state.hasTelemetry && state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT;
+    drawStatusRow(260, "IN BATTERY", lowBattery ? "LOW" : "OK", lowBattery ? COLOR_WARN : COLOR_OK);
+
+    char queueBuf[24];
+    snprintf(queueBuf, sizeof(queueBuf), "%u QUEUED", state.offlineQueueCount);
+    drawStatusRow(306, "QUEUE", queueBuf, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+
+    drawText(16, 430, "A DASH  B DEVICE  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+}
+
+void drawQueueStatus(const DisplayState& state) {
+    rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "QUEUE");
+
+    char value[32];
+    snprintf(value, sizeof(value), "%u", state.offlineQueueCount);
+    drawStatusRow(76, "QUEUED", value, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+
+    drawStatusRow(122, "QUEUE FS", state.offlineQueueReady ? "READY" : "NOT READY",
+                  state.offlineQueueReady ? COLOR_OK : COLOR_BAD);
+
+    drawStatusRow(168, "LAST PUB", state.lastPublishOk ? "OK" : "FAIL",
+                  state.lastPublishOk ? COLOR_OK : COLOR_BAD);
+
+    drawStatusRow(214, "MQTT", state.mqttRetrying ? "RETRYING" : (state.mqttConnected ? "CONNECTED" : "OFFLINE"),
+                  mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
+
+    if (state.offlineQueueCount > 0 && state.offlineQueueOldestMs != 0) {
+        snprintf(value, sizeof(value), "%luS", (unsigned long)ageSeconds(state.offlineQueueOldestMs));
+    } else {
+        snprintf(value, sizeof(value), "0S");
+    }
+    drawStatusRow(260, "OLDEST AGE", value, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+
+    drawText(16, 430, "A DASH  B DEVICE  C ALERTS", COLOR_MUTED, COLOR_BG, 1);
 }
 
 void drawDosePrompt(const DisplayState& state) {
@@ -267,19 +408,19 @@ void drawDosePrompt(const DisplayState& state) {
     drawText(12, 12, "CONFIRM DOSE", COLOR_BG, COLOR_WARN, 3);
 
     rawFillRect(12, 72, 296, 126, COLOR_PANEL);
-    drawText(28, 92, "PEN DOSE", COLOR_MUTED, COLOR_PANEL, 2);
+    drawText(28, 92, "PEN", COLOR_MUTED, COLOR_PANEL, 2);
 
-    char doseBuf[20];
-    snprintf(doseBuf, sizeof(doseBuf), "%dU", state.pendingDoseUnits);
-    drawText(68, 124, doseBuf, COLOR_TEXT, COLOR_PANEL, 7);
+    char penBuf[24];
+    snprintf(penBuf, sizeof(penBuf), "%.1fU", state.promptPenDoseUnits);
+    drawText(88, 86, penBuf, COLOR_TEXT, COLOR_PANEL, 4);
 
-    char originalBuf[32];
-    snprintf(originalBuf, sizeof(originalBuf), "ORIGINAL %dU", state.originalDoseUnits);
-    drawText(28, 180, originalBuf, COLOR_MUTED, COLOR_PANEL, 1);
+    char sendBuf[24];
+    snprintf(sendBuf, sizeof(sendBuf), "SEND %dU", state.pendingDoseUnits);
+    drawText(28, 144, sendBuf, COLOR_OK, COLOR_PANEL, 4);
 
     rawFillRect(12, 214, 296, 92, state.dosePromptEditing ? COLOR_PANEL_ALT : COLOR_PANEL);
     if (state.dosePromptEditing) {
-        drawText(28, 230, "ENTER CORRECT UNITS", COLOR_MUTED, COLOR_PANEL_ALT, 2);
+        drawText(28, 230, "EDIT INTEGER UNITS", COLOR_MUTED, COLOR_PANEL_ALT, 2);
         char editBuf[24];
         if (state.doseEditBuffer[0] != '\0') {
             snprintf(editBuf, sizeof(editBuf), "%sU", state.doseEditBuffer);
@@ -288,18 +429,18 @@ void drawDosePrompt(const DisplayState& state) {
         }
         drawText(28, 260, editBuf, COLOR_TEXT, COLOR_PANEL_ALT, 4);
     } else {
-        drawText(28, 232, "A YES  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
-        drawText(28, 262, "AUTO SEND IF NO REPLY", COLOR_MUTED, COLOR_PANEL, 1);
+        drawText(28, 232, "A CONFIRM | B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
+        char autoBuf[24];
+        snprintf(autoBuf, sizeof(autoBuf), "AUTO %uS", state.dosePromptRemainingSec);
+        drawText(28, 266, autoBuf, COLOR_WARN, COLOR_PANEL, 2);
     }
 
     rawFillRect(12, 322, 296, 74, COLOR_PANEL);
-    char timeoutBuf[40];
-    snprintf(timeoutBuf, sizeof(timeoutBuf), "AUTO SEND IN %uS", state.dosePromptRemainingSec);
-    drawText(28, 344, timeoutBuf, COLOR_WARN, COLOR_PANEL, 2);
-    drawText(28, 372, "D SUBMIT  # CLEAR", COLOR_MUTED, COLOR_PANEL, 1);
+    drawText(28, 344, "D SUBMIT  # CLEAR", COLOR_TEXT, COLOR_PANEL, 2);
+    drawText(28, 374, "C BACK WHILE EDITING", COLOR_MUTED, COLOR_PANEL, 1);
 
     rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
-    drawText(10, 450, "ONLY INTEGER DOSES ARE SENT", COLOR_MUTED, COLOR_BG, 1);
+    drawText(10, 450, "CONFIRMED SEND VALUE GOES TO BACKEND", COLOR_MUTED, COLOR_BG, 1);
 }
 
 void rawBusInit() {
@@ -352,7 +493,21 @@ void displayUiTask(void* parameter) {
         if (state.dosePromptActive) {
             drawDosePrompt(state);
         } else {
-            drawDashboard(state);
+            switch (state.activePage) {
+                case DISPLAY_PAGE_DEVICE_STATUS:
+                    drawDeviceStatus(state);
+                    break;
+                case DISPLAY_PAGE_ALERTS:
+                    drawAlerts(state);
+                    break;
+                case DISPLAY_PAGE_QUEUE_STATUS:
+                    drawQueueStatus(state);
+                    break;
+                case DISPLAY_PAGE_DASHBOARD:
+                default:
+                    drawDashboard(state);
+                    break;
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(DISPLAY_REFRESH_MS));
     }

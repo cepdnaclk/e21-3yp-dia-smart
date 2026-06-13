@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <math.h>
+#include <string.h>
 #include <time.h>
 #include <esp_system.h>
 #include "models/telemetry_event.h"
@@ -68,6 +69,16 @@ static int roundedDoseUnits(float doseUnits) {
     return units;
 }
 
+static bool sameDoseReading(const DoseReading& left, const DoseReading& right) {
+    if (left.hasPenTakenEpoch && right.hasPenTakenEpoch) {
+        return left.penRecordSlot == right.penRecordSlot &&
+               left.penTakenEpochSec == right.penTakenEpochSec;
+    }
+
+    return fabsf(left.doseUnits - right.doseUnits) < 0.05f &&
+           strncmp(left.injectedAt, right.injectedAt, sizeof(left.injectedAt)) == 0;
+}
+
 static uint8_t dosePromptRemainingSec(const PendingDoseConfirmation& pending, uint32_t nowMs) {
     uint32_t elapsedMs = nowMs - pending.startedAtMs;
     if (elapsedMs >= DOSE_CONFIRM_TIMEOUT_MS) {
@@ -90,6 +101,20 @@ static void clearDosePrompt() {
     updateDisplayDosePrompt(false, false, 0.0f, 0, 0, 0, "");
 }
 
+static void startDosePrompt(PendingDoseConfirmation& pending, const DoseReading& doseReading) {
+    pending = {};
+    pending.active = true;
+    pending.editing = false;
+    pending.original = doseReading;
+    pending.roundedUnits = roundedDoseUnits(doseReading.doseUnits);
+    pending.startedAtMs = millis();
+    refreshDosePrompt(pending, pending.startedAtMs);
+    Serial.printf("[EventAgg] Dose pending confirmation: raw=%.1f rounded=%d timeout=%lus\n",
+                  doseReading.doseUnits,
+                  pending.roundedUnits,
+                  (unsigned long)(DOSE_CONFIRM_TIMEOUT_MS / 1000));
+}
+
 // -------------------------------------------------------------------------- //
 
 void eventAggregatorTask(void* parameter) {
@@ -105,6 +130,10 @@ void eventAggregatorTask(void* parameter) {
     bool hasInnerSnapshot = false;
     bool hasPublishedInner = false;
     PendingDoseConfirmation pendingDose = {};
+    DoseReading deferredDose = {};
+    bool hasDeferredDose = false;
+    DoseReading lastResolvedDose = {};
+    bool hasLastResolvedDose = false;
 
     GlucoseReading lastGlucose = {};
     lastGlucose.valueMgDl      = 0;
@@ -158,38 +187,64 @@ void eventAggregatorTask(void* parameter) {
 
         bool confirmedDose = false;
 
-        // ---- Check for new dose event, then wait for patient confirmation - //
-        if (!pendingDose.active) {
-            DoseReading doseReading;
-            if (xQueueReceive(doseQueue, &doseReading, 0) == pdTRUE) {
-                pendingDose = {};
-                pendingDose.active = true;
-                pendingDose.editing = false;
-                pendingDose.original = doseReading;
-                pendingDose.roundedUnits = roundedDoseUnits(doseReading.doseUnits);
-                pendingDose.startedAtMs = millis();
-                refreshDosePrompt(pendingDose, pendingDose.startedAtMs);
-                Serial.printf("[EventAgg] Dose pending confirmation: raw=%.1f rounded=%d timeout=%lus\n",
-                              doseReading.doseUnits,
-                              pendingDose.roundedUnits,
-                              (unsigned long)(DOSE_CONFIRM_TIMEOUT_MS / 1000));
+        // ---- Check for new dose events, suppressing duplicate pen records - //
+        if (!pendingDose.active && hasDeferredDose) {
+            startDosePrompt(pendingDose, deferredDose);
+            hasDeferredDose = false;
+        }
+
+        DoseReading doseReading;
+        while (xQueueReceive(doseQueue, &doseReading, 0) == pdTRUE) {
+            if (pendingDose.active && sameDoseReading(doseReading, pendingDose.original)) {
+                Serial.println("[EventAgg] Duplicate pending pen dose ignored");
+                continue;
+            }
+
+            if (hasLastResolvedDose && sameDoseReading(doseReading, lastResolvedDose)) {
+                Serial.println("[EventAgg] Duplicate resolved pen dose ignored");
+                continue;
+            }
+
+            if (!pendingDose.active) {
+                startDosePrompt(pendingDose, doseReading);
+            } else if (!hasDeferredDose) {
+                deferredDose = doseReading;
+                hasDeferredDose = true;
+                Serial.println("[EventAgg] Deferred new pen dose until current prompt resolves");
+            } else {
+                Serial.println("[EventAgg] Additional pen dose ignored while one dose is deferred");
             }
         }
 
         // ---- Keypad controls for pending dose ---------------------------- //
         KeypadEvent keyEvent;
         while (xQueueReceive(keypadQueue, &keyEvent, 0) == pdTRUE) {
+            char key = keyEvent.key;
             if (!pendingDose.active) {
+                if (key == 'A') {
+                    updateDisplayPage(DISPLAY_PAGE_DASHBOARD);
+                    Serial.println("[EventAgg] Display page: dashboard");
+                } else if (key == 'B') {
+                    updateDisplayPage(DISPLAY_PAGE_DEVICE_STATUS);
+                    Serial.println("[EventAgg] Display page: device status");
+                } else if (key == 'C') {
+                    updateDisplayPage(DISPLAY_PAGE_ALERTS);
+                    Serial.println("[EventAgg] Display page: alerts");
+                } else if (key == 'D') {
+                    updateDisplayPage(DISPLAY_PAGE_QUEUE_STATUS);
+                    Serial.println("[EventAgg] Display page: queue status");
+                }
                 continue;
             }
 
-            char key = keyEvent.key;
             if (!pendingDose.editing) {
                 if (key == 'A') {
                     lastDose = pendingDose.original;
                     lastDose.doseUnits = (float)pendingDose.roundedUnits;
                     doseToPublish = lastDose;
                     hasDoseToPublish = true;
+                    lastResolvedDose = pendingDose.original;
+                    hasLastResolvedDose = true;
                     confirmedDose = true;
                     Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
                                   pendingDose.roundedUnits);
@@ -226,6 +281,8 @@ void eventAggregatorTask(void* parameter) {
                     lastDose.doseUnits = (float)editedUnits;
                     doseToPublish = lastDose;
                     hasDoseToPublish = true;
+                    lastResolvedDose = pendingDose.original;
+                    hasLastResolvedDose = true;
                     confirmedDose = true;
                     Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
                                   pendingDose.original.doseUnits,
@@ -243,6 +300,8 @@ void eventAggregatorTask(void* parameter) {
                 lastDose.doseUnits = (float)pendingDose.roundedUnits;
                 doseToPublish = lastDose;
                 hasDoseToPublish = true;
+                lastResolvedDose = pendingDose.original;
+                hasLastResolvedDose = true;
                 confirmedDose = true;
                 Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
                               pendingDose.roundedUnits);

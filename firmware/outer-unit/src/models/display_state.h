@@ -32,6 +32,7 @@ struct DisplayState {
     bool mqttRetrying;
     bool offlineQueueReady;
     uint16_t offlineQueueCount;
+    uint32_t offlineQueueOldestMs;
     bool lastPublishOk;
     int mqttState;
     uint32_t lastPublishMs;

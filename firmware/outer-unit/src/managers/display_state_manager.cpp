@@ -33,6 +33,7 @@ void updateDisplayStateFromTelemetry(const TelemetryEvent& event) {
     next.mqttRetrying = latestState.mqttRetrying;
     next.offlineQueueReady = latestState.offlineQueueReady;
     next.offlineQueueCount = latestState.offlineQueueCount;
+    next.offlineQueueOldestMs = latestState.offlineQueueOldestMs;
     next.lastPublishOk = latestState.lastPublishOk;
     next.mqttState = latestState.mqttState;
     next.lastPublishMs = latestState.lastPublishMs;
@@ -66,8 +67,14 @@ void updateDisplayConnectivity(bool wifiConnected,
 }
 
 void updateDisplayOfflineQueue(bool ready, uint16_t count) {
+    uint32_t now = millis();
     portENTER_CRITICAL(&displayStateMux);
     latestState.offlineQueueReady = ready;
+    if (count == 0) {
+        latestState.offlineQueueOldestMs = 0;
+    } else if (latestState.offlineQueueCount == 0 || latestState.offlineQueueOldestMs == 0) {
+        latestState.offlineQueueOldestMs = now;
+    }
     latestState.offlineQueueCount = count;
     portEXIT_CRITICAL(&displayStateMux);
 }

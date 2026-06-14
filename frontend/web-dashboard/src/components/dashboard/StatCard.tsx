@@ -22,7 +22,7 @@ const StatCard = ({ title, value }: Props) => {
 
         <Typography
           variant="h4"
-          fontWeight="bold"
+          sx={{ fontWeight: "bold" }}
         >
           {value}
         </Typography>

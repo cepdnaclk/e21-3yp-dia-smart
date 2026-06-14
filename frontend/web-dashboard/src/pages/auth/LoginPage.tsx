@@ -145,16 +145,15 @@ const LoginPage = () => {
         <CardContent>
           <Typography
             variant="h4"
-            textAlign="center"
+            sx={{ textAlign: "center" }}
             gutterBottom
           >
-            Dia-Smart
+            Dia-Smart Login
           </Typography>
 
           <Typography
             color="text.secondary"
-            textAlign="center"
-            sx={{ mb: 3 }}
+            sx={{ textAlign: "center", mb: 2 }}
           >
             Sign in to continue
           </Typography>

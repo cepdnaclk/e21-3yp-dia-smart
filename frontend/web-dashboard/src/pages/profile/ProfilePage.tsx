@@ -49,10 +49,12 @@ const ProfilePage = () => {
   if (loading) {
     return (
       <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="300px"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "50vh",
+        }}
       >
         <CircularProgress />
       </Box>
@@ -76,10 +78,12 @@ const ProfilePage = () => {
       <Card>
         <CardContent>
           <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            mb={3}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              mb: 3
+            }}
           >
             <Avatar
               sx={{
@@ -94,7 +98,7 @@ const ProfilePage = () => {
                 .toUpperCase()}
             </Avatar>
 
-            <Typography variant="h5" mt={2}>
+            <Typography variant="h5" sx={{ mt: 2 }}>
               {profile?.displayName}
             </Typography>
 

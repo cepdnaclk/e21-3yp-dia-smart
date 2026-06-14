@@ -4,7 +4,7 @@ import { Grid, Typography } from "@mui/material";
 
 import StatCard from "../../components/dashboard/StatCard";
 
-import type { DashboardData } from "../types/dashboard";
+import type { DashboardData } from "../../types/dashboard";
 import { dashboardService } from "../../services/dashboardService";
 
 const DashboardPage = () => {

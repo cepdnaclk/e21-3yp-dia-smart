@@ -203,11 +203,28 @@ const LoginPage = () => {
           </Button>
 
           <Button
+          fullWidth
+          sx={{ mt: 1 }}
+          onClick={() =>
+            navigate("/register")
+          }
+        >
+          Create Account
+        </Button>
+
+          <Button
             fullWidth
             sx={{ mt: 1 }}
           >
             Forgot Password?
           </Button>
+          <Button
+          fullWidth
+          sx={{ mt: 1 }}
+          onClick={() => navigate("/")}
+        >
+          Back to Home
+        </Button>
         </CardContent>
       </Card>
     </Box>

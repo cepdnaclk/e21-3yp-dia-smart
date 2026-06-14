@@ -1,4 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from "react-router-dom";
 
 import DashboardLayout from "../layouts/DashboardLayout/DashboardLayout";
 
@@ -13,31 +17,41 @@ import ProfilePage from "../pages/profile/ProfilePage";
 import LoginPage from "../pages/auth/LoginPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
 
+import LandingPage from "../pages/landing/LandingPage";
+
 import ProtectedRoute from "./ProtectedRoute";
+import RegisterPage from "../pages/auth/RegisterPage";
 
 const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* Default Route */}
+        {/* Landing Page */}
         <Route
           path="/"
-          element={<Navigate to="/login" replace />}
+          element={<LandingPage />}
         />
 
-        {/* Public Routes */}
+        {/* Public */}
         <Route
           path="/login"
           element={<LoginPage />}
         />
 
         <Route
-          path="/forgot-password"
-          element={<ForgotPasswordPage />}
+          path="/register"
+          element={<RegisterPage />}
         />
 
-        {/* Protected Routes */}
+        <Route
+          path="/forgot-password"
+          element={
+            <ForgotPasswordPage />
+          }
+        />
+
+        {/* Protected */}
         <Route
           element={
             <ProtectedRoute>
@@ -67,7 +81,9 @@ const AppRouter = () => {
 
           <Route
             path="/prescriptions"
-            element={<PrescriptionsPage />}
+            element={
+              <PrescriptionsPage />
+            }
           />
 
           <Route
@@ -80,12 +96,6 @@ const AppRouter = () => {
             element={<SettingsPage />}
           />
         </Route>
-
-        {/* Unknown Routes */}
-        <Route
-          path="*"
-          element={<Navigate to="/login" replace />}
-        />
 
       </Routes>
     </BrowserRouter>

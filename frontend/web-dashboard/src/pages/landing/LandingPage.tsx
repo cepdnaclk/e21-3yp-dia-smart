@@ -51,10 +51,11 @@ const LandingPage = () => {
         <Container maxWidth="lg">
           <Typography
             variant="h2"
-            fontWeight="bold"
+            component="h1"
+            sx={{ fontWeight: 700 }}
             gutterBottom
           >
-            DiaSmart
+            Dia Smart
           </Typography>
 
           <Typography

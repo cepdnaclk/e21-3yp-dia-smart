@@ -19,7 +19,7 @@ export const dashboardService = {
 
       temperature:
         data.latestStorageReading
-          ?.temperatureCelsius ?? 0,
+          ?.temperatureC ?? 0,
 
       inventory:
         data.latestInventoryReading

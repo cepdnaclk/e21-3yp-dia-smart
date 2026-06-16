@@ -17,3 +17,8 @@ mqtt:
   client:
     id: diasmart-backend-test
   topic: diasmart/test/telemetry
+
+app:
+  jwt:
+    secret: test-jwt-secret-for-diasmart-suite-12345
+    expiration-ms: 3600000

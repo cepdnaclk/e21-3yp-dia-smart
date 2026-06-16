@@ -55,7 +55,7 @@ const LandingPage = () => {
             sx={{ fontWeight: 700 }}
             gutterBottom
           >
-            Dia Smart
+            Dia-Smart
           </Typography>
 
           <Typography

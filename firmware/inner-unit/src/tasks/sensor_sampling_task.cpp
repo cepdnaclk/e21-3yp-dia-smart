@@ -49,6 +49,9 @@ static uint8_t batteryPercentFromVoltage(float batteryVoltageV) {
 }
 
 static float inventoryPercentFromWeight(float weightG) {
+    if (weightG < EMPTY_WEIGHT_DEADBAND_G) {
+        weightG = 0.0f;
+    }
     float estimatedPercent = (weightG / FULL_BOTTLE_WEIGHT_G) * 100.0f;
     if (estimatedPercent > 100.0f) estimatedPercent = 100.0f;
     if (estimatedPercent < 0.0f) estimatedPercent = 0.0f;
@@ -221,6 +224,8 @@ void sensorSamplingTask(void* pvParams) {
             if (scale.is_ready()) {
                 float reading = scale.get_units(HX711_AVERAGES);
                 lastValidWeight = (reading < 0.0f) ? 0.0f : reading;
+            } else {
+                Serial.println("[Sensors] HX711 not ready");
             }
 
             lastEstimatedPercent = inventoryPercentFromWeight(lastValidWeight);

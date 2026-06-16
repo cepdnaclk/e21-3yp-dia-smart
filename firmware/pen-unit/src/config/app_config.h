@@ -15,8 +15,8 @@
 #define BLE_CHARACTERISTIC_UUID  "abcd1234-5678-1234-5678-abcdef123456"
 
 // ---- I2C (AS5600 magnetic encoder) ----
-#define I2C_SDA_PIN              8
-#define I2C_SCL_PIN              9
+#define I2C_SDA_PIN              6
+#define I2C_SCL_PIN              7
 
 // ---- Button (dose confirm) ----
 // INPUT_PULLUP: LOW = pressed, HIGH = released

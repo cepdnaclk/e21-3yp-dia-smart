@@ -30,9 +30,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -136,6 +138,69 @@ class TelemetryProcessingServiceTest {
                 rawCaptor.getAllValues().get(1);
         assertEquals("PROCESSED", processedEvent.getProcessingStatus());
         assertNull(processedEvent.getProcessingError());
+    }
+
+    @Test
+    void shouldContinueOtherSectionsWhenGlucoseSaveFails() {
+        TelemetryPayloadDTO payload = combinedGlucoseAndDosePayload();
+
+        when(rawRepository.existsByDeviceUidAndSourceEventId(
+                "OUTER-1",
+                "evt-1"
+        )).thenReturn(false);
+        when(deviceRepository.findByDeviceUid(anyString()))
+                .thenReturn(Optional.empty());
+
+        doAnswer(invocation -> {
+            RawDeviceEvent event = invocation.getArgument(0);
+
+            if (event.getRawEventId() == null) {
+                event.setRawEventId(101L);
+            }
+
+            return event;
+        }).when(rawRepository).save(any(RawDeviceEvent.class));
+
+        doAnswer(invocation -> {
+            Device device = invocation.getArgument(0);
+
+            if (device.getDeviceId() == null) {
+                device.setDeviceId(deviceIdFor(device.getDeviceUid()));
+            }
+
+            return device;
+        }).when(deviceRepository).save(any(Device.class));
+
+        doThrow(new RuntimeException("duplicate glucose sequence"))
+                .when(glucoseRepository)
+                .save(any(GlucoseReading.class));
+
+        service.process(
+                payload,
+                """
+                        {
+                          "eventId": "evt-1",
+                          "eventType": "COMBINED_TELEMETRY"
+                        }
+                        """,
+                "diasmart/test"
+        );
+
+        verify(doseEventRepository).save(any(DoseEvent.class));
+
+        ArgumentCaptor<RawDeviceEvent> rawCaptor =
+                ArgumentCaptor.forClass(RawDeviceEvent.class);
+        verify(rawRepository, org.mockito.Mockito.times(2))
+                .save(rawCaptor.capture());
+
+        RawDeviceEvent processedEvent =
+                rawCaptor.getAllValues().get(1);
+        assertEquals("PROCESSED", processedEvent.getProcessingStatus());
+        assertTrue(
+                processedEvent
+                        .getProcessingError()
+                        .contains("glucose: duplicate glucose sequence")
+        );
     }
 
     private TelemetryPayloadDTO combinedGlucoseAndDosePayload() {

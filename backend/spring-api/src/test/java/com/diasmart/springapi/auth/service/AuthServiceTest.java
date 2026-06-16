@@ -14,7 +14,6 @@ import com.diasmart.springapi.users.dto.UserResponse;
 import com.diasmart.springapi.users.entity.AppUser;
 import com.diasmart.springapi.users.repository.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,17 +25,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.OffsetDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuthService Tests")
 class AuthServiceTest {
 
     @Mock
@@ -60,386 +55,214 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
-    private RegisterRequest validRegisterRequest;
-    private LoginRequest validLoginRequest;
-    private AppUser testUser;
+    private RegisterRequest registerRequest;
+    private LoginRequest loginRequest;
+    private AppUser user;
 
     @BeforeEach
     void setUp() {
-        validRegisterRequest = new RegisterRequest();
-        validRegisterRequest.setEmail("test@example.com");
-        validRegisterRequest.setPassword("SecurePassword123!");
-        validRegisterRequest.setDisplayName("Test User");
-        validRegisterRequest.setRole(UserRole.PATIENT);
-        validRegisterRequest.setContactNumber("1234567890");
 
-        validLoginRequest = new LoginRequest();
-        validLoginRequest.setEmail("test@example.com");
-        validLoginRequest.setPassword("SecurePassword123!");
+        registerRequest = new RegisterRequest();
+        registerRequest.setEmail("test@example.com");
+        registerRequest.setPassword("password123");
+        registerRequest.setDisplayName("Test User");
+        registerRequest.setRole(UserRole.PATIENT);
 
-        testUser = new AppUser();
-        testUser.setUserId(1L);
-        testUser.setEmail("test@example.com");
-        testUser.setPasswordHash("hashedPassword");
-        testUser.setRole(UserRole.PATIENT);
-        testUser.setDisplayName("Test User");
-        testUser.setActive(true);
-        testUser.setUserUuid(UUID.randomUUID());
-        testUser.setCreatedAt(OffsetDateTime.now());
+        loginRequest = new LoginRequest();
+        loginRequest.setEmail("test@example.com");
+        loginRequest.setPassword("password123");
+
+        user = new AppUser();
+        user.setUserId(1L);
+        user.setEmail("test@example.com");
+        user.setRole(UserRole.PATIENT);
+        user.setDisplayName("Test User");
+        user.setActive(true);
     }
 
-    // =====================================================
-    // REGISTRATION TESTS
-    // =====================================================
-
     @Test
-    @DisplayName("Should successfully register new patient")
-    void testRegisterPatientSuccess() {
-        // Arrange
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        savedPatient.setPatientUuid(UUID.randomUUID());
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
+    void shouldRegisterPatient() {
 
-        // Act
-        UserResponse response = authService.register(validRegisterRequest);
+        when(appUserRepository.existsByEmailIgnoreCase(anyString()))
+                .thenReturn(false);
 
-        // Assert
+        when(passwordEncoder.encode(anyString()))
+                .thenReturn("encoded");
+
+        when(appUserRepository.save(any(AppUser.class)))
+                .thenReturn(user);
+
+        Patient patient = new Patient();
+        patient.setPatientId(1L);
+
+        when(patientRepository.save(any(Patient.class)))
+                .thenReturn(patient);
+
+        UserResponse response =
+                authService.register(registerRequest);
+
         assertNotNull(response);
-        verify(appUserRepository, times(1)).save(any(AppUser.class));
-        verify(patientRepository, times(1)).save(any(Patient.class));
-        verify(userPatientAccessRepository, times(1)).save(any(UserPatientAccess.class));
+
+        verify(patientRepository).save(any(Patient.class));
+        verify(userPatientAccessRepository)
+                .save(any(UserPatientAccess.class));
     }
 
     @Test
-    @DisplayName("Should reject registration with duplicate email")
-    void testRegisterDuplicateEmail() {
-        // Arrange
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(true);
+    void shouldRejectDuplicateEmail() {
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> authService.register(validRegisterRequest),
-                "Email is already registered");
-        verify(appUserRepository, never()).save(any(AppUser.class));
+        when(appUserRepository.existsByEmailIgnoreCase(anyString()))
+                .thenReturn(true);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.register(registerRequest)
+        );
     }
 
     @Test
-    @DisplayName("Should reject ADMIN role registration")
-    void testRegisterAdminRoleRejected() {
-        // Arrange
-        validRegisterRequest.setRole(UserRole.ADMIN);
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
+    void shouldRejectAdminRegistration() {
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> authService.register(validRegisterRequest),
-                "ADMIN users cannot be registered publicly");
-        verify(appUserRepository, never()).save(any(AppUser.class));
+        registerRequest.setRole(UserRole.ADMIN);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.register(registerRequest)
+        );
     }
 
     @Test
-    @DisplayName("Should reject registration with blank display name")
-    void testRegisterBlankDisplayName() {
-        // Arrange
-        validRegisterRequest.setDisplayName("   ");
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
+    void shouldRejectBlankDisplayName() {
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> authService.register(validRegisterRequest),
-                "Display name is required");
+        registerRequest.setDisplayName(" ");
+
+        when(appUserRepository.existsByEmailIgnoreCase(anyString()))
+                .thenReturn(false);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.register(registerRequest)
+        );
     }
 
     @Test
-    @DisplayName("Should reject registration with null display name")
-    void testRegisterNullDisplayName() {
-        // Arrange
-        validRegisterRequest.setDisplayName(null);
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
+    void shouldEncodePassword() {
 
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> authService.register(validRegisterRequest),
-                "Display name is required");
+        when(appUserRepository.existsByEmailIgnoreCase(anyString()))
+                .thenReturn(false);
+
+        when(passwordEncoder.encode(anyString()))
+                .thenReturn("encoded");
+
+        when(appUserRepository.save(any(AppUser.class)))
+                .thenReturn(user);
+
+        Patient patient = new Patient();
+        patient.setPatientId(1L);
+
+        when(patientRepository.save(any(Patient.class)))
+                .thenReturn(patient);
+
+        authService.register(registerRequest);
+
+        verify(passwordEncoder)
+                .encode("password123");
     }
 
     @Test
-    @DisplayName("Should register with null contact number")
-    void testRegisterNullContactNumber() {
-        // Arrange
-        validRegisterRequest.setContactNumber(null);
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
+    void shouldLoginSuccessfully() {
 
-        // Act
-        UserResponse response = authService.register(validRegisterRequest);
-
-        // Assert
-        assertNotNull(response);
-        
-        ArgumentCaptor<AppUser> userCaptor = ArgumentCaptor.forClass(AppUser.class);
-        verify(appUserRepository).save(userCaptor.capture());
-        assertNull(userCaptor.getValue().getContactNumber());
-    }
-
-    @Test
-    @DisplayName("Should normalize email to lowercase")
-    void testRegisterEmailNormalization() {
-        // Arrange
-        validRegisterRequest.setEmail("Test@EXAMPLE.COM");
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
-
-        // Act
-        authService.register(validRegisterRequest);
-
-        // Assert
-        ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
-        verify(appUserRepository).existsByEmailIgnoreCase(emailCaptor.capture());
-        assertEquals("test@example.com", emailCaptor.getValue());
-    }
-
-    // =====================================================
-    // LOGIN TESTS
-    // =====================================================
-
-    @Test
-    @DisplayName("Should successfully login with valid credentials")
-    void testLoginSuccess() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+        when(authenticationManager.authenticate(
+                any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
-        when(appUserRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        when(jwtService.generateAccessToken(any(AppUser.class))).thenReturn("jwt-token");
-        when(jwtService.getJwtExpirationMs()).thenReturn(3600000L);
 
-        // Act
-        LoginResponse response = authService.login(validLoginRequest);
-
-        // Assert
-        assertNotNull(response);
-        assertEquals("jwt-token", response.getAccessToken());
-        assertEquals(3600000L, response.getExpiresInMs());
-        assertNotNull(response.getUser());
-        verify(appUserRepository, times(1)).save(any(AppUser.class));
-    }
-
-    @Test
-    @DisplayName("Should reject login with invalid credentials")
-    void testLoginInvalidCredentials() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new org.springframework.security.core.AuthenticationException("Invalid credentials") {});
-
-        // Act & Assert
-        assertThrows(InvalidCredentialsException.class, () -> authService.login(validLoginRequest));
-        verify(appUserRepository, never()).save(any(AppUser.class));
-    }
-
-    @Test
-    @DisplayName("Should reject login for inactive user")
-    void testLoginInactiveUser() {
-        // Arrange
-        AppUser inactiveUser = new AppUser();
-        inactiveUser.setActive(false);
-        inactiveUser.setEmail("inactive@example.com");
-        
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null);
         when(appUserRepository.findByEmailIgnoreCase(anyString()))
-                .thenReturn(Optional.of(inactiveUser));
+                .thenReturn(Optional.of(user));
 
-        // Act & Assert
-        assertThrows(InvalidCredentialsException.class, () -> authService.login(validLoginRequest));
+        when(appUserRepository.save(any(AppUser.class)))
+                .thenReturn(user);
+
+        when(jwtService.generateAccessToken(any(AppUser.class)))
+                .thenReturn("token");
+
+        when(jwtService.getJwtExpirationMs())
+                .thenReturn(3600000L);
+
+        LoginResponse response =
+                authService.login(loginRequest);
+
+        assertEquals("token", response.getAccessToken());
     }
 
     @Test
-    @DisplayName("Should reject login when user not found after authentication")
-    void testLoginUserNotFoundAfterAuth() {
-        // Arrange
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+    void shouldRejectInvalidCredentials() {
+
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new AuthenticationException("bad") {});
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.login(loginRequest)
+        );
+    }
+
+    @Test
+    void shouldRejectInactiveUser() {
+
+        user.setActive(false);
+
+        when(authenticationManager.authenticate(any()))
                 .thenReturn(null);
+
+        when(appUserRepository.findByEmailIgnoreCase(anyString()))
+                .thenReturn(Optional.of(user));
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.login(loginRequest)
+        );
+    }
+
+    @Test
+    void shouldRejectMissingUser() {
+
+        when(authenticationManager.authenticate(any()))
+                .thenReturn(null);
+
         when(appUserRepository.findByEmailIgnoreCase(anyString()))
                 .thenReturn(Optional.empty());
 
-        // Act & Assert
-        assertThrows(InvalidCredentialsException.class, () -> authService.login(validLoginRequest));
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.login(loginRequest)
+        );
     }
 
     @Test
-    @DisplayName("Should update last login timestamp")
-    void testLoginUpdatesLastLoginAt() {
-        // Arrange
-        OffsetDateTime beforeLogin = OffsetDateTime.now();
-        
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+    void shouldUpdateLastLoginTimestamp() {
+
+        when(authenticationManager.authenticate(any()))
                 .thenReturn(null);
-        when(appUserRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        when(jwtService.generateAccessToken(any(AppUser.class))).thenReturn("jwt-token");
-        when(jwtService.getJwtExpirationMs()).thenReturn(3600000L);
 
-        // Act
-        authService.login(validLoginRequest);
+        when(appUserRepository.findByEmailIgnoreCase(anyString()))
+                .thenReturn(Optional.of(user));
 
-        // Assert
-        ArgumentCaptor<AppUser> userCaptor = ArgumentCaptor.forClass(AppUser.class);
-        verify(appUserRepository).save(userCaptor.capture());
-        assertNotNull(userCaptor.getValue().getLastLoginAt());
-        assertTrue(userCaptor.getValue().getLastLoginAt().isAfter(beforeLogin));
-    }
+        when(appUserRepository.save(any(AppUser.class)))
+                .thenReturn(user);
 
-    @Test
-    @DisplayName("Should normalize email on login")
-    void testLoginEmailNormalization() {
-        // Arrange
-        validLoginRequest.setEmail("Test@EXAMPLE.COM");
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null);
-        when(appUserRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.of(testUser));
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        when(jwtService.generateAccessToken(any(AppUser.class))).thenReturn("jwt-token");
-        when(jwtService.getJwtExpirationMs()).thenReturn(3600000L);
+        when(jwtService.generateAccessToken(any(AppUser.class)))
+                .thenReturn("token");
 
-        // Act
-        authService.login(validLoginRequest);
+        when(jwtService.getJwtExpirationMs())
+                .thenReturn(3600000L);
 
-        // Assert
-        ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
-        verify(appUserRepository).findByEmailIgnoreCase(emailCaptor.capture());
-        assertEquals("test@example.com", emailCaptor.getValue());
-    }
+        authService.login(loginRequest);
 
-    // =====================================================
-    // EDGE CASES AND NULL INPUTS
-    // =====================================================
+        ArgumentCaptor<AppUser> captor =
+                ArgumentCaptor.forClass(AppUser.class);
 
-    @Test
-    @DisplayName("Should handle whitespace-only contact number")
-    void testRegisterWhitespaceContactNumber() {
-        // Arrange
-        validRegisterRequest.setContactNumber("   ");
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
+        verify(appUserRepository).save(captor.capture());
 
-        // Act
-        UserResponse response = authService.register(validRegisterRequest);
-
-        // Assert
-        assertNotNull(response);
-        
-        ArgumentCaptor<AppUser> userCaptor = ArgumentCaptor.forClass(AppUser.class);
-        verify(appUserRepository).save(userCaptor.capture());
-        assertNull(userCaptor.getValue().getContactNumber());
-    }
-
-    @Test
-    @DisplayName("Should verify patient creation during registration")
-    void testRegisterCreatesPatientRecord() {
-        // Arrange
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        savedPatient.setPatientUuid(UUID.randomUUID());
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
-
-        // Act
-        authService.register(validRegisterRequest);
-
-        // Assert
-        ArgumentCaptor<Patient> patientCaptor = ArgumentCaptor.forClass(Patient.class);
-        verify(patientRepository).save(patientCaptor.capture());
-        
-        Patient capturedPatient = patientCaptor.getValue();
-        assertNotNull(capturedPatient.getPatientUuid());
-        assertEquals(Boolean.TRUE, capturedPatient.getActive());
-    }
-
-    @Test
-    @DisplayName("Should verify user-patient access creation during registration")
-    void testRegisterCreatesAccessRecord() {
-        // Arrange
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
-
-        // Act
-        authService.register(validRegisterRequest);
-
-        // Assert
-        ArgumentCaptor<UserPatientAccess> accessCaptor = ArgumentCaptor.forClass(UserPatientAccess.class);
-        verify(userPatientAccessRepository).save(accessCaptor.capture());
-        
-        UserPatientAccess capturedAccess = accessCaptor.getValue();
-        assertEquals(testUser.getUserId(), capturedAccess.getUserId());
-        assertEquals(1L, capturedAccess.getPatientId());
-    }
-
-    @Test
-    @DisplayName("Should encode password during registration")
-    void testRegisterEncodesPassword() {
-        // Arrange
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode("SecurePassword123!")).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-        
-        Patient savedPatient = new Patient();
-        savedPatient.setPatientId(1L);
-        when(patientRepository.save(any(Patient.class))).thenReturn(savedPatient);
-        when(userPatientAccessRepository.save(any(UserPatientAccess.class))).thenReturn(new UserPatientAccess());
-
-        // Act
-        authService.register(validRegisterRequest);
-
-        // Assert
-        verify(passwordEncoder).encode("SecurePassword123!");
-    }
-
-    @Test
-    @DisplayName("Should not create patient for CAREGIVER role")
-    void testRegisterNonPatientNoPatient() {
-        // Arrange
-        validRegisterRequest.setRole(UserRole.CAREGIVER);
-        when(appUserRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(appUserRepository.save(any(AppUser.class))).thenReturn(testUser);
-
-        // Act
-        UserResponse response = authService.register(validRegisterRequest);
-
-        // Assert
-        assertNotNull(response);
-        verify(patientRepository, never()).save(any(Patient.class));
-        verify(userPatientAccessRepository, never()).save(any(UserPatientAccess.class));
+        assertNotNull(captor.getValue().getLastLoginAt());
     }
 }

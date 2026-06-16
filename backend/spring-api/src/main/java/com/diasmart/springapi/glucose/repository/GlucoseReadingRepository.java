@@ -18,4 +18,9 @@ public interface GlucoseReadingRepository
     findTopByPatientIdOrderByMeasuredAtDesc(
             Long patientId
     );
+
+    boolean existsByDeviceIdAndGlucometerSequenceNumber(
+            Long deviceId,
+            Integer glucometerSequenceNumber
+    );
 }

@@ -415,10 +415,26 @@ public class TelemetryProcessingService {
                         createdAt
                 );
 
+        Long deviceId = getDeviceId(device);
+
+        if (deviceId != null
+                && dto.getSequenceNumber() != null
+                && glucoseRepository
+                        .existsByDeviceIdAndGlucometerSequenceNumber(
+                                deviceId,
+                                dto.getSequenceNumber()
+                        )) {
+            System.out.println(
+                    "Duplicate glucose sequence skipped: "
+                            + dto.getSequenceNumber()
+            );
+            return 0;
+        }
+
         GlucoseReading glucose = new GlucoseReading();
 
         glucose.setPatientId(normalizedPatientId);
-        glucose.setDeviceId(getDeviceId(device));
+        glucose.setDeviceId(deviceId);
         glucose.setRawEventId(rawEvent.getRawEventId());
         glucose.setMeasuredAt(eventTime);
         glucose.setGlucoseValueMgDl(

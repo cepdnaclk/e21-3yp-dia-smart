@@ -12,15 +12,33 @@ const DashboardPage = () => {
     useState<DashboardData | null>(null);
 
   useEffect(() => {
-    const loadDashboard = async () => {
+  const loadDashboard = async () => {
+    try {
       const data =
         await dashboardService.getDashboardData();
 
       setDashboardData(data);
-    };
+    } catch (err) {
+      console.error(
+        "Failed to refresh dashboard:",
+        err
+      );
+    }
+  };
 
-    loadDashboard();
-  }, []);
+  // Initial load
+  loadDashboard();
+
+  // Refresh every 2 seconds
+  const interval = setInterval(
+    loadDashboard,
+    2000
+  );
+
+  // Cleanup
+  return () =>
+    clearInterval(interval);
+}, []);
 
   if (!dashboardData) {
     return <Typography>Loading...</Typography>;

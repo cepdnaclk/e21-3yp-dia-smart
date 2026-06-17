@@ -21,10 +21,12 @@ struct TelemetryEvent {
     float        estimatedPercent;
 
     // Glucose
+    bool         hasGlucose;
     int          glucoseMgDl;
     int          glucometerSequenceNumber;
 
     // Dose
+    bool         hasDose;
     float        doseUnits;
     char         injectedAt[32];
 

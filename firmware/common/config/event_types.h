@@ -5,5 +5,6 @@ enum EventTrigger {
     GLUCOSE_EVENT,
     TEMPERATURE_ALERT,
     INVENTORY_LOW,
-    BATTERY_LOW
+    BATTERY_LOW,
+    DEVICE_HEALTH
 };

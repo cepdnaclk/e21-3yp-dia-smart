@@ -4,7 +4,7 @@ TelemetryEvent buildMockDoseEvent()
 {
     static int counter = 0;
 
-    TelemetryEvent event;
+    TelemetryEvent event = {};
 
     snprintf(
     event.eventId,
@@ -23,8 +23,10 @@ TelemetryEvent buildMockDoseEvent()
     event.temperatureC = 5.4;
     event.doorOpen = false;
 
+    event.hasGlucose = true;
     event.glucoseMgDl = 118;
 
+    event.hasDose = true;
     event.doseUnits = (float)random(4, 15);
 
     event.inventoryWeightG = 41.8;

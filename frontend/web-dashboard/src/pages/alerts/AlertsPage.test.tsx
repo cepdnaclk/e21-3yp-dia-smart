@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { ReactNode } from "react";
 import {
   render,
   screen,
@@ -12,6 +13,8 @@ vi.mock(
   () => ({
     alertsService: {
       getAlerts: vi.fn(),
+      acknowledgeAlert: vi.fn(),
+      resolveAlert: vi.fn(),
     },
   })
 );
@@ -21,9 +24,16 @@ vi.mock(
   () => ({
     default: ({
       title,
+      action,
     }: {
       title: string;
-    }) => <div>{title}</div>,
+      action?: ReactNode;
+    }) => (
+      <div>
+        {title}
+        {action}
+      </div>
+    ),
   })
 );
 
@@ -33,7 +43,13 @@ describe("AlertsPage", () => {
   it("shows empty state", async () => {
     vi.mocked(
       alertsService.getAlerts
-    ).mockResolvedValue([]);
+    ).mockResolvedValue({
+      content: [],
+      number: 0,
+      size: 20,
+      totalElements: 0,
+      totalPages: 0,
+    });
 
     render(<AlertsPage />);
 
@@ -49,14 +65,24 @@ describe("AlertsPage", () => {
   it("renders alerts", async () => {
     vi.mocked(
       alertsService.getAlerts
-    ).mockResolvedValue([
-      {
-        alertId: 1,
-        severity: "HIGH",
-        title: "Temperature Alert",
-        message: "Too hot",
-      },
-    ] as any);
+    ).mockResolvedValue({
+      content: [
+        {
+          alertId: 1,
+          severity: "HIGH",
+          title: "Temperature Alert",
+          message: "Too hot",
+          status: "OPEN",
+          alertType: "TEMP_HIGH",
+          createdAt:
+            "2026-06-17T00:00:00Z",
+        },
+      ],
+      number: 0,
+      size: 20,
+      totalElements: 1,
+      totalPages: 1,
+    });
 
     render(<AlertsPage />);
 

@@ -30,6 +30,40 @@ static void getTimestamp(char* buf, size_t len) {
     }
 }
 
+static void generateEventId(char* buf, size_t len) {
+    static char lastMinuteKey[13] = "";
+    static uint16_t minuteCounter = 0;
+    static uint16_t fallbackCounter = 0;
+    static uint32_t bootNonce = esp_random();
+
+    struct tm ti;
+    if (getLocalTime(&ti)) {
+        char minuteKey[13];
+        strftime(minuteKey, sizeof(minuteKey), "%Y%m%d%H%M", &ti);
+
+        if (strncmp(lastMinuteKey, minuteKey, sizeof(lastMinuteKey)) != 0) {
+            strncpy(lastMinuteKey, minuteKey, sizeof(lastMinuteKey));
+            lastMinuteKey[sizeof(lastMinuteKey) - 1] = '\0';
+            minuteCounter = 0;
+        }
+
+        if (minuteCounter < 9999) {
+            minuteCounter++;
+        }
+
+        snprintf(buf, len, "%s%04u", minuteKey, minuteCounter);
+        return;
+    }
+
+    fallbackCounter++;
+    snprintf(buf,
+             len,
+             "BOOT%08lX%08lu%04u",
+             (unsigned long)bootNonce,
+             (unsigned long)(millis() / 1000),
+             fallbackCounter);
+}
+
 static bool validDelta(float current, float previous, float threshold) {
     if (isnan(current) || isnan(previous)) {
         return isnan(current) != isnan(previous);
@@ -335,14 +369,13 @@ void eventAggregatorTask(void* parameter) {
             TelemetryEvent event = {};
 
             // Root
-            snprintf(event.eventId, sizeof(event.eventId),
-                     "EVT-%s-%lu", DEVICE_UID_OUTER, (unsigned long)seq);
+            generateEventId(event.eventId, sizeof(event.eventId));
             event.sequenceNumber = seq++;
             event.trigger        = dosePublishPending ? DOSE_EVENT :
                                    (hasGlucose ? GLUCOSE_EVENT :
                                    (lastInner.batteryPercent <= INNER_BATTERY_LOW_PERCENT ? BATTERY_LOW :
                                    (lastInner.estimatedPercent < 20.0f ? INVENTORY_LOW :
-                                   (lastInner.temperatureC < TEMP_MIN_C || lastInner.temperatureC > TEMP_MAX_C ? TEMPERATURE_ALERT : DOSE_EVENT))));
+                                   (lastInner.temperatureC < TEMP_MIN_C || lastInner.temperatureC > TEMP_MAX_C ? TEMPERATURE_ALERT : DEVICE_HEALTH))));
             event.replayedEvent  = false;
             getTimestamp(event.timestamp, sizeof(event.timestamp));
 
@@ -355,11 +388,13 @@ void eventAggregatorTask(void* parameter) {
             event.estimatedPercent = lastInner.estimatedPercent;
 
             // Glucose
+            event.hasGlucose             = hasGlucose && lastGlucose.valueMgDl > 0;
             event.glucoseMgDl             = lastGlucose.valueMgDl;
             event.glucometerSequenceNumber = lastGlucose.sequenceNumber;
 
             // Dose
             const DoseReading& eventDose = hasDoseToPublish ? doseToPublish : lastDose;
+            event.hasDose = dosePublishPending && eventDose.doseUnits > 0.0f;
             event.doseUnits = eventDose.doseUnits;
             strncpy(event.injectedAt, eventDose.injectedAt, sizeof(event.injectedAt));
 
@@ -378,12 +413,14 @@ void eventAggregatorTask(void* parameter) {
                 hasPublishedInner = true;
             }
 
-            Serial.printf("[EventAgg] Enqueue telemetry door=%s temp=%.2fC weight=%.1fg innerBat=%u%% trigger=%d\n",
+            Serial.printf("[EventAgg] Enqueue telemetry door=%s temp=%.2fC weight=%.1fg innerBat=%u%% trigger=%d dose=%.1f hasDose=%d\n",
                           event.doorOpen ? "OPEN" : "CLOSED",
                           event.temperatureC,
                           event.inventoryWeightG,
                           event.innerBatteryPercent,
-                          (int)event.trigger);
+                          (int)event.trigger,
+                          event.doseUnits,
+                          event.hasDose ? 1 : 0);
 
             BaseType_t telemetrySendResult = xQueueSend(telemetryQueue, &event, pdMS_TO_TICKS(500));
             if (telemetrySendResult != pdTRUE) {

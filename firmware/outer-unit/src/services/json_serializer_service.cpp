@@ -12,6 +12,7 @@ static const char* triggerToString(EventTrigger trigger) {
         case TEMPERATURE_ALERT: return "TEMPERATURE_ALERT";
         case INVENTORY_LOW:     return "INVENTORY_LOW";
         case BATTERY_LOW:       return "BATTERY_LOW";
+        case DEVICE_HEALTH:     return "DEVICE_HEALTH";
         default:                return "DEVICE_EVENT";
     }
 }
@@ -71,18 +72,21 @@ String serializeTelemetryEvent(const TelemetryEvent& event) {
     doc["inventory"]["inventoryStatus"]            = inventoryStatus(event.estimatedPercent);
 
     // ---- glucose --------------------------------------------------------- //
-    doc["glucose"]["deviceUid"]      = DEVICE_UID_GLUCOMETER;
-    doc["glucose"]["valueMgDl"]      = event.glucoseMgDl;
-    doc["glucose"]["source"]         = "BLE_GLUCOMETER";
-    doc["glucose"]["sequenceNumber"] = event.glucometerSequenceNumber;
+    if (event.hasGlucose) {
+        doc["glucose"]["deviceUid"]      = DEVICE_UID_GLUCOMETER;
+        doc["glucose"]["valueMgDl"]      = event.glucoseMgDl;
+        doc["glucose"]["source"]         = "BLE_GLUCOMETER";
+        doc["glucose"]["sequenceNumber"] = event.glucometerSequenceNumber;
+    }
 
     // ---- dose ------------------------------------------------------------ //
-    // doseUnits is Double in the backend DTO — use float here, JSON encodes identically
-    doc["dose"]["deviceUid"]       = DEVICE_UID_PEN;
-    doc["dose"]["doseUnits"]       = event.doseUnits;
-    doc["dose"]["detectionMethod"] = "AS5600";
-    doc["dose"]["injectedAt"]      = event.injectedAt;
-    doc["dose"]["eventStatus"]     = "CONFIRMED";
+    if (event.hasDose) {
+        doc["dose"]["deviceUid"]       = DEVICE_UID_PEN;
+        doc["dose"]["doseUnits"]       = event.doseUnits;
+        doc["dose"]["detectionMethod"] = "AS5600";
+        doc["dose"]["injectedAt"]      = event.injectedAt;
+        doc["dose"]["eventStatus"]     = "CONFIRMED";
+    }
 
     // ---- battery --------------------------------------------------------- //
     doc["battery"]["innerUnitDeviceUid"]  = DEVICE_UID_INNER;

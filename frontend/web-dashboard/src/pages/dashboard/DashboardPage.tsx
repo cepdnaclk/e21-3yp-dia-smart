@@ -46,7 +46,7 @@ const DashboardPage = () => {
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Inventory"
-            value={`${dashboardData.inventory} Units`}
+            value={`${dashboardData.inventory} g`}
           />
         </Grid>
 

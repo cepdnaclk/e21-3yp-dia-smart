@@ -16,3 +16,11 @@ export interface Alert {
   acknowledgedAt?: string | null;
   resolvedAt?: string | null;
 }
+
+export interface AlertsPageResponse {
+  content: Alert[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

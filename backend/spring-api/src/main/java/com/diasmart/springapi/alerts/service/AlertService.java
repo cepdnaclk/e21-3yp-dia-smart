@@ -13,9 +13,16 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class AlertService {
+
+        private static final Set<String> FILTERABLE_STATUSES =
+                        Set.of(
+                                        "OPEN",
+                                        "ACKNOWLEDGED",
+                                        "RESOLVED");
 
         private final AlertRepository alertRepository;
         private final CurrentUserService currentUserService;
@@ -30,8 +37,9 @@ public class AlertService {
                 this.patientAccessService = patientAccessService;
         }
 
-        public Page<AlertResponse> getAlerts(Pageable pageable) {
+        public Page<AlertResponse> getAlerts(Pageable pageable, String status) {
                 AppUser currentUser = currentUserService.getCurrentUser();
+                String normalizedStatus = normalizeStatus(status);
 
                 /*
                  * ADMIN handling:
@@ -39,8 +47,16 @@ public class AlertService {
                  * Admin is not stored in user_patient_access.access_role.
                  */
                 if (currentUser.getRole() == UserRole.ADMIN) {
+                        if (normalizedStatus != null) {
+                                return alertRepository
+                                                .findByStatusOrderByCreatedAtDesc(
+                                                                normalizedStatus,
+                                                                pageable)
+                                                .map(this::mapToResponse);
+                        }
+
                         return alertRepository
-                                        .findAll(pageable)
+                                        .findAllByOrderByCreatedAtDesc(pageable)
                                         .map(this::mapToResponse);
                 }
 
@@ -52,6 +68,15 @@ public class AlertService {
 
                 if (viewablePatientIds.isEmpty()) {
                         return Page.empty(pageable);
+                }
+
+                if (normalizedStatus != null) {
+                        return alertRepository
+                                        .findByPatientIdInAndStatusOrderByCreatedAtDesc(
+                                                        viewablePatientIds,
+                                                        normalizedStatus,
+                                                        pageable)
+                                        .map(this::mapToResponse);
                 }
 
                 return alertRepository
@@ -68,6 +93,25 @@ public class AlertService {
                                                 org.springframework.data.domain.PageRequest.of(0, limit))
                                 .map(this::mapToResponse)
                                 .getContent();
+        }
+
+        private String normalizeStatus(String status) {
+                if (status == null || status.isBlank()) {
+                        return null;
+                }
+
+                String normalized = status.trim().toUpperCase();
+
+                if ("ALL".equals(normalized)) {
+                        return null;
+                }
+
+                if (!FILTERABLE_STATUSES.contains(normalized)) {
+                        throw new IllegalArgumentException(
+                                        "Unsupported alert status: " + status);
+                }
+
+                return normalized;
         }
 
         public AlertResponse getAlert(Long alertId) {

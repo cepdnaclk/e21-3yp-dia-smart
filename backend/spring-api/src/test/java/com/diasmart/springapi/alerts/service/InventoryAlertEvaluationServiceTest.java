@@ -82,7 +82,7 @@ class InventoryAlertEvaluationServiceTest {
                 .createAlert(
                         eq(1L),
                         eq("LOW_INVENTORY"),
-                        eq("MEDIUM"),
+                        eq("WARNING"),
                         eq("Low insulin inventory"),
                         contains("15.0")
                 );

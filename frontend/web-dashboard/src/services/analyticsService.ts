@@ -19,10 +19,10 @@ export const analyticsService = {
             Number(patientId),
 
           startDate:
-            "2026-05-01",
+            "2026-06-22",
 
           endDate:
-            "2027-06-09",
+            "2026-06-27",
         },
       }
     );

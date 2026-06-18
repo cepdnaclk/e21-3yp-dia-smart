@@ -12,19 +12,19 @@ import {
 
 import StatCard from "../../components/dashboard/StatCard";
 import GlucoseChart from "../../components/charts/GlucoseChart";
+import DoseHistoryChart from "../../components/charts/DoseHistoryChart";
 
 import { analyticsService } from "../../services/analyticsService";
 
 import type {
   AnalyticsData,
   GlucoseReading,
+  DoseReading,
 } from "../../types/analytics";
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] =
-    useState<AnalyticsData | null>(
-      null
-    );
+    useState<AnalyticsData | null>(null);
 
   const [glucoseHistory, setGlucoseHistory] =
     useState<
@@ -33,6 +33,9 @@ const AnalyticsPage = () => {
         glucose: number;
       }[]
     >([]);
+
+  const [doseHistory, setDoseHistory] =
+    useState<DoseReading[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -49,6 +52,9 @@ const AnalyticsPage = () => {
 
           const glucoseData =
             await analyticsService.getGlucoseHistory();
+
+          const doseData =
+            await analyticsService.getDoseHistory();
 
           setAnalytics(
             analyticsData
@@ -67,6 +73,10 @@ const AnalyticsPage = () => {
                   item.glucoseValueMgDl,
               })
             )
+          );
+
+          setDoseHistory(
+            doseData
           );
         } catch (err) {
           console.error(err);
@@ -117,6 +127,49 @@ const AnalyticsPage = () => {
         sx={{ mb: 3 }}
       >
         Analytics
+      </Typography>
+
+      {/* Glucose Trend */}
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography
+            variant="h6"
+            sx={{ mb: 2 }}
+          >
+            Glucose Trend
+          </Typography>
+
+          <GlucoseChart
+            data={glucoseHistory}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Dose History */}
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography
+            variant="h6"
+            sx={{ mb: 2 }}
+          >
+            Dose History
+          </Typography>
+
+          <DoseHistoryChart
+            data={doseHistory}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Adherence Statistics */}
+
+      <Typography
+        variant="h5"
+        sx={{ mb: 2 }}
+      >
+        Adherence Statistics
       </Typography>
 
       <Grid
@@ -205,21 +258,6 @@ const AnalyticsPage = () => {
           />
         </Grid>
       </Grid>
-
-      <Card sx={{ mt: 4 }}>
-        <CardContent>
-          <Typography
-            variant="h6"
-            sx={{ mb: 2 }}
-          >
-            Glucose Trend
-          </Typography>
-
-          <GlucoseChart
-            data={glucoseHistory}
-          />
-        </CardContent>
-      </Card>
     </>
   );
 };

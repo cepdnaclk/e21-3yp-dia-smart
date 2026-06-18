@@ -3,8 +3,11 @@ import { getPatientId } from "../utils/patient";
 
 import type {
   AnalyticsData,
+  DoseReading,
   GlucoseReading,
 } from "../types/analytics";
+
+
 
 export const analyticsService = {
   async getAnalytics(): Promise<AnalyticsData> {
@@ -60,6 +63,19 @@ export const analyticsService = {
     const response =
       await api.get(
         `/patients/${patientId}/glucose-readings`
+      );
+
+    return response.data.data.content;
+  },
+  async getDoseHistory(): Promise<
+    DoseReading[]
+  > {
+    const patientId =
+      getPatientId();
+
+    const response =
+      await api.get(
+        `/patients/${patientId}/dose-events`
       );
 
     return response.data.data.content;

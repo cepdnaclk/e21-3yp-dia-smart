@@ -22,3 +22,9 @@ export interface GlucoseReading {
 
   notes: string | null;
 }
+
+export interface DoseReading {
+  doseEventId: number;
+  doseUnits: number;
+  injectedAt: string;
+}

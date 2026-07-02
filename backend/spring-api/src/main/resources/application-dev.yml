@@ -1,7 +1,7 @@
-server:
+ server:
   port: 8080
 
-spring:
+ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/diasmart
     username: postgres
@@ -16,21 +16,21 @@ spring:
       hibernate:
         "[format_sql]": true
 
-logging:
+ logging:
   level:
     "[org.springframework.security]": INFO
     "[org.hibernate.SQL]": DEBUG
 
-app:
+ app:
   jwt:
     secret: ${JWT_SECRET:}
     expiration-ms: ${JWT_EXPIRATION_MS:3600000}
 
-mqtt:
+ mqtt:
   broker:
     ssl: ${MQTT_BROKER}
 
   client:
     id: diasmart-backend-dev
 
-  topic: ${MQTT_TOPIC}
+  topic: ${MQTT_TOPIC} 

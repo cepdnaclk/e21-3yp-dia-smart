@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://diasmart-db.c7myyog8ar0z.eu-north-1.rds.amazonaws.com:5432/diasmart?sslmode=require
+    username: postgres
+    password: Sanjeevan2002
 
     jpa:
     hibernate:
@@ -22,14 +22,14 @@ logging:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:}
-    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    secret: diasmart_super_secure_local_jwt_secret_123456
+    expiration-ms: 3600000
 
 mqtt:
   broker:
-    ssl: ${MQTT_BROKER}
+    ssl: ssl://a36biie00zvpfg-ats.iot.eu-north-1.amazonaws.com:8883
 
   client:
     id: diasmart-backend
 
-  topic: ${MQTT_TOPIC}
+  topic: diasmart/device/telemetry

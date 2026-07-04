@@ -1,4 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  it,
+  expect,
+  vi,
+} from "vitest";
 import {
   render,
   screen,
@@ -29,6 +35,10 @@ vi.mock(
 );
 
 describe("Topbar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders application title", () => {
     render(<Topbar />);
 
@@ -62,5 +72,27 @@ describe("Topbar", () => {
 
     expect(logoutMock)
       .toHaveBeenCalled();
+  });
+
+  it("settings icon navigates to settings", () => {
+    render(<Topbar />);
+
+    fireEvent.click(
+      screen.getByLabelText("Settings")
+    );
+
+    expect(navigateMock)
+      .toHaveBeenCalledWith("/settings");
+  });
+
+  it("profile avatar navigates to profile", () => {
+    render(<Topbar />);
+
+    fireEvent.click(
+      screen.getByLabelText("Profile")
+    );
+
+    expect(navigateMock)
+      .toHaveBeenCalledWith("/profile");
   });
 });

@@ -2,8 +2,8 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import WarningIcon from "@mui/icons-material/Warning";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import MedicationIcon from "@mui/icons-material/Medication";
-import PersonIcon from "@mui/icons-material/Person";
-import SettingsIcon from "@mui/icons-material/Settings";
+import DevicesIcon from "@mui/icons-material/Devices";
+import GroupsIcon from "@mui/icons-material/Groups";
 
 import type { NavigationItem } from "./navigationTypes";
 
@@ -33,15 +33,15 @@ export const patientNavigation: NavigationItem[] = [
     route: "/prescriptions",
   },
   {
-    id: "profile",
-    label: "Profile",
-    icon: PersonIcon,
-    route: "/profile",
+    id: "devices",
+    label: "Devices",
+    icon: DevicesIcon,
+    route: "/devices",
   },
   {
-    id: "settings",
-    label: "Settings",
-    icon: SettingsIcon,
-    route: "/settings",
+    id: "care-team",
+    label: "Care Team",
+    icon: GroupsIcon,
+    route: "/care-team",
   },
 ];

@@ -11,6 +11,7 @@ import {
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from "@mui/icons-material/Home";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo/diasmart-logo.png";
@@ -60,6 +61,14 @@ const Topbar = () => {
     navigate("/");
   };
 
+  const handleSettings = () => {
+    navigate("/settings");
+  };
+
+  const handleProfile = () => {
+    navigate("/profile");
+  };
+
   return (
     <AppBar
       position="fixed"
@@ -103,9 +112,23 @@ const Topbar = () => {
           Logout
         </Button>
 
-        <Avatar>
-          {getRoleInitial(role)}
-        </Avatar>
+        <IconButton
+          color="inherit"
+          aria-label="Settings"
+          onClick={handleSettings}
+        >
+          <SettingsIcon />
+        </IconButton>
+
+        <IconButton
+          color="inherit"
+          aria-label="Profile"
+          onClick={handleProfile}
+        >
+          <Avatar>
+            {getRoleInitial(role)}
+          </Avatar>
+        </IconButton>
       </Toolbar>
     </AppBar>
   );

@@ -34,19 +34,35 @@ describe("Sidebar", () => {
     ).toBeTruthy();
   });
 
-  it("renders Profile menu", () => {
+  it("renders Devices menu", () => {
     render(<Sidebar />);
 
     expect(
-      screen.getByText("Profile")
+      screen.getByText("Devices")
     ).toBeTruthy();
   });
 
-  it("does not show Patients for PATIENT role", () => {
+  it("renders Care Team menu", () => {
+    render(<Sidebar />);
+
+    expect(
+      screen.getByText("Care Team")
+    ).toBeTruthy();
+  });
+
+  it("does not show removed Patient menu items", () => {
     render(<Sidebar />);
 
     expect(
       screen.queryByText("Patients")
+    ).toBeNull();
+
+    expect(
+      screen.queryByText("Profile")
+    ).toBeNull();
+
+    expect(
+      screen.queryByText("Settings")
     ).toBeNull();
   });
 });

@@ -52,6 +52,7 @@ const AppRouter = () => {
         />
 
         {/* Protected */}
+        {/* TODO: Split protected route access by role in Milestone 4 without changing existing patient routes. */}
         <Route
           element={
             <ProtectedRoute>

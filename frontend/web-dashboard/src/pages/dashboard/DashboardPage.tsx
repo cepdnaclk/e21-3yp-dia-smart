@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 
 import { Grid, Typography } from "@mui/material";
 
-import StatCard from "../../components/dashboard/StatCard";
+import StatCard from "../../components/common/StatCard";
+import PageTitle from "../../components/common/PageTitle";
 
 import type { DashboardData } from "../../types/dashboard";
 import { dashboardService } from "../../services/dashboardService";
@@ -46,12 +47,7 @@ const DashboardPage = () => {
 
   return (
     <>
-      <Typography
-        variant="h4"
-        sx={{ mb: 3 }}
-      >
-        Dashboard
-      </Typography>
+      <PageTitle>Dashboard</PageTitle>
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>

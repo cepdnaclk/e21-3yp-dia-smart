@@ -4,19 +4,26 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../../components/navigation/Sidebar";
 import Topbar from "../../components/navigation/Topbar";
 
+const layoutStyles = {
+  display: "flex",
+};
+
+const mainContentStyles = {
+  flexGrow: 1,
+  p: 3,
+};
+
 const DashboardLayout = () => {
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={layoutStyles}>
       <Topbar />
 
       <Sidebar />
 
+      {/* TODO: Adjust content offset when mobile drawer navigation is introduced. */}
       <Box
         component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-        }}
+        sx={mainContentStyles}
       >
         <Toolbar />
 

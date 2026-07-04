@@ -7,97 +7,61 @@ import {
 
 import { useNavigate, useLocation } from "react-router-dom";
 
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import WarningIcon from "@mui/icons-material/Warning";
-import AnalyticsIcon from "@mui/icons-material/Analytics";
-import SettingsIcon from "@mui/icons-material/Settings";
-import MedicationIcon from "@mui/icons-material/Medication";
-import PersonIcon from "@mui/icons-material/Person";
-import PeopleIcon from "@mui/icons-material/People";
-
-import { useAuth } from "../../context/AuthContext";
-import { UserRole } from "../../types/roles";
+import { patientNavigation } from "../../config/navigation/patientNavigation";
+import type { NavigationItem } from "../../config/navigation/navigationTypes";
 
 const drawerWidth = 240;
+
+const drawerStyles = {
+  width: drawerWidth,
+  flexShrink: 0,
+  "& .MuiDrawer-paper": {
+    width: drawerWidth,
+    boxSizing: "border-box",
+  },
+};
+
+const listItemTextStyles = {
+  ml: 2,
+};
+
+const isActiveNavigationItem = (
+  item: NavigationItem,
+  pathname: string
+) => pathname === item.route;
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { role } = useAuth();
-
-  const menuItems = [
-    {
-      text: "Dashboard",
-      path: "/dashboard",
-      icon: <DashboardIcon />,
-    },
-    {
-      text: "Alerts",
-      path: "/alerts",
-      icon: <WarningIcon />,
-    },
-    {
-      text: "Analytics",
-      path: "/analytics",
-      icon: <AnalyticsIcon />,
-    },
-    {
-      text: "Prescriptions",
-      path: "/prescriptions",
-      icon: <MedicationIcon />,
-    },
-    {
-      text: "Profile",
-      path: "/profile",
-      icon: <PersonIcon />,
-    },
-    {
-      text: "Settings",
-      path: "/settings",
-      icon: <SettingsIcon />,
-    },
-  ];
-
-  if (
-    role === UserRole.DOCTOR ||
-    role === UserRole.CAREGIVER ||
-    role === UserRole.ADMIN
-  ) {
-    menuItems.splice(3, 0, {
-      text: "Patients",
-      path: "/patients",
-      icon: <PeopleIcon />,
-    });
-  }
-
   return (
     <Drawer
       variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: drawerWidth,
-          boxSizing: "border-box",
-        },
-      }}
+      sx={drawerStyles}
     >
+      {/* TODO: Add temporary/mobile drawer behavior here when responsive navigation is implemented. */}
       <List>
-        {menuItems.map((item) => (
-          <ListItemButton
-            key={item.path}
-            selected={location.pathname === item.path}
-            onClick={() => navigate(item.path)}
-          >
-            {item.icon}
+        {patientNavigation.map((item) => {
+          const Icon = item.icon;
 
-            <ListItemText
-              primary={item.text}
-              sx={{ ml: 2 }}
-            />
-          </ListItemButton>
-        ))}
+          return (
+            <ListItemButton
+              key={item.id}
+              selected={isActiveNavigationItem(
+                item,
+                location.pathname
+              )}
+              onClick={() => navigate(item.route)}
+            >
+              <Icon />
+
+              <ListItemText
+                primary={item.label}
+                sx={listItemTextStyles}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
     </Drawer>
   );

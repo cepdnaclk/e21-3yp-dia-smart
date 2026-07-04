@@ -35,6 +35,7 @@ export const AuthProvider = ({
       localStorage.getItem("token")
     );
 
+  // TODO: Extend role handling for Milestone 4 when doctor, caregiver, and admin sessions need role-specific capabilities.
   const [role, setRole] =
     useState<UserRole>(
       (localStorage.getItem(

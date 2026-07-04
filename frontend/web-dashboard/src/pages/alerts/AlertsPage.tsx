@@ -8,7 +8,6 @@ import {
   Typography,
   Stack,
   Alert as MuiAlert,
-  CircularProgress,
   Box,
   Button,
   Pagination,
@@ -17,6 +16,9 @@ import {
 } from "@mui/material";
 
 import AlertCard from "../../components/alerts/AlertCard";
+import PageError from "../../components/common/PageError";
+import PageLoading from "../../components/common/PageLoading";
+import PageTitle from "../../components/common/PageTitle";
 
 import {
   alertsService,
@@ -217,36 +219,16 @@ const AlertsPage = () => {
   };
 
   if (loading) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "50vh",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoading minHeight="50vh" />;
   }
 
   if (error) {
-    return (
-      <MuiAlert severity="error">
-        {error}
-      </MuiAlert>
-    );
+    return <PageError message={error} />;
   }
 
   return (
     <>
-      <Typography
-        variant="h4"
-        sx={{ mb: 2 }}
-      >
-        Alerts
-      </Typography>
+      <PageTitle mb={2}>Alerts</PageTitle>
 
       <Box sx={{ mb: 3 }}>
         <Tabs

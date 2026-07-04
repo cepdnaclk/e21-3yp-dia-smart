@@ -5,26 +5,57 @@ import {
   Box,
   IconButton,
   Avatar,
+  Button,
 } from "@mui/material";
 
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import LogoutIcon from "@mui/icons-material/Logout";
+import HomeIcon from "@mui/icons-material/Home";
+import { useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo/diasmart-logo.png";
 
 import { useAuth } from "../../context/AuthContext";
 
-import LogoutIcon from "@mui/icons-material/Logout";
-import { useNavigate } from "react-router-dom";
-import HomeIcon from "@mui/icons-material/Home";
-import Button from "@mui/material/Button";
+const appBarStyles = {
+  backgroundColor: "#3B567C",
+};
+
+const logoStyles = {
+  width: 40,
+  height: 40,
+  mr: 2,
+  borderRadius: 1,
+};
+
+const titleStyles = {
+  fontWeight: 700,
+  flexGrow: 1,
+};
+
+const homeButtonStyles = {
+  mx: 1,
+  textTransform: "none",
+  fontWeight: 600,
+};
+
+const logoutButtonStyles = {
+  mx: 1,
+  textTransform: "none",
+};
+
+const getRoleInitial = (role: string) =>
+  role.charAt(0);
 
 const Topbar = () => {
-  const { role,logout } = useAuth();
+  const { role, logout } = useAuth();
   const navigate = useNavigate();
+
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+
   const handleHome = () => {
     navigate("/");
   };
@@ -32,29 +63,20 @@ const Topbar = () => {
   return (
     <AppBar
       position="fixed"
-      sx={{
-        backgroundColor: "#3B567C",
-      }}
+      sx={appBarStyles}
     >
+      {/* TODO: Add mobile menu trigger here when responsive drawer navigation is implemented. */}
       <Toolbar>
         <Box
           component="img"
           src={logo}
           alt="Dia-Smart Logo"
-          sx={{
-            width: 40,
-            height: 40,
-            mr: 2,
-            borderRadius: 1,
-          }}
+          sx={logoStyles}
         />
 
         <Typography
           variant="h6"
-          sx={{
-            fontWeight: 700,
-            flexGrow: 1,
-          }}
+          sx={titleStyles}
         >
           Dia-Smart
         </Typography>
@@ -67,29 +89,22 @@ const Topbar = () => {
           color="inherit"
           startIcon={<HomeIcon />}
           onClick={handleHome}
-          sx={{
-            mx: 1,
-            textTransform: "none",
-            fontWeight: 600,
-          }}
+          sx={homeButtonStyles}
         >
           Home
         </Button>
 
         <Button
-        color="inherit"
-        startIcon={<LogoutIcon />}
-        onClick={handleLogout}
-        sx={{
-          mx: 1,
-          textTransform: "none",
-        }}
-      >
-        Logout
-      </Button>
+          color="inherit"
+          startIcon={<LogoutIcon />}
+          onClick={handleLogout}
+          sx={logoutButtonStyles}
+        >
+          Logout
+        </Button>
 
         <Avatar>
-          {role.charAt(0)}
+          {getRoleInitial(role)}
         </Avatar>
       </Toolbar>
     </AppBar>

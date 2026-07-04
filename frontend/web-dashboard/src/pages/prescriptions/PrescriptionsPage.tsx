@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import {
-  Typography,
   Paper,
   Table,
   TableBody,
@@ -10,11 +9,11 @@ import {
   TableHead,
   TableRow,
   Chip,
-  CircularProgress,
-  Alert,
-  Box,
 } from "@mui/material";
 
+import PageError from "../../components/common/PageError";
+import PageLoading from "../../components/common/PageLoading";
+import PageTitle from "../../components/common/PageTitle";
 import { prescriptionsService } from "../../services/prescriptionsService";
 import type { Prescription } from "../../types/prescription";
 
@@ -50,36 +49,16 @@ const PrescriptionsPage = () => {
   }, []);
 
   if (loading) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "300px",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        {error}
-      </Alert>
-    );
+    return <PageError message={error} />;
   }
 
   return (
     <>
-      <Typography
-        variant="h4"
-        sx={{ mb: 3 }}
-      >
-        Prescriptions
-      </Typography>
+      <PageTitle>Prescriptions</PageTitle>
 
       <TableContainer component={Paper}>
         <Table>

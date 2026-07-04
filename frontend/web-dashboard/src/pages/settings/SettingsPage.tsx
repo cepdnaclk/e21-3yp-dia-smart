@@ -8,12 +8,12 @@ import {
   Stack,
 } from "@mui/material";
 
+import PageTitle from "../../components/common/PageTitle";
+
 const SettingsPage = () => {
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 3 }}>
-        Settings
-      </Typography>
+      <PageTitle>Settings</PageTitle>
 
       <Stack spacing={3}>
         <Card>

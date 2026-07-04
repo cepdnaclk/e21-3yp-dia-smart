@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import {
   Typography,
   Grid,
-  CircularProgress,
-  Alert,
-  Box,
   Card,
   CardContent,
 } from "@mui/material";
 
-import StatCard from "../../components/dashboard/StatCard";
+import StatCard from "../../components/common/StatCard";
+import PageError from "../../components/common/PageError";
+import PageLoading from "../../components/common/PageLoading";
+import PageTitle from "../../components/common/PageTitle";
 import GlucoseChart from "../../components/charts/GlucoseChart";
 import DoseHistoryChart from "../../components/charts/DoseHistoryChart";
 
@@ -93,27 +93,11 @@ const AnalyticsPage = () => {
   }, []);
 
   if (loading) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent:
-            "center",
-          alignItems: "center",
-          minHeight: "300px",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoading />;
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        {error}
-      </Alert>
-    );
+    return <PageError message={error} />;
   }
 
   if (!analytics) {
@@ -122,12 +106,7 @@ const AnalyticsPage = () => {
 
   return (
     <>
-      <Typography
-        variant="h4"
-        sx={{ mb: 3 }}
-      >
-        Analytics
-      </Typography>
+      <PageTitle>Analytics</PageTitle>
 
       {/* Glucose Trend */}
 

@@ -10,6 +10,7 @@ const ProtectedRoute = ({
 }: ProtectedRouteProps) => {
   const { isAuthenticated } = useAuth();
 
+  // TODO: Add role-aware access checks for Milestone 4 routes after backend permissions are finalized.
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

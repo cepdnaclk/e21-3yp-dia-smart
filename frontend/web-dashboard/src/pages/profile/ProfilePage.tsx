@@ -3,15 +3,16 @@ import {
   Box,
   Card,
   CardContent,
-  CircularProgress,
   Divider,
   Grid,
   Typography,
-  Alert,
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
 
+import PageError from "../../components/common/PageError";
+import PageLoading from "../../components/common/PageLoading";
+import PageTitle from "../../components/common/PageTitle";
 import { profileService } from "../../services/profileService";
 import type { Profile } from "../../types/profile";
 
@@ -47,33 +48,16 @@ const ProfilePage = () => {
   }, []);
 
   if (loading) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "50vh",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoading minHeight="50vh" />;
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        {error}
-      </Alert>
-    );
+    return <PageError message={error} />;
   }
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 3 }}>
-        Profile
-      </Typography>
+      <PageTitle>Profile</PageTitle>
 
       <Card>
         <CardContent>

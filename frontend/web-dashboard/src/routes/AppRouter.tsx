@@ -13,6 +13,8 @@ import PatientsPage from "../pages/patients/PatientsPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import PrescriptionsPage from "../pages/prescriptions/PrescriptionsPage";
 import ProfilePage from "../pages/profile/ProfilePage";
+import DevicesPage from "../pages/devices/DevicesPage";
+import CareTeamPage from "../pages/care-team/CareTeamPage";
 
 import LoginPage from "../pages/auth/LoginPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
@@ -85,6 +87,16 @@ const AppRouter = () => {
             element={
               <PrescriptionsPage />
             }
+          />
+
+          <Route
+            path="/devices"
+            element={<DevicesPage />}
+          />
+
+          <Route
+            path="/care-team"
+            element={<CareTeamPage />}
           />
 
           <Route

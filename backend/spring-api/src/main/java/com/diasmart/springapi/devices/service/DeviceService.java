@@ -18,6 +18,8 @@ public interface DeviceService {
 
     DeviceResponseDTO assignDevice(Long id, AssignDeviceRequestDTO dto);
 
+    DeviceResponseDTO unassignDevice(Long id);
+
     DeviceDiagnosticsDTO getDeviceDiagnostics(Long id);
 
 }

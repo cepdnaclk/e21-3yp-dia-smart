@@ -8,12 +8,12 @@ export const caregiverNavigation: NavigationItem[] = [
     id: "dashboard",
     label: "Dashboard",
     icon: DashboardIcon,
-    route: "/dashboard",
+    route: "/caregiver/dashboard",
   },
   {
     id: "assigned-patients",
     label: "Assigned Patients",
     icon: PeopleIcon,
-    route: "/assigned-patients",
+    route: "/caregiver/patients",
   },
 ];

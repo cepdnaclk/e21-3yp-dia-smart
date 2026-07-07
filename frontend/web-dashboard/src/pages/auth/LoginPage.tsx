@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../types/roles";
+import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 
 import { patientAccessService } from "../../services/patientAccessService";
 
@@ -86,10 +87,8 @@ const LoginPage = () => {
       data.user.role
     );
 
-    if (data.user.role === UserRole.DOCTOR) {
-      navigate("/doctor/dashboard");
-    } else {
-      // Get patient access records for non-doctor roles
+    if (data.user.role !== UserRole.DOCTOR && data.user.role !== UserRole.CAREGIVER) {
+      // Get patient access records for patient/other roles
       const accesses =
         await patientAccessService.getMyPatientAccess();
 
@@ -107,9 +106,10 @@ const LoginPage = () => {
           accesses[0].patientId.toString()
         );
       }
-
-      navigate("/dashboard");
     }
+
+    const targetRoute = DEFAULT_ROLE_ROUTES[data.user.role] || "/dashboard";
+    navigate(targetRoute);
   } catch (err: any) {
     console.error(
       "LOGIN ERROR:",

@@ -1,7 +1,5 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
-
+import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import { Link } from "react-router-dom";
-import { Button } from "@mui/material";
 
 const PatientList = () => {
   return (
@@ -11,14 +9,14 @@ const PatientList = () => {
           Patient List
         </Typography>
 
-        {/* TODO: Integrate with patient catalog APIs */}
+        {/* TODO: Integrate with caregiver patient relations APIs */}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          This section will present a complete grid/list of patients assigned to you, including their current monitoring statistics, device battery levels, last active timelines, and links to detailed analytics reports.
+          List of patients currently assigned to you as a caregiver. Click a patient's name to open their patient workspace.
         </Typography>
 
         <Box sx={{ p: 4, bgcolor: "action.hover", borderRadius: 1, textAlign: "center" }}>
           <Typography variant="caption" color="text.disabled" sx={{ display: "block", mb: 2 }}>
-            [Placeholder: Patient table grid with columns (Name, Age, Glucose Status, Device Info, Last Active, Actions)]
+            [Placeholder: Patient table grid with columns (Name, Age, Relationship Type, Active Warnings, Actions)]
           </Typography>
 
           <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2, flexWrap: "wrap" }}>

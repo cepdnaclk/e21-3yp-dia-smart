@@ -1,5 +1,8 @@
 import { Card, CardContent, Typography, Box } from "@mui/material";
 
+import { Link } from "react-router-dom";
+import { Button } from "@mui/material";
+
 const PatientReports = () => {
   return (
     <Card elevation={2} sx={{ borderRadius: 2 }}>
@@ -14,9 +17,18 @@ const PatientReports = () => {
         </Typography>
 
         <Box sx={{ p: 3, bgcolor: "action.hover", borderRadius: 1, textAlign: "center" }}>
-          <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
+          <Typography variant="caption" color="text.disabled" sx={{ display: "block", mb: 2 }}>
             [Placeholder: Patient reports table with download, print, and regenerate controls]
           </Typography>
+
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 1, flexWrap: "wrap" }}>
+            <Button component={Link} to="/workspace/1" variant="text" size="small" sx={{ textTransform: "none" }}>
+              Patient #1 Report Workspace
+            </Button>
+            <Button component={Link} to="/workspace/2" variant="text" size="small" sx={{ textTransform: "none" }}>
+              Patient #2 Report Workspace
+            </Button>
+          </Box>
         </Box>
       </CardContent>
     </Card>

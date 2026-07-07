@@ -1,4 +1,19 @@
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import PeopleIcon from "@mui/icons-material/People";
+
 import type { NavigationItem } from "./navigationTypes";
 
-// TODO: Define caregiver navigation for Milestone 4 when caregiver workflows are finalized.
-export const caregiverNavigation: NavigationItem[] = [];
+export const caregiverNavigation: NavigationItem[] = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: DashboardIcon,
+    route: "/dashboard",
+  },
+  {
+    id: "assigned-patients",
+    label: "Assigned Patients",
+    icon: PeopleIcon,
+    route: "/assigned-patients",
+  },
+];

@@ -17,19 +17,21 @@ import {
 
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { UserRole } from "../../types/roles";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, role } = useAuth();
 
   if (isAuthenticated) {
-  return (
-    <Navigate
-      to="/dashboard"
-      replace
-    />
-  );
-}
+    const targetRoute = role === UserRole.DOCTOR ? "/doctor/dashboard" : "/dashboard";
+    return (
+      <Navigate
+        to={targetRoute}
+        replace
+      />
+    );
+  }
 
   return (
     <Box

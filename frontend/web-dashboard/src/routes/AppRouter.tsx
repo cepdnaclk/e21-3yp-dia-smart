@@ -24,6 +24,11 @@ import LandingPage from "../pages/landing/LandingPage";
 import ProtectedRoute from "./ProtectedRoute";
 import RegisterPage from "../pages/auth/RegisterPage";
 
+// Doctor Pages
+import DoctorDashboardPage from "../pages/doctor/DashboardPage";
+import AssignedPatientsPage from "../pages/doctor/AssignedPatientsPage";
+import ReportsPage from "../pages/doctor/ReportsPage";
+
 const AppRouter = () => {
   return (
     <BrowserRouter>
@@ -65,6 +70,22 @@ const AppRouter = () => {
           <Route
             path="/dashboard"
             element={<DashboardPage />}
+          />
+
+          {/* Doctor Routes */}
+          <Route
+            path="/doctor/dashboard"
+            element={<DoctorDashboardPage />}
+          />
+
+          <Route
+            path="/doctor/patients"
+            element={<AssignedPatientsPage />}
+          />
+
+          <Route
+            path="/doctor/reports"
+            element={<ReportsPage />}
           />
 
           <Route

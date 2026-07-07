@@ -32,6 +32,7 @@ public class DeviceServiceImpl implements DeviceService {
         private static final Set<String> DEVICE_TYPES = Set.of(
                         "INNER_UNIT",
                         "OUTER_GATEWAY",
+                        "PEN_UNIT",
                         "DOSE_CAP",
                         "GLUCOMETER",
                         "OTHER");
@@ -144,15 +145,37 @@ public class DeviceServiceImpl implements DeviceService {
                         Long id,
                         AssignDeviceRequestDTO dto) {
                 Device device = findDevice(id);
-                Long previousPatientId = device.getPatientId();
 
-                device.setPatientId(dto.getPatientId());
+                if (!Boolean.TRUE.equals(device.getActive())) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_INACTIVE",
+                                        "This device is not active and cannot be assigned.");
+                }
+
+                Long previousPatientId = device.getPatientId();
+                Long requestedPatientId = dto.getPatientId();
+
+                if (previousPatientId != null
+                                && !previousPatientId.equals(requestedPatientId)) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_ALREADY_ASSIGNED",
+                                        "This device is already assigned to another patient.");
+                }
+
+                if (previousPatientId != null
+                                && previousPatientId.equals(requestedPatientId)) {
+                        return mapToDTO(device);
+                }
+
+                device.setPatientId(requestedPatientId);
 
                 Device updatedDevice = deviceRepository.save(device);
                 auditService.logDeviceAssignment(
                                 updatedDevice,
                                 previousPatientId,
-                                dto.getPatientId());
+                                requestedPatientId);
 
                 return mapToDTO(updatedDevice);
         }

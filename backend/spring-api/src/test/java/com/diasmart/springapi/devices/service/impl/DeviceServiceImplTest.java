@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -90,6 +91,7 @@ class DeviceServiceImplTest {
 
                 Device device = new Device();
                 device.setDeviceId(1L);
+                device.setActive(true);
 
                 AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
 
@@ -115,12 +117,55 @@ class DeviceServiceImplTest {
         }
 
         @Test
+        void assignDeviceShouldRejectWhenAssignedToAnotherPatient() {
+
+                Device device = new Device();
+                device.setDeviceId(1L);
+                device.setPatientId(77L);
+                device.setActive(true);
+
+                AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
+                dto.setPatientId(100L);
+
+                when(deviceRepository.findById(1L))
+                                .thenReturn(Optional.of(device));
+
+                ApiException exception = assertThrows(
+                                ApiException.class,
+                                () -> deviceService.assignDevice(1L, dto));
+
+                assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+                assertEquals("DEVICE_ALREADY_ASSIGNED", exception.getErrorCode());
+        }
+
+        @Test
+        void assignDeviceShouldRejectInactiveDevices() {
+
+                Device device = new Device();
+                device.setDeviceId(1L);
+                device.setActive(false);
+
+                AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
+                dto.setPatientId(100L);
+
+                when(deviceRepository.findById(1L))
+                                .thenReturn(Optional.of(device));
+
+                ApiException exception = assertThrows(
+                                ApiException.class,
+                                () -> deviceService.assignDevice(1L, dto));
+
+                assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+                assertEquals("DEVICE_INACTIVE", exception.getErrorCode());
+        }
+
+        @Test
         void registerDeviceShouldCreateDevice() {
 
                 RegisterDeviceRequestDTO dto = new RegisterDeviceRequestDTO();
 
                 dto.setDeviceUid("DEV-001");
-                dto.setDeviceType("INNER_UNIT");
+                dto.setDeviceType("PEN_UNIT");
 
                 when(deviceRepository.findByDeviceUid("DEV-001"))
                                 .thenReturn(Optional.empty());

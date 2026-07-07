@@ -24,6 +24,26 @@ import LandingPage from "../pages/landing/LandingPage";
 import ProtectedRoute from "./ProtectedRoute";
 import RegisterPage from "../pages/auth/RegisterPage";
 
+// Doctor Pages
+import DoctorDashboardPage from "../pages/doctor/DashboardPage";
+import AssignedPatientsPage from "../pages/doctor/AssignedPatientsPage";
+import ReportsPage from "../pages/doctor/ReportsPage";
+
+// Caregiver Pages
+import CaregiverDashboardPage from "../pages/caregiver/DashboardPage";
+import CaregiverAssignedPatientsPage from "../pages/caregiver/AssignedPatientsPage";
+
+// Admin Pages
+import AdminDashboardPage from "../pages/admin/DashboardPage";
+import AdminUsersPage from "../pages/admin/UsersPage";
+import AdminDevicesPage from "../pages/admin/DevicesPage";
+import AdminAssignmentsPage from "../pages/admin/AssignmentsPage";
+import AdminSystemPage from "../pages/admin/SystemPage";
+import AdminReportsPage from "../pages/admin/ReportsPage";
+
+// Shared Workspace Pages
+import PatientWorkspacePage from "../pages/workspace/PatientWorkspacePage";
+
 const AppRouter = () => {
   return (
     <BrowserRouter>
@@ -65,6 +85,70 @@ const AppRouter = () => {
           <Route
             path="/dashboard"
             element={<DashboardPage />}
+          />
+
+          {/* Shared Workspace Routes */}
+          <Route
+            path="/workspace/:patientId"
+            element={<PatientWorkspacePage />}
+          />
+
+          {/* Doctor Routes */}
+          <Route
+            path="/doctor/dashboard"
+            element={<DoctorDashboardPage />}
+          />
+
+          <Route
+            path="/doctor/patients"
+            element={<AssignedPatientsPage />}
+          />
+
+          <Route
+            path="/doctor/reports"
+            element={<ReportsPage />}
+          />
+
+          {/* Caregiver Routes */}
+          <Route
+            path="/caregiver/dashboard"
+            element={<CaregiverDashboardPage />}
+          />
+
+          <Route
+            path="/caregiver/patients"
+            element={<CaregiverAssignedPatientsPage />}
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/dashboard"
+            element={<AdminDashboardPage />}
+          />
+
+          <Route
+            path="/admin/users"
+            element={<AdminUsersPage />}
+          />
+
+          <Route
+            path="/admin/devices"
+            element={<AdminDevicesPage />}
+          />
+
+          <Route
+            path="/admin/assignments"
+            element={<AdminAssignmentsPage />}
+          />
+
+          <Route
+            path="/admin/system"
+            element={<AdminSystemPage />}
+          />
+
+          <Route
+            path="/admin/reports"
+            element={<AdminReportsPage />}
           />
 
           <Route

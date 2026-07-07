@@ -1,4 +1,26 @@
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import PeopleIcon from "@mui/icons-material/People";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+
 import type { NavigationItem } from "./navigationTypes";
 
-// TODO: Define doctor navigation for Milestone 4 when doctor workflows are finalized.
-export const doctorNavigation: NavigationItem[] = [];
+export const doctorNavigation: NavigationItem[] = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: DashboardIcon,
+    route: "/doctor/dashboard",
+  },
+  {
+    id: "assigned-patients",
+    label: "Assigned Patients",
+    icon: PeopleIcon,
+    route: "/doctor/patients",
+  },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: AssessmentIcon,
+    route: "/doctor/reports",
+  },
+];

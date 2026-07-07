@@ -8,7 +8,12 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { patientNavigation } from "../../config/navigation/patientNavigation";
+import { doctorNavigation } from "../../config/navigation/doctorNavigation";
+import { caregiverNavigation } from "../../config/navigation/caregiverNavigation";
+import { adminNavigation } from "../../config/navigation/adminNavigation";
 import type { NavigationItem } from "../../config/navigation/navigationTypes";
+import { useAuth } from "../../context/AuthContext";
+import { UserRole } from "../../types/roles";
 
 const drawerWidth = 240;
 
@@ -33,6 +38,23 @@ const isActiveNavigationItem = (
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { role } = useAuth();
+
+  const getNavigationItems = (): NavigationItem[] => {
+    switch (role) {
+      case UserRole.DOCTOR:
+        return doctorNavigation;
+      case UserRole.CAREGIVER:
+        return caregiverNavigation;
+      case UserRole.ADMIN:
+        return adminNavigation;
+      case UserRole.PATIENT:
+      default:
+        return patientNavigation;
+    }
+  };
+
+  const navItems = getNavigationItems();
 
   return (
     <Drawer
@@ -41,7 +63,7 @@ const Sidebar = () => {
     >
       {/* TODO: Add temporary/mobile drawer behavior here when responsive navigation is implemented. */}
       <List>
-        {patientNavigation.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
 
           return (

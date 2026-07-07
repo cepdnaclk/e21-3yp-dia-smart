@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 
 import { authService } from "../../services/authService";
 import { useAuth } from "../../context/AuthContext";
+import { UserRole } from "../../types/roles";
+import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 
 import { patientAccessService } from "../../services/patientAccessService";
 
@@ -85,26 +87,29 @@ const LoginPage = () => {
       data.user.role
     );
 
-    // Get patient access records
-    const accesses =
-      await patientAccessService.getMyPatientAccess();
+    if (data.user.role !== UserRole.DOCTOR && data.user.role !== UserRole.CAREGIVER) {
+      // Get patient access records for patient/other roles
+      const accesses =
+        await patientAccessService.getMyPatientAccess();
 
-    console.log(
-      "Patient Access:",
-      accesses
-    );
-
-    if (
-      accesses &&
-      accesses.length > 0
-    ) {
-      localStorage.setItem(
-        "patientId",
-        accesses[0].patientId.toString()
+      console.log(
+        "Patient Access:",
+        accesses
       );
+
+      if (
+        accesses &&
+        accesses.length > 0
+      ) {
+        localStorage.setItem(
+          "patientId",
+          accesses[0].patientId.toString()
+        );
+      }
     }
 
-    navigate("/dashboard");
+    const targetRoute = DEFAULT_ROLE_ROUTES[data.user.role] || "/dashboard";
+    navigate(targetRoute);
   } catch (err: any) {
     console.error(
       "LOGIN ERROR:",

@@ -17,19 +17,21 @@ import {
 
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, role } = useAuth();
 
   if (isAuthenticated) {
-  return (
-    <Navigate
-      to="/dashboard"
-      replace
-    />
-  );
-}
+    const targetRoute = DEFAULT_ROLE_ROUTES[role] || "/dashboard";
+    return (
+      <Navigate
+        to={targetRoute}
+        replace
+      />
+    );
+  }
 
   return (
     <Box

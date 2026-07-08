@@ -105,14 +105,18 @@ public class RelationshipRequestService {
             throw new IllegalArgumentException("A pending relationship request already exists");
         }
 
-        // Prevent active relationship/access already existing
-        boolean activeAccessExists1 = userPatientAccessRepository
-                .findByUserIdAndPatientIdAndStatus(requesterUserId, patientId, AccessStatus.ACTIVE)
-                .isPresent();
-        boolean activeAccessExists2 = userPatientAccessRepository
-                .findByUserIdAndPatientIdAndStatus(targetUserId, patientId, AccessStatus.ACTIVE)
-                .isPresent();
-        if (activeAccessExists1 || activeAccessExists2) {
+        // Prevent active relationship/access already existing for the same patient, target, and relationship role
+        Long caregiverDoctorUserId = (currentUser.getRole() == UserRole.PATIENT) ? targetUserId : requesterUserId;
+        AccessRole expectedAccessRole = (dto.getRelationshipRole() == RelationshipType.CAREGIVER) 
+                ? AccessRole.CAREGIVER 
+                : AccessRole.DOCTOR;
+
+        boolean activeAccessExists = userPatientAccessRepository
+                .findByUserIdAndPatientIdAndStatus(caregiverDoctorUserId, patientId, AccessStatus.ACTIVE)
+                .map(access -> access.getAccessRole() == expectedAccessRole)
+                .orElse(false);
+
+        if (activeAccessExists) {
             throw new IllegalArgumentException("An active relationship or access already exists");
         }
 

@@ -19,6 +19,8 @@ public interface DeviceService {
 
     DeviceResponseDTO assignDevice(Long id, AssignDeviceRequestDTO dto);
 
+    void activateDeviceKit(Long patientId, com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto);
+
     DeviceResponseDTO unassignDevice(Long id);
 
     DeviceDiagnosticsDTO getDeviceDiagnostics(Long id);

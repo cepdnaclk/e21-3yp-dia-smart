@@ -6,5 +6,6 @@ public enum DeviceStatus {
     AVAILABLE,
     CONNECTED,
     DISCONNECTED,
-    RETIRED
+    RETIRED,
+    UNKNOWN
 }

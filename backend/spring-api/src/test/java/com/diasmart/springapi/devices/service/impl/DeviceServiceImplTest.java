@@ -7,6 +7,7 @@ import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
 import com.diasmart.springapi.devices.entity.Device;
 import com.diasmart.springapi.devices.repository.DeviceHealthLogRepository;
 import com.diasmart.springapi.devices.repository.DeviceRepository;
+import com.diasmart.springapi.devices.repository.BuyerRepository;
 import com.diasmart.springapi.raw_events.repository.RawDeviceEventRepository;
 
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,9 @@ class DeviceServiceImplTest {
 
         @Mock
         private AuditService auditService;
+
+        @Mock
+        private BuyerRepository buyerRepository;
 
         @InjectMocks
         private DeviceServiceImpl deviceService;
@@ -92,6 +96,7 @@ class DeviceServiceImplTest {
                 Device device = new Device();
                 device.setDeviceId(1L);
                 device.setActive(true);
+                device.setBuyerId(50L);
 
                 AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
 
@@ -99,6 +104,9 @@ class DeviceServiceImplTest {
 
                 when(deviceRepository.findById(1L))
                                 .thenReturn(Optional.of(device));
+
+                when(buyerRepository.findById(50L))
+                                .thenReturn(Optional.empty());
 
                 when(deviceRepository.save(any(Device.class)))
                                 .thenAnswer(inv -> inv.getArgument(0));
@@ -123,6 +131,7 @@ class DeviceServiceImplTest {
                 device.setDeviceId(1L);
                 device.setPatientId(77L);
                 device.setActive(true);
+                device.setBuyerId(50L);
 
                 AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
                 dto.setPatientId(100L);
@@ -144,6 +153,7 @@ class DeviceServiceImplTest {
                 Device device = new Device();
                 device.setDeviceId(1L);
                 device.setActive(false);
+                device.setBuyerId(50L);
 
                 AssignDeviceRequestDTO dto = new AssignDeviceRequestDTO();
                 dto.setPatientId(100L);

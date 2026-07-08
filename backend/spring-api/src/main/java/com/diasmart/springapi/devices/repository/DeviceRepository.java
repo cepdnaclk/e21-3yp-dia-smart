@@ -11,6 +11,8 @@ public interface DeviceRepository
 
     Optional<Device> findByDeviceUid(String deviceUid);
 
+    boolean existsByDeviceUid(String deviceUid);
+
     List<Device> findAllByOrderByDeviceIdAsc();
 
     Optional<Device> findByAwsThingName(String awsThingName);

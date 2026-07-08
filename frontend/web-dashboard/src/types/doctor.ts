@@ -1,11 +1,18 @@
-// TODO: Define Doctor-specific types here when backend integration begins
+import type { RelationshipRole } from "./careTeam";
+
+export interface DoctorAssignedPatient {
+  requestId: number;
+  userId: number;
+  displayName: string;
+  email: string;
+  patientId: number;
+  patientName: string;
+  relationshipRole: RelationshipRole;
+  createdAt: string;
+}
 
 export interface DoctorOverviewStats {
   // Placeholder for overview stats
-}
-
-export interface DoctorAssignedPatient {
-  // Placeholder for assigned patient data
 }
 
 export interface DoctorRecentActivity {

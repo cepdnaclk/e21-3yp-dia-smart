@@ -5,6 +5,7 @@ import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 
 import java.util.List;
 
@@ -22,4 +23,5 @@ public interface DeviceService {
 
     DeviceDiagnosticsDTO getDeviceDiagnostics(Long id);
 
+    void registerDeviceKit(DeviceKitRegistrationRequestDTO dto);
 }

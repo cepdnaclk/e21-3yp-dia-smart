@@ -56,8 +56,153 @@ const normalizeDeviceType = (
     return "OUTER_UNIT";
   }
 
+  if (normalized === "DOSE_CAP") {
+    return "PEN_UNIT";
+  }
+
   return normalized;
 };
+
+const DeviceDetailsContent = ({
+  selectedDevice,
+  deviceDiagnostics,
+}: {
+  selectedDevice: Device;
+  deviceDiagnostics: DeviceDiagnostics | null;
+}) => (
+  <Stack spacing={2}>
+    <Typography sx={{ fontWeight: 600 }}>
+      {selectedDevice.deviceName ?? selectedDevice.deviceUid}
+    </Typography>
+
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Device Name
+        </Typography>
+        <Typography>
+          {selectedDevice.deviceName ?? "TODO: add display name"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Device Type
+        </Typography>
+        <Typography>
+          {selectedDevice.deviceType ?? "TODO: expose from backend"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Device ID
+        </Typography>
+        <Typography>{selectedDevice.deviceUid}</Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Registration Date
+        </Typography>
+        <Typography>
+          {selectedDevice.createdAt ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Hardware Version
+        </Typography>
+        <Typography>
+          {selectedDevice.hardwareVersion ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Firmware Version
+        </Typography>
+        <Typography>
+          {selectedDevice.firmwareVersion ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+    </Grid>
+
+    <Typography sx={{ fontWeight: 600 }}>Connection Information</Typography>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Online / Offline
+        </Typography>
+        <Typography>
+          {deviceDiagnostics?.online !== undefined
+            ? deviceDiagnostics.online
+                ? "Online"
+                : "Offline"
+            : selectedDevice.online
+              ? "Online"
+              : "Offline"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Last Synchronization
+        </Typography>
+        <Typography>
+          {deviceDiagnostics?.lastMqttReceivedAt ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Last Seen
+        </Typography>
+        <Typography>
+          {selectedDevice.lastSeenAt ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Battery Percentage
+        </Typography>
+        <Typography>
+          {deviceDiagnostics?.batteryPercent ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Communication Status
+        </Typography>
+        <Typography>
+          {selectedDevice.communicationType ?? "TODO: backend field"}
+        </Typography>
+      </Grid>
+    </Grid>
+
+    <Typography sx={{ fontWeight: 600 }}>Diagnostics</Typography>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Current Error Messages
+        </Typography>
+        <Typography>TODO: expose from diagnostics endpoint</Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Warning Messages
+        </Typography>
+        <Typography>TODO: expose from diagnostics endpoint</Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Sensor Status
+        </Typography>
+        <Typography>TODO: expose from diagnostics endpoint</Typography>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <Typography color="text.secondary" variant="body2">
+          Health Status
+        </Typography>
+        <Typography>TODO: expose from diagnostics endpoint</Typography>
+      </Grid>
+    </Grid>
+  </Stack>
+);
 
 const DevicesPage = () => {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -72,19 +217,26 @@ const DevicesPage = () => {
   const [disconnectTarget, setDisconnectTarget] =
     useState<Device | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 
-  const loadDevices = async () => {
+  const loadDevices = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError("");
       const assignedDevices =
         await deviceService.getPatientDevices();
       setDevices(assignedDevices);
 
       if (assignedDevices.length > 0) {
-        const firstDevice = assignedDevices[0];
-        setSelectedDevice(firstDevice);
-        await loadDiagnostics(firstDevice.deviceId);
+        let nextSelected = assignedDevices[0];
+        if (selectedDevice) {
+          const stillExists = assignedDevices.find(
+            (d) => d.deviceId === selectedDevice?.deviceId
+          );
+          if (stillExists) nextSelected = stillExists;
+        }
+        setSelectedDevice(nextSelected);
+        await loadDiagnostics(nextSelected.deviceId);
       } else {
         setSelectedDevice(null);
         setDeviceDiagnostics(null);
@@ -96,9 +248,10 @@ const DevicesPage = () => {
           : "Unable to load device assignments."
       );
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
 
   const loadDiagnostics = async (deviceId: number) => {
     try {
@@ -179,7 +332,7 @@ const DevicesPage = () => {
 
     try {
       await deviceService.connectDevice(reference);
-      await loadDevices();
+      await loadDevices(true);
       setSetupStatuses((current) => ({
         ...current,
         [deviceKey]: {
@@ -210,8 +363,9 @@ const DevicesPage = () => {
 
     try {
       await deviceService.disconnectDevice(disconnectTarget.deviceId);
-      await loadDevices();
+      await loadDevices(true);
       setDisconnectTarget(null);
+      setSetupStatuses({});
     } catch (err) {
       setError(
         err instanceof Error
@@ -255,42 +409,105 @@ const DevicesPage = () => {
                   key={deviceType.key}
                   size={{ xs: 12, md: 6 }}
                 >
-                  <Card>
+                  <Card
+                    sx={{
+                      cursor: connectedDevice ? "pointer" : "default",
+                      transition: "box-shadow 0.2s",
+                      "&:hover": {
+                        boxShadow: connectedDevice ? 3 : 1,
+                      },
+                    }}
+                    onClick={() => {
+                      if (connectedDevice) {
+                        setSelectedDevice(connectedDevice);
+                        void loadDiagnostics(connectedDevice.deviceId);
+                        setDetailsDialogOpen(true);
+                      }
+                    }}
+                  >
                     <CardContent>
                       <Stack spacing={2}>
                         <Box>
                           <Typography variant="h6">
                             {deviceType.label}
                           </Typography>
-                          <Typography color="text.secondary" variant="body2">
-                            Enter the device ID to connect this component to your account.
-                          </Typography>
+                          {!connectedDevice && (
+                            <Typography color="text.secondary" variant="body2">
+                              Enter the device ID to connect this component to your account.
+                            </Typography>
+                          )}
                         </Box>
 
-                        <TextField
-                          label="Device ID"
-                          value={setupValues[deviceType.key] ?? ""}
-                          onChange={(event) =>
-                            handleSetupChange(
-                              deviceType.key,
-                              event.target.value
-                            )
-                          }
-                          fullWidth
-                          size="small"
-                        />
+                        {connectedDevice ? (
+                          <Box>
+                            <Grid container spacing={1} sx={{ mb: 2 }}>
+                              <Grid size={{ xs: 4 }}>
+                                <Typography color="text.secondary" variant="body2">Device ID</Typography>
+                              </Grid>
+                              <Grid size={{ xs: 8 }}>
+                                <Typography variant="body2">{connectedDevice.deviceUid}</Typography>
+                              </Grid>
+                              <Grid size={{ xs: 4 }}>
+                                <Typography color="text.secondary" variant="body2">Status</Typography>
+                              </Grid>
+                              <Grid size={{ xs: 8 }}>
+                                <Typography variant="body2">{connectedDevice.status ?? "UNKNOWN"}</Typography>
+                              </Grid>
+                            </Grid>
+                            <Stack direction="row" spacing={2}>
+                              <Button
+                                variant="outlined"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedDevice(connectedDevice);
+                                  void loadDiagnostics(connectedDevice.deviceId);
+                                  setDetailsDialogOpen(true);
+                                }}
+                              >
+                                View Details
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="error"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDisconnectTarget(connectedDevice);
+                                }}
+                              >
+                                Disconnect
+                              </Button>
+                            </Stack>
+                          </Box>
+                        ) : (
+                          <>
+                            <TextField
+                              label="Device ID"
+                              value={setupValues[deviceType.key] ?? ""}
+                              onChange={(event) =>
+                                handleSetupChange(
+                                  deviceType.key,
+                                  event.target.value
+                                )
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                              fullWidth
+                              size="small"
+                            />
 
-                        <Button
-                          variant="contained"
-                          onClick={() =>
-                            void handleConnectDevice(
-                              deviceType.key,
-                              deviceType.label
-                            )
-                          }
-                        >
-                          Connect
-                        </Button>
+                            <Button
+                              variant="contained"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleConnectDevice(
+                                  deviceType.key,
+                                  deviceType.label
+                                );
+                              }}
+                            >
+                              Connect
+                            </Button>
+                          </>
+                        )}
 
                         <Box>
                           <Typography sx={{ fontWeight: 600 }} variant="body2">
@@ -303,7 +520,7 @@ const DevicesPage = () => {
                           )}
                         </Box>
 
-                        {setupStatus && (
+                        {setupStatus && !connectedDevice && (
                           <Alert severity={setupStatus.status === "success" ? "success" : setupStatus.status === "error" ? "error" : "info"}>
                             {setupStatus.message}
                           </Alert>
@@ -421,138 +638,10 @@ const DevicesPage = () => {
                   </Typography>
 
                   {selectedDevice ? (
-                    <Stack spacing={2}>
-                      <Typography sx={{ fontWeight: 600 }}>
-                        {selectedDevice.deviceName ?? selectedDevice.deviceUid}
-                      </Typography>
-
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Device Name
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.deviceName ?? "TODO: add display name"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Device Type
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.deviceType ?? "TODO: expose from backend"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Device ID
-                          </Typography>
-                          <Typography>{selectedDevice.deviceUid}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Registration Date
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.createdAt ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Hardware Version
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.hardwareVersion ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Firmware Version
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.firmwareVersion ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-
-                      <Typography sx={{ fontWeight: 600 }}>Connection Information</Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Online / Offline
-                          </Typography>
-                          <Typography>
-                            {deviceDiagnostics?.online !== undefined
-                              ? deviceDiagnostics.online
-                                  ? "Online"
-                                  : "Offline"
-                              : selectedDevice.online
-                                ? "Online"
-                                : "Offline"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Last Synchronization
-                          </Typography>
-                          <Typography>
-                            {deviceDiagnostics?.lastMqttReceivedAt ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Last Seen
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.lastSeenAt ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Battery Percentage
-                          </Typography>
-                          <Typography>
-                            {deviceDiagnostics?.batteryPercent ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Communication Status
-                          </Typography>
-                          <Typography>
-                            {selectedDevice.communicationType ?? "TODO: backend field"}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-
-                      <Typography sx={{ fontWeight: 600 }}>Diagnostics</Typography>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Current Error Messages
-                          </Typography>
-                          <Typography>TODO: expose from diagnostics endpoint</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Warning Messages
-                          </Typography>
-                          <Typography>TODO: expose from diagnostics endpoint</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Sensor Status
-                          </Typography>
-                          <Typography>TODO: expose from diagnostics endpoint</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Typography color="text.secondary" variant="body2">
-                            Health Status
-                          </Typography>
-                          <Typography>TODO: expose from diagnostics endpoint</Typography>
-                        </Grid>
-                      </Grid>
-                    </Stack>
+                    <DeviceDetailsContent
+                      selectedDevice={selectedDevice}
+                      deviceDiagnostics={deviceDiagnostics}
+                    />
                   ) : (
                     <Typography color="text.secondary">
                       Select a device to view detailed information.
@@ -579,6 +668,30 @@ const DevicesPage = () => {
           <Button color="error" onClick={handleDisconnectConfirm} disabled={disconnecting}>
             {disconnecting ? "Disconnecting..." : "Disconnect"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog 
+        open={detailsDialogOpen} 
+        onClose={() => setDetailsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Device Details
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedDevice ? (
+            <DeviceDetailsContent
+              selectedDevice={selectedDevice}
+              deviceDiagnostics={deviceDiagnostics}
+            />
+          ) : (
+            <Typography>Loading details...</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </>

@@ -6,6 +6,7 @@ import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.service.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,19 @@ public class DeviceController {
                                                 ApiResponse.success(
                                                                 "Device registered successfully",
                                                                 deviceService.registerDevice(dto)));
+        }
+
+        @PostMapping("/register-kit")
+        public ResponseEntity<ApiResponse<Void>> registerDeviceKit(
+                        @Valid @RequestBody DeviceKitRegistrationRequestDTO dto) {
+
+                deviceService.registerDeviceKit(dto);
+
+                return ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .body(ApiResponse.success(
+                                                "Device kit registered successfully",
+                                                null));
         }
 
         @PatchMapping("/{id}/assign")

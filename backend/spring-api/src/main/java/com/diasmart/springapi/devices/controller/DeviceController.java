@@ -56,19 +56,6 @@ public class DeviceController {
                                                                 deviceService.registerDevice(dto)));
         }
 
-        @PostMapping("/register-kit")
-        public ResponseEntity<ApiResponse<Void>> registerDeviceKit(
-                        @Valid @RequestBody DeviceKitRegistrationRequestDTO dto) {
-
-                deviceService.registerDeviceKit(dto);
-
-                return ResponseEntity
-                                .status(HttpStatus.CREATED)
-                                .body(ApiResponse.success(
-                                                "Device kit registered successfully",
-                                                null));
-        }
-
         @PatchMapping("/{id}/assign")
         public ResponseEntity<ApiResponse<DeviceResponseDTO>> assignDevice(
                         @PathVariable Long id,

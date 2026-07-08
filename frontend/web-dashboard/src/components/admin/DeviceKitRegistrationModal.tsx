@@ -57,7 +57,7 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
     }
 
     try {
-      const response = await api.post("/devices/register-kit", formData);
+      const response = await api.post("/admin/devices/register-kit", formData);
 
       if (response.data?.error) {
         throw new Error(response.data.error.message || "Failed to register kit");

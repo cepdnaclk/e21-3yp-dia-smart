@@ -1,23 +1,42 @@
+import api from "./api";
 import type {
-  CareTeamMember,
-  RelationshipRequest,
+  CreateRelationshipRequestDto,
+  RelationshipRequestDto,
+  RelationshipSummaryDto,
 } from "../types/careTeam";
 
 export const careTeamService = {
-  // TODO: Integrate assigned doctor API when Milestone 4 backend endpoints are available.
-  getDoctors: async (): Promise<CareTeamMember[]> => {
-    return [];
+  async searchDoctors(query = ""): Promise<any[]> {
+    const response = await api.get("/relationships/doctors", {
+      params: { q: query },
+    });
+    return response.data.data;
   },
 
-  // TODO: Integrate caregiver API when Milestone 4 backend endpoints are available.
-  getCaregivers: async (): Promise<CareTeamMember[]> => {
-    return [];
+  async searchCaregivers(query = ""): Promise<any[]> {
+    const response = await api.get("/relationships/caregivers", {
+      params: { q: query },
+    });
+    return response.data.data;
   },
 
-  // TODO: Integrate relationship request API when Milestone 4 backend endpoints are available.
-  getRelationshipRequests: async (): Promise<
-    RelationshipRequest[]
-  > => {
-    return [];
+  async sendRequest(dto: CreateRelationshipRequestDto): Promise<RelationshipRequestDto> {
+    const response = await api.post("/relationship-requests", dto);
+    return response.data.data;
+  },
+
+  async getSentRequests(): Promise<RelationshipRequestDto[]> {
+    const response = await api.get("/relationship-requests/sent");
+    return response.data.data;
+  },
+
+  async getMyRelationships(): Promise<RelationshipSummaryDto[]> {
+    const response = await api.get("/relationships/me");
+    return response.data.data;
+  },
+
+  async revokeRelationship(requestId: number): Promise<RelationshipRequestDto> {
+    const response = await api.patch(`/relationship-requests/${requestId}/revoke`);
+    return response.data.data;
   },
 };

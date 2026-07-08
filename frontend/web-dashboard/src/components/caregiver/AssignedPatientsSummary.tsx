@@ -1,25 +1,53 @@
-import { Card, CardContent, Typography, Box, Button } from "@mui/material";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Card, CardContent, Typography, Box, CircularProgress } from "@mui/material";
+import { caregiverService } from "../../services/caregiverService";
 
 const AssignedPatientsSummary = () => {
+  const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const patients = await caregiverService.getAssignedPatients();
+        setCount(patients.length);
+      } catch (err) {
+        console.error("Failed to load patient count", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCount();
+  }, []);
+
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent sx={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-        <Box>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-            Assigned Patients Summary
-          </Typography>
+      <CardContent>
+        <Typography
+          variant="h6"
+          sx={{ mb: 2, fontWeight: "medium" }}
+        >
+          Assigned Patients Summary
+        </Typography>
 
-          {/* TODO: Fetch caregiver assigned patients overview count and active alerts */}
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Overview summary of patients under your care. Displays the number of active, warning, and stable status patients.
+        <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 1 }}
+          >
+            Total Assigned Patients
           </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-          <Button component={Link} to="/caregiver/patients" variant="text" size="small" sx={{ textTransform: "none" }}>
-            View All Patients
-          </Button>
+          {loading ? (
+            <CircularProgress size={20} />
+          ) : (
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: "bold", color: "primary.main" }}
+            >
+              {count !== null ? count : "N/A"}
+            </Typography>
+          )}
         </Box>
       </CardContent>
     </Card>

@@ -1,8 +1,9 @@
-// TODO:
-// Integrate Caregiver Dashboard APIs
-// Integrate Caregiver Assigned Patients APIs
-// Integrate Dosing Alert Acknowledge & Warning Override APIs
+import api from "./api";
+import type { CaregiverAssignedPatient } from "../types/caregiver";
 
 export const caregiverService = {
-  // Skeleton service for caregiver API integration
+  async getAssignedPatients(): Promise<CaregiverAssignedPatient[]> {
+    const response = await api.get("/relationships/my-patients");
+    return response.data.data;
+  },
 };

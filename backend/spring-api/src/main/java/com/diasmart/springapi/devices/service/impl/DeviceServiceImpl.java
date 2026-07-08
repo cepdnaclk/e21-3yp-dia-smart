@@ -152,50 +152,98 @@ public class DeviceServiceImpl implements DeviceService {
         @Override
         @Transactional
         public void registerDeviceKit(DeviceKitRegistrationRequestDTO dto) {
-                List<Device> kitDevices = new java.util.ArrayList<>();
-                if (dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty()) {
-                        kitDevices.add(findDeviceByUid(dto.getOuterGatewayId(), "Outer Gateway"));
-                }
-                if (dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty()) {
-                        kitDevices.add(findDeviceByUid(dto.getInnerUnitId(), "Inner Unit"));
-                }
-                if (dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty()) {
-                        kitDevices.add(findDeviceByUid(dto.getPenUnitId(), "Pen Unit"));
-                }
-                if (dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty()) {
-                        kitDevices.add(findDeviceByUid(dto.getGlucoseMeterId(), "Glucose Meter"));
-                }
+                // Ensure at least one ID is provided
+                boolean hasOuter = dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty();
+                boolean hasInner = dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty();
+                boolean hasPen = dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty();
+                boolean hasGluco = dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty();
 
-                if (kitDevices.isEmpty()) {
+                if (!hasOuter && !hasInner && !hasPen && !hasGluco) {
                         throw new ApiException(HttpStatus.BAD_REQUEST, "NO_DEVICES_PROVIDED", "At least one Device ID must be provided.");
                 }
 
-                for (Device d : kitDevices) {
-                        if (d.getBuyerId() != null || (d.getStatus() != null && d.getStatus() != DeviceStatus.NEW)) {
-                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_REGISTERED", "Device " + d.getDeviceUid() + " is already registered.");
-                        }
-                }
+                // Check if any provided device ID already exists
+                checkDeviceExists(dto.getOuterGatewayId(), "Outer Gateway");
+                checkDeviceExists(dto.getInnerUnitId(), "Inner Unit");
+                checkDeviceExists(dto.getPenUnitId(), "Pen Unit");
+                checkDeviceExists(dto.getGlucoseMeterId(), "Glucose Meter");
 
+                // Create the Buyer
                 Buyer buyer = new Buyer();
                 buyer.setFullName(dto.getBuyerFullName());
                 buyer.setNic(dto.getNic());
                 buyer.setContactNumber(dto.getContactNumber());
                 buyer.setAddress(dto.getAddress());
                 buyer.setPurchaseDate(dto.getPurchaseDate());
-
                 buyer = buyerRepository.save(buyer);
 
-                for (Device d : kitDevices) {
-                        d.setBuyerId(buyer.getBuyerId());
-                        d.setStatus(DeviceStatus.AVAILABLE);
-                        d.setActive(true);
-                        deviceRepository.save(d);
+                // Create the Devices
+                if (hasOuter) createDevice(dto.getOuterGatewayId(), "Outer Gateway", buyer.getBuyerId());
+                if (hasInner) createDevice(dto.getInnerUnitId(), "Inner Unit", buyer.getBuyerId());
+                if (hasPen) createDevice(dto.getPenUnitId(), "Pen Unit", buyer.getBuyerId());
+                if (hasGluco) createDevice(dto.getGlucoseMeterId(), "Glucose Meter", buyer.getBuyerId());
+        }
+
+        private void checkDeviceExists(String uid, String label) {
+                if (uid != null && !uid.trim().isEmpty()) {
+                        if (deviceRepository.existsByDeviceUid(uid)) {
+                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_EXISTS",
+                                                label + " with ID " + uid + " already exists.");
+                        }
                 }
+        }
+
+        private void createDevice(String uid, String type, Long buyerId) {
+                Device d = new Device();
+                d.setDeviceUid(uid);
+                d.setDeviceType(type);
+                d.setBuyerId(buyerId);
+                d.setPatientId(null);
+                d.setActive(true);
+                d.setStatus(DeviceStatus.UNKNOWN);
+                deviceRepository.save(d);
         }
 
         private Device findDeviceByUid(String uid, String label) {
                 return deviceRepository.findByDeviceUid(uid)
                                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", label + " ID is invalid or does not exist."));
+        }
+
+        @Override
+        @Transactional
+        public void activateDeviceKit(Long patientId, com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto) {
+                List<Device> devicesToActivate = new java.util.ArrayList<>();
+                if (dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty()) {
+                        devicesToActivate.add(findDeviceByUid(dto.getOuterGatewayId(), "Outer Gateway"));
+                }
+                if (dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty()) {
+                        devicesToActivate.add(findDeviceByUid(dto.getInnerUnitId(), "Inner Unit"));
+                }
+                if (dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty()) {
+                        devicesToActivate.add(findDeviceByUid(dto.getPenUnitId(), "Pen Unit"));
+                }
+                if (dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty()) {
+                        devicesToActivate.add(findDeviceByUid(dto.getGlucoseMeterId(), "Glucose Meter"));
+                }
+
+                if (devicesToActivate.isEmpty()) {
+                        throw new ApiException(HttpStatus.BAD_REQUEST, "NO_DEVICES_PROVIDED", "At least one Device ID must be provided to activate.");
+                }
+
+                for (Device device : devicesToActivate) {
+                        if (!Boolean.TRUE.equals(device.getActive())) {
+                                throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_INACTIVE", "Device " + device.getDeviceUid() + " is not active.");
+                        }
+                        if (device.getPatientId() != null && !device.getPatientId().equals(patientId)) {
+                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_ASSIGNED", "Device " + device.getDeviceUid() + " is already assigned to another patient.");
+                        }
+                }
+
+                for (Device device : devicesToActivate) {
+                        device.setPatientId(patientId);
+                        device.setStatus(DeviceStatus.CONNECTED);
+                        deviceRepository.save(device);
+                }
         }
 
         @Override

@@ -17,15 +17,11 @@ import {
   DialogActions,
   Grid,
   Divider,
-  Chip
+  Chip,
+  Box,
+  CircularProgress
 } from "@mui/material";
-
-interface Buyer {
-  fullName: string;
-  nic: string;
-  contactNumber: string;
-  address: string;
-}
+import api from "../../services/api";
 
 interface Device {
   deviceId: number;
@@ -39,10 +35,6 @@ interface Device {
   batteryPercent: number | null;
   lastSeenAt: string | null;
   firmwareVersion: string | null;
-  hardwareVersion: string | null;
-  mqttClientId: string | null;
-  awsThingName: string | null;
-  buyer: Buyer | null;
 }
 
 interface Diagnostics {
@@ -60,39 +52,44 @@ const DeviceHealthSection = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/v1/devices", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data) {
-          // Filter out NEW devices (only activated devices)
-          const activatedDevices = data.data.filter((d: Device) => d.status !== 'NEW' && d.active);
-          setDevices(activatedDevices);
-        }
-      });
+    fetchDevices();
   }, []);
 
-  const handleViewDetails = (device: Device) => {
+  const fetchDevices = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get("/admin/devices");
+      if (response.data && response.data.data) {
+        // Only show active devices for telemetry
+        const activeDevices = response.data.data.filter((d: Device) => d.active);
+        setDevices(activeDevices);
+      }
+    } catch (error) {
+      console.error("Failed to fetch devices", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewDetails = async (device: Device) => {
     setSelectedDevice(device);
     setDiagnostics(null);
+    setDiagLoading(true);
     
-    // Fetch live diagnostics for the device
-    fetch(`/api/v1/devices/${device.deviceId}/diagnostics`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data) {
-          setDiagnostics(data.data);
-        }
-      });
+    try {
+      const response = await api.get(`/devices/${device.deviceId}/diagnostics`);
+      if (response.data && response.data.data) {
+        setDiagnostics(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch diagnostics", error);
+    } finally {
+      setDiagLoading(false);
+    }
   };
 
   return (
@@ -102,93 +99,118 @@ const DeviceHealthSection = () => {
           Device Telemetry & Health
         </Typography>
         
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Device ID</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Buyer</TableCell>
-                <TableCell>Patient</TableCell>
-                <TableCell>Online</TableCell>
-                <TableCell>Battery</TableCell>
-                <TableCell>Last Seen</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {devices.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Monitor live connectivity, battery levels, and firmware status of all active devices.
+        </Typography>
+        
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={9} align="center">No activated devices found.</TableCell>
+                  <TableCell>Device ID</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Online</TableCell>
+                  <TableCell>Battery</TableCell>
+                  <TableCell>Last Seen</TableCell>
+                  <TableCell align="right">Action</TableCell>
                 </TableRow>
-              ) : (
-                devices.map((device, index) => (
-                  <TableRow key={index}>
+              </TableHead>
+              <TableBody>
+                {devices.map((device) => (
+                  <TableRow key={device.deviceId}>
                     <TableCell>{device.deviceUid}</TableCell>
-                    <TableCell>{device.deviceType}</TableCell>
-                    <TableCell>{device.buyer?.fullName || "N/A"}</TableCell>
-                    <TableCell>{device.patientId || "N/A"}</TableCell>
-                    <TableCell>
-                      <Chip label={device.online ? "Online" : "Offline"} size="small" color={device.online ? "success" : "error"} />
-                    </TableCell>
-                    <TableCell>{device.batteryPercent != null ? `${device.batteryPercent}%` : "N/A"}</TableCell>
-                    <TableCell>{device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : "Never"}</TableCell>
                     <TableCell>{device.status}</TableCell>
                     <TableCell>
-                      <Button size="small" onClick={() => handleViewDetails(device)}>View Details</Button>
+                      <Chip 
+                        label={device.online ? "Online" : "Offline"} 
+                        color={device.online ? "success" : "error"} 
+                        size="small" 
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {device.batteryPercent !== null && device.batteryPercent !== undefined 
+                        ? `${device.batteryPercent}%` 
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : "Never"}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button size="small" onClick={() => handleViewDetails(device)}>
+                        View Details
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                ))}
+                {devices.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">No active devices found.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
         <Dialog open={!!selectedDevice} onClose={() => setSelectedDevice(null)} maxWidth="md" fullWidth>
-          <DialogTitle>Device Full Details: {selectedDevice?.deviceUid}</DialogTitle>
+          <DialogTitle>Device Diagnostics</DialogTitle>
           <DialogContent dividers>
             {selectedDevice && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" fontWeight="bold">Device Information</Typography>
-                  <Typography variant="body2" color="textSecondary">ID: {selectedDevice.deviceUid}</Typography>
-                  <Typography variant="body2" color="textSecondary">Type: {selectedDevice.deviceType}</Typography>
-                  <Typography variant="body2" color="textSecondary">Firmware: {selectedDevice.firmwareVersion || "N/A"}</Typography>
-                  <Typography variant="body2" color="textSecondary">Hardware: {selectedDevice.hardwareVersion || "N/A"}</Typography>
-                  <Typography variant="body2" color="textSecondary">MQTT Client: {selectedDevice.mqttClientId || "N/A"}</Typography>
-                  <Typography variant="body2" color="textSecondary">AWS Thing Name: {selectedDevice.awsThingName || "N/A"}</Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" fontWeight="bold">Buyer Information</Typography>
-                  <Typography variant="body2" color="textSecondary">Name: {selectedDevice.buyer?.fullName || "N/A"}</Typography>
-                  <Typography variant="body2" color="textSecondary">NIC: {selectedDevice.buyer?.nic || "N/A"}</Typography>
-                  <Typography variant="body2" color="textSecondary">Contact: {selectedDevice.buyer?.contactNumber || "N/A"}</Typography>
-                  
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle1" fontWeight="bold">Patient Information</Typography>
-                  <Typography variant="body2" color="textSecondary">Assigned Patient ID: {selectedDevice.patientId || "None"}</Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Live Diagnostics</Typography>
-                  {diagnostics ? (
-                    <Grid container spacing={2}>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">Online Status:</Typography> <Chip label={diagnostics.online ? "Online" : "Offline"} size="small" color={diagnostics.online ? "success" : "error"} /></Grid>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">Battery %:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.batteryPercent != null ? `${diagnostics.batteryPercent}%` : "N/A"}</Typography></Grid>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">Battery Voltage:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.batteryVoltageV != null ? `${diagnostics.batteryVoltageV}V` : "N/A"}</Typography></Grid>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">WiFi RSSI:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.wifiRssiDbm != null ? `${diagnostics.wifiRssiDbm} dBm` : "N/A"}</Typography></Grid>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">BLE RSSI:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.bleRssiDbm != null ? `${diagnostics.bleRssiDbm} dBm` : "N/A"}</Typography></Grid>
-                      <Grid item xs={6} sm={3}><Typography variant="body2">Free Heap:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.freeHeapBytes != null ? `${diagnostics.freeHeapBytes} bytes` : "N/A"}</Typography></Grid>
-                      <Grid item xs={12} sm={6}><Typography variant="body2">Last MQTT Time:</Typography> <Typography variant="body2" fontWeight="bold">{diagnostics.lastMqttReceivedAt ? new Date(diagnostics.lastMqttReceivedAt).toLocaleString() : "N/A"}</Typography></Grid>
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  {selectedDevice.deviceName || selectedDevice.deviceUid} ({selectedDevice.deviceType})
+                </Typography>
+                
+                {diagLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : diagnostics ? (
+                  <Grid container spacing={3} sx={{ mt: 1 }}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">Connectivity</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.online ? "🟢 Online" : "🔴 Offline"}
+                      </Typography>
+                      
+                      <Typography variant="subtitle2" color="text.secondary">Last MQTT Message</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.lastMqttReceivedAt ? new Date(diagnostics.lastMqttReceivedAt).toLocaleString() : "Never"}
+                      </Typography>
+                      
+                      <Typography variant="subtitle2" color="text.secondary">WiFi RSSI (Signal Strength)</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.wifiRssiDbm ? `${diagnostics.wifiRssiDbm} dBm` : "N/A"}
+                      </Typography>
                     </Grid>
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">Loading diagnostics...</Typography>
-                  )}
-                </Grid>
-              </Grid>
+                    
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">Battery Level</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.batteryPercent ? `${diagnostics.batteryPercent}%` : "N/A"}
+                      </Typography>
+                      
+                      <Typography variant="subtitle2" color="text.secondary">Battery Voltage</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.batteryVoltageV ? `${diagnostics.batteryVoltageV} V` : "N/A"}
+                      </Typography>
+                      
+                      <Typography variant="subtitle2" color="text.secondary">Free Heap Memory</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>
+                        {diagnostics.freeHeapBytes ? `${diagnostics.freeHeapBytes} bytes` : "N/A"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <Typography color="error">Failed to load diagnostic data.</Typography>
+                )}
+              </Box>
             )}
           </DialogContent>
           <DialogActions>

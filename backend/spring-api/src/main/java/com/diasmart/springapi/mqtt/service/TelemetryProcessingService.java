@@ -994,10 +994,11 @@ public class TelemetryProcessingService {
                 );
 
         DeviceHealthLog lastLog =
-                healthLogRepository
-                        .findTopByDeviceIdOrderByMeasuredAtDesc(
-                                device.getDeviceId()
-                        );
+        healthLogRepository
+                .findTopByDeviceIdOrderByMeasuredAtDesc(
+                        device.getDeviceId()
+                )
+                .orElse(null);
 
         if (lastLog != null
                 && sameDouble(

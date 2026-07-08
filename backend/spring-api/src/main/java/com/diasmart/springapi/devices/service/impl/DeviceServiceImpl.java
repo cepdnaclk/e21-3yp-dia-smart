@@ -197,7 +197,7 @@ public class DeviceServiceImpl implements DeviceService {
         public DeviceDiagnosticsDTO getDeviceDiagnostics(Long id) {
                 Device device = findDevice(id);
                 Optional<DeviceHealthLog> latestHealth = healthLogRepository
-                                .findOptionalTopByDeviceIdOrderByMeasuredAtDesc(
+                                .findTopByDeviceIdOrderByMeasuredAtDesc(
                                                 id);
                 Optional<RawDeviceEvent> latestRawEvent = rawDeviceEventRepository
                                 .findLatestForDeviceDiagnostics(id);
@@ -264,7 +264,7 @@ public class DeviceServiceImpl implements DeviceService {
 
         private DeviceResponseDTO mapToDTO(Device device) {
                 Optional<DeviceHealthLog> latestHealth = healthLogRepository
-                                .findOptionalTopByDeviceIdOrderByMeasuredAtDesc(
+                                .findTopByDeviceIdOrderByMeasuredAtDesc(
                                                 device.getDeviceId());
                 OffsetDateTime lastMqttReceivedAt = rawDeviceEventRepository
                                 .findLatestForDeviceDiagnostics(
@@ -308,7 +308,7 @@ public class DeviceServiceImpl implements DeviceService {
 
         private DeviceSummaryDTO mapToSummaryDTO(Device device) {
                 Optional<DeviceHealthLog> latestHealth = healthLogRepository
-                                .findOptionalTopByDeviceIdOrderByMeasuredAtDesc(
+                                .findTopByDeviceIdOrderByMeasuredAtDesc(
                                                 device.getDeviceId());
                 OffsetDateTime lastMqttReceivedAt = rawDeviceEventRepository
                                 .findLatestForDeviceDiagnostics(

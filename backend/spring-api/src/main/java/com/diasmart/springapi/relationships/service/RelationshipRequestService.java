@@ -64,14 +64,6 @@ public class RelationshipRequestService {
             targetUserId = targetUser.getUserId();
         }
 
-        if (targetUserId == null) {
-            throw new IllegalArgumentException("Target user ID or email is required");
-        }
-
-        if (requesterUserId.equals(targetUserId)) {
-            throw new IllegalArgumentException("Cannot send a relationship request to yourself");
-        }
-
         Long patientId;
         if (currentUser.getRole() == UserRole.PATIENT) {
             List<UserPatientAccess> selfAccessList = userPatientAccessRepository.findByUserIdOrderByCreatedAtDesc(requesterUserId);
@@ -88,8 +80,22 @@ public class RelationshipRequestService {
             if (!patientRepository.existsById(patientId)) {
                 throw new IllegalArgumentException("Patient not found");
             }
+            // Resolve targetUserId automatically from patientId if not provided
+            if (targetUserId == null) {
+                targetUserId = userPatientAccessRepository.findByPatientIdAndAccessRoleAndStatus(patientId, AccessRole.SELF, AccessStatus.ACTIVE)
+                        .map(UserPatientAccess::getUserId)
+                        .orElseThrow(() -> new IllegalArgumentException("Target user not found for the given patient profile"));
+            }
         } else {
             throw new IllegalArgumentException("Admins cannot send relationship requests");
+        }
+
+        if (targetUserId == null) {
+            throw new IllegalArgumentException("Target user ID or email is required");
+        }
+
+        if (requesterUserId.equals(targetUserId)) {
+            throw new IllegalArgumentException("Cannot send a relationship request to yourself");
         }
 
         // Prevent duplicate pending requests
@@ -253,14 +259,7 @@ public class RelationshipRequestService {
         List<RelationshipRequest> requests = relationshipRequestRepository
                 .findByTargetUserIdAndStatusOrderByCreatedAtDesc(currentUserId, RelationshipStatus.PENDING);
 
-        return requests.stream()
-                .map(r -> RelationshipRequestDto.fromEntity(
-                        r,
-                        getUserName(r.getRequesterUserId()),
-                        getUserName(r.getTargetUserId()),
-                        getPatientName(r.getPatientId())
-                ))
-                .toList();
+        return mapRequestsToDtos(requests);
     }
 
     @Transactional(readOnly = true)
@@ -269,14 +268,7 @@ public class RelationshipRequestService {
         List<RelationshipRequest> requests = relationshipRequestRepository
                 .findByRequesterUserIdOrderByCreatedAtDesc(currentUserId);
 
-        return requests.stream()
-                .map(r -> RelationshipRequestDto.fromEntity(
-                        r,
-                        getUserName(r.getRequesterUserId()),
-                        getUserName(r.getTargetUserId()),
-                        getPatientName(r.getPatientId())
-                ))
-                .toList();
+        return mapRequestsToDtos(requests);
     }
 
     @Transactional(readOnly = true)
@@ -292,30 +284,7 @@ public class RelationshipRequestService {
         List<RelationshipRequest> requests = relationshipRequestRepository
                 .findByPatientIdAndStatusOrderByCreatedAtDesc(patientId, RelationshipStatus.ACCEPTED);
 
-        return requests.stream()
-                .map(r -> {
-                    RelationshipSummaryDto summary = new RelationshipSummaryDto();
-                    summary.setRequestId(r.getRequestId());
-                    summary.setPatientId(r.getPatientId());
-                    summary.setPatientName(getPatientName(r.getPatientId()));
-                    summary.setRelationshipRole(r.getRelationshipRole());
-                    summary.setCreatedAt(r.getCreatedAt());
-
-                    Long otherUserId = r.getRequesterUserId().equals(currentUserId)
-                            ? r.getTargetUserId()
-                            : r.getRequesterUserId();
-
-                    summary.setUserId(otherUserId);
-                    AppUser otherUser = appUserRepository.findById(otherUserId).orElse(null);
-                    if (otherUser != null) {
-                        summary.setDisplayName(otherUser.getDisplayName());
-                        summary.setEmail(otherUser.getEmail());
-                    } else {
-                        summary.setDisplayName("Unknown User");
-                    }
-                    return summary;
-                })
-                .toList();
+        return mapRequestsToSummaries(requests, currentUserId);
     }
 
     @Transactional(readOnly = true)
@@ -324,12 +293,81 @@ public class RelationshipRequestService {
         List<RelationshipRequest> requests = relationshipRequestRepository
                 .findActiveRequestsForUser(currentUserId, RelationshipStatus.ACCEPTED);
 
+        return mapRequestsToSummaries(requests, currentUserId);
+    }
+
+    private List<RelationshipRequestDto> mapRequestsToDtos(List<RelationshipRequest> requests) {
+        if (requests.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        java.util.Set<Long> patientIds = new java.util.HashSet<>();
+        for (RelationshipRequest r : requests) {
+            if (r.getRequesterUserId() != null) userIds.add(r.getRequesterUserId());
+            if (r.getTargetUserId() != null) userIds.add(r.getTargetUserId());
+            if (r.getPatientId() != null) patientIds.add(r.getPatientId());
+        }
+
+        java.util.Map<Long, String> userNamesMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            appUserRepository.findAllById(userIds).forEach(user -> 
+                userNamesMap.put(user.getUserId(), user.getDisplayName())
+            );
+        }
+
+        java.util.Map<Long, String> patientNamesMap = new java.util.HashMap<>();
+        if (!patientIds.isEmpty()) {
+            patientRepository.findAllById(patientIds).forEach(patient -> 
+                patientNamesMap.put(patient.getPatientId(), patient.getFullName())
+            );
+        }
+
+        return requests.stream()
+                .map(r -> RelationshipRequestDto.fromEntity(
+                        r,
+                        userNamesMap.getOrDefault(r.getRequesterUserId(), "Unknown User"),
+                        userNamesMap.getOrDefault(r.getTargetUserId(), "Unknown User"),
+                        patientNamesMap.getOrDefault(r.getPatientId(), "Unknown Patient")
+                ))
+                .toList();
+    }
+
+    private List<RelationshipSummaryDto> mapRequestsToSummaries(List<RelationshipRequest> requests, Long currentUserId) {
+        if (requests.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        java.util.Set<Long> patientIds = new java.util.HashSet<>();
+        for (RelationshipRequest r : requests) {
+            Long otherUserId = r.getRequesterUserId().equals(currentUserId)
+                    ? r.getTargetUserId()
+                    : r.getRequesterUserId();
+            if (otherUserId != null) userIds.add(otherUserId);
+            if (r.getPatientId() != null) patientIds.add(r.getPatientId());
+        }
+
+        java.util.Map<Long, AppUser> usersMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            appUserRepository.findAllById(userIds).forEach(user -> 
+                usersMap.put(user.getUserId(), user)
+            );
+        }
+
+        java.util.Map<Long, String> patientNamesMap = new java.util.HashMap<>();
+        if (!patientIds.isEmpty()) {
+            patientRepository.findAllById(patientIds).forEach(patient -> 
+                patientNamesMap.put(patient.getPatientId(), patient.getFullName())
+            );
+        }
+
         return requests.stream()
                 .map(r -> {
                     RelationshipSummaryDto summary = new RelationshipSummaryDto();
                     summary.setRequestId(r.getRequestId());
                     summary.setPatientId(r.getPatientId());
-                    summary.setPatientName(getPatientName(r.getPatientId()));
+                    summary.setPatientName(patientNamesMap.getOrDefault(r.getPatientId(), "Unknown Patient"));
                     summary.setRelationshipRole(r.getRelationshipRole());
                     summary.setCreatedAt(r.getCreatedAt());
 
@@ -338,7 +376,7 @@ public class RelationshipRequestService {
                             : r.getRequesterUserId();
 
                     summary.setUserId(otherUserId);
-                    AppUser otherUser = appUserRepository.findById(otherUserId).orElse(null);
+                    AppUser otherUser = usersMap.get(otherUserId);
                     if (otherUser != null) {
                         summary.setDisplayName(otherUser.getDisplayName());
                         summary.setEmail(otherUser.getEmail());
@@ -370,8 +408,12 @@ public class RelationshipRequestService {
 
     @Transactional(readOnly = true)
     public List<UserResponse> searchUsersByRole(UserRole role, String query) {
-        String normalizedQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : null;
-        List<AppUser> users = appUserRepository.searchActiveByRoleAndQuery(role, normalizedQuery);
+        List<AppUser> users;
+        if (query == null || query.trim().isEmpty()) {
+            users = appUserRepository.findByRoleAndActiveTrue(role);
+        } else {
+            users = appUserRepository.searchActiveByRoleAndQuery(role, query.trim());
+        }
         return users.stream()
                 .map(UserResponse::fromEntity)
                 .toList();

@@ -62,6 +62,13 @@ public class Device {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "buyer_id")
+    private Long buyerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private DeviceStatus status;
+
     @PrePersist
     public void prePersist() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -216,5 +223,21 @@ public class Device {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getBuyerId() {
+        return buyerId;
+    }
+
+    public void setBuyerId(Long buyerId) {
+        this.buyerId = buyerId;
+    }
+
+    public DeviceStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(DeviceStatus status) {
+        this.status = status;
     }
 }

@@ -15,6 +15,8 @@ public class DeviceSummaryDTO {
     private OffsetDateTime lastSeenAt;
     private Boolean active;
 
+    private com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO buyer;
+
     public Long getDeviceId() {
         return deviceId;
     }
@@ -93,5 +95,13 @@ public class DeviceSummaryDTO {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO getBuyer() {
+        return buyer;
+    }
+
+    public void setBuyer(com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO buyer) {
+        this.buyer = buyer;
     }
 }

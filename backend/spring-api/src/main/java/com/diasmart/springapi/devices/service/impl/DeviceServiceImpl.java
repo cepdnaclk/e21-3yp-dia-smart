@@ -20,6 +20,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
+import com.diasmart.springapi.devices.entity.Buyer;
+import com.diasmart.springapi.devices.entity.DeviceStatus;
+import com.diasmart.springapi.devices.repository.BuyerRepository;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -49,16 +55,19 @@ public class DeviceServiceImpl implements DeviceService {
         private final DeviceHealthLogRepository healthLogRepository;
         private final RawDeviceEventRepository rawDeviceEventRepository;
         private final AuditService auditService;
+        private final BuyerRepository buyerRepository;
 
         public DeviceServiceImpl(
                         DeviceRepository deviceRepository,
                         DeviceHealthLogRepository healthLogRepository,
                         RawDeviceEventRepository rawDeviceEventRepository,
-                        AuditService auditService) {
+                        AuditService auditService,
+                        BuyerRepository buyerRepository) {
                 this.deviceRepository = deviceRepository;
                 this.healthLogRepository = healthLogRepository;
                 this.rawDeviceEventRepository = rawDeviceEventRepository;
                 this.auditService = auditService;
+                this.buyerRepository = buyerRepository;
         }
 
         @Override
@@ -141,6 +150,55 @@ public class DeviceServiceImpl implements DeviceService {
         }
 
         @Override
+        @Transactional
+        public void registerDeviceKit(DeviceKitRegistrationRequestDTO dto) {
+                List<Device> kitDevices = new java.util.ArrayList<>();
+                if (dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty()) {
+                        kitDevices.add(findDeviceByUid(dto.getOuterGatewayId(), "Outer Gateway"));
+                }
+                if (dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty()) {
+                        kitDevices.add(findDeviceByUid(dto.getInnerUnitId(), "Inner Unit"));
+                }
+                if (dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty()) {
+                        kitDevices.add(findDeviceByUid(dto.getPenUnitId(), "Pen Unit"));
+                }
+                if (dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty()) {
+                        kitDevices.add(findDeviceByUid(dto.getGlucoseMeterId(), "Glucose Meter"));
+                }
+
+                if (kitDevices.isEmpty()) {
+                        throw new ApiException(HttpStatus.BAD_REQUEST, "NO_DEVICES_PROVIDED", "At least one Device ID must be provided.");
+                }
+
+                for (Device d : kitDevices) {
+                        if (d.getBuyerId() != null || (d.getStatus() != null && d.getStatus() != DeviceStatus.NEW)) {
+                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_REGISTERED", "Device " + d.getDeviceUid() + " is already registered.");
+                        }
+                }
+
+                Buyer buyer = new Buyer();
+                buyer.setFullName(dto.getBuyerFullName());
+                buyer.setNic(dto.getNic());
+                buyer.setContactNumber(dto.getContactNumber());
+                buyer.setAddress(dto.getAddress());
+                buyer.setPurchaseDate(dto.getPurchaseDate());
+
+                buyer = buyerRepository.save(buyer);
+
+                for (Device d : kitDevices) {
+                        d.setBuyerId(buyer.getBuyerId());
+                        d.setStatus(DeviceStatus.AVAILABLE);
+                        d.setActive(true);
+                        deviceRepository.save(d);
+                }
+        }
+
+        private Device findDeviceByUid(String uid, String label) {
+                return deviceRepository.findByDeviceUid(uid)
+                                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", label + " ID is invalid or does not exist."));
+        }
+
+        @Override
         public DeviceResponseDTO assignDevice(
                         Long id,
                         AssignDeviceRequestDTO dto) {
@@ -153,6 +211,13 @@ public class DeviceServiceImpl implements DeviceService {
                                         "This device is not active and cannot be assigned.");
                 }
 
+                if (device.getBuyerId() == null) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_NOT_REGISTERED",
+                                        "This device does not belong to a registered buyer. Please contact your administrator.");
+                }
+
                 Long previousPatientId = device.getPatientId();
                 Long requestedPatientId = dto.getPatientId();
 
@@ -161,7 +226,7 @@ public class DeviceServiceImpl implements DeviceService {
                         throw new ApiException(
                                         HttpStatus.CONFLICT,
                                         "DEVICE_ALREADY_ASSIGNED",
-                                        "This device is already assigned to another patient.");
+                                        "This device is already connected to another patient. Please contact your administrator.");
                 }
 
                 if (previousPatientId != null
@@ -170,6 +235,7 @@ public class DeviceServiceImpl implements DeviceService {
                 }
 
                 device.setPatientId(requestedPatientId);
+                device.setStatus(DeviceStatus.CONNECTED);
 
                 Device updatedDevice = deviceRepository.save(device);
                 auditService.logDeviceAssignment(
@@ -303,6 +369,18 @@ public class DeviceServiceImpl implements DeviceService {
                 dto.setCreatedAt(device.getCreatedAt());
                 dto.setUpdatedAt(device.getUpdatedAt());
 
+                if (device.getBuyerId() != null) {
+                        buyerRepository.findById(device.getBuyerId()).ifPresent(buyer -> {
+                                DeviceResponseDTO.BuyerDTO buyerDto = new DeviceResponseDTO.BuyerDTO();
+                                buyerDto.setFullName(buyer.getFullName());
+                                buyerDto.setNic(buyer.getNic());
+                                buyerDto.setContactNumber(buyer.getContactNumber());
+                                buyerDto.setAddress(buyer.getAddress());
+                                buyerDto.setPurchaseDate(buyer.getPurchaseDate());
+                                dto.setBuyer(buyerDto);
+                        });
+                }
+
                 return dto;
         }
 
@@ -335,6 +413,19 @@ public class DeviceServiceImpl implements DeviceService {
                                                 : healthLog.getBatteryPercent());
                 dto.setLastSeenAt(device.getLastSeenAt());
                 dto.setActive(device.getActive());
+
+                if (device.getBuyerId() != null) {
+                        buyerRepository.findById(device.getBuyerId()).ifPresent(buyer -> {
+                                DeviceResponseDTO.BuyerDTO buyerDto = new DeviceResponseDTO.BuyerDTO();
+                                buyerDto.setFullName(buyer.getFullName());
+                                buyerDto.setNic(buyer.getNic());
+                                buyerDto.setContactNumber(buyer.getContactNumber());
+                                buyerDto.setAddress(buyer.getAddress());
+                                buyerDto.setPurchaseDate(buyer.getPurchaseDate());
+                                dto.setBuyer(buyerDto);
+                        });
+                }
+
                 return dto;
         }
 

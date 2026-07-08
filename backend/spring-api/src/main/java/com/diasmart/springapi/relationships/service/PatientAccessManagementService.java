@@ -40,7 +40,14 @@ public class PatientAccessManagementService {
     @Transactional
     public PatientAccessResponse createAccess(CreatePatientAccessRequest request) {
         requireAdmin();
+        return createAccessInternal(request);
+    }
 
+    /**
+     * Internal method to create patient access, bypassing admin authorization check.
+     */
+    @Transactional
+    public PatientAccessResponse createAccessInternal(CreatePatientAccessRequest request) {
         /*
          * Correct behavior:
          *
@@ -129,7 +136,14 @@ public class PatientAccessManagementService {
     @Transactional
     public PatientAccessResponse revokeAccess(Long accessId) {
         AppUser currentUser = requireAdmin();
+        return revokeAccessInternal(accessId, currentUser.getUserId());
+    }
 
+    /**
+     * Internal method to revoke patient access, bypassing admin authorization check.
+     */
+    @Transactional
+    public PatientAccessResponse revokeAccessInternal(Long accessId, Long revokedByUserId) {
         UserPatientAccess access = userPatientAccessRepository
                 .findById(accessId)
                 .orElseThrow(() -> new IllegalArgumentException("Patient access record not found"));
@@ -140,7 +154,7 @@ public class PatientAccessManagementService {
 
         access.setStatus(AccessStatus.REVOKED);
         access.setRevokedAt(OffsetDateTime.now());
-        access.setRevokedBy(currentUser.getUserId());
+        access.setRevokedBy(revokedByUserId);
 
         UserPatientAccess savedAccess = userPatientAccessRepository.save(access);
 

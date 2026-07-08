@@ -1,10 +1,13 @@
 package com.diasmart.springapi.admin.controller;
 
 import com.diasmart.springapi.admin.service.AdminDeviceService;
+import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.shared.dto.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,5 +28,13 @@ public class AdminDeviceController {
         List<DeviceSummaryDTO> response = adminDeviceService.getAllDevices();
         return ResponseEntity.ok(
                 ApiResponse.success("Devices retrieved successfully", response));
+    }
+
+    @PostMapping("/register-kit")
+    public ResponseEntity<ApiResponse<Void>> registerKit(
+            @RequestBody DeviceKitRegistrationRequestDTO request) {
+        adminDeviceService.registerDeviceKit(request);
+        return ResponseEntity.ok(
+                ApiResponse.success("Device kit registered successfully", null));
     }
 }

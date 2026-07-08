@@ -174,6 +174,9 @@ class TelemetryProcessingServiceTest {
 
         verify(rawRepository, atLeastOnce())
                 .save(any());
+    }
+
+    @Test
     void shouldSkipDuplicateGlucoseSequenceAndSaveDose() {
         TelemetryPayloadDTO payload = combinedGlucoseAndDosePayload();
 

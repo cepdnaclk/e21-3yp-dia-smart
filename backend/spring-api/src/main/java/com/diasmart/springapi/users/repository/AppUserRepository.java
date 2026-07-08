@@ -13,7 +13,9 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     boolean existsByEmailIgnoreCase(String email);
 
-    @org.springframework.data.jpa.repository.Query("SELECT u FROM AppUser u WHERE u.role = :role AND u.active = true AND (:query IS NULL OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))")
+    List<AppUser> findByRoleAndActiveTrue(UserRole role);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM AppUser u WHERE u.role = :role AND u.active = true AND (LOWER(u.displayName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<AppUser> searchActiveByRoleAndQuery(
             @org.springframework.data.repository.query.Param("role") UserRole role,
             @org.springframework.data.repository.query.Param("query") String query);

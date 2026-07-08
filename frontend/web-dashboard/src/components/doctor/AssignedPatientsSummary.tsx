@@ -1,22 +1,53 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Card, CardContent, Typography, Box, CircularProgress } from "@mui/material";
+import { doctorService } from "../../services/doctorService";
 
 const AssignedPatientsSummary = () => {
+  const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const patients = await doctorService.getAssignedPatients();
+        setCount(patients.length);
+      } catch (err) {
+        console.error("Failed to load patient count", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCount();
+  }, []);
+
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
       <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
+        <Typography
+          variant="h6"
+          sx={{ mb: 2, fontWeight: "medium" }}
+        >
           Assigned Patients Summary
-        </Typography>
-        
-        {/* TODO: Integrate with patient statistics and status APIs */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          This card will display a summary breakdown of your assigned patients, including total count, critical status alerts, and stable patient distributions.
         </Typography>
 
         <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
-          <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
-            [Placeholder: Patient status distribution breakdown and link to Patient list]
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 1 }}
+          >
+            Total Assigned Patients
           </Typography>
+          {loading ? (
+            <CircularProgress size={20} />
+          ) : (
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: "bold", color: "primary.main" }}
+            >
+              {count !== null ? count : "N/A"}
+            </Typography>
+          )}
         </Box>
       </CardContent>
     </Card>

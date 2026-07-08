@@ -1,6 +1,7 @@
 package com.diasmart.springapi.relationships.repository;
 
 import com.diasmart.springapi.relationships.entity.UserPatientAccess;
+import com.diasmart.springapi.shared.enums.AccessRole;
 import com.diasmart.springapi.shared.enums.AccessStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -43,4 +44,9 @@ public interface UserPatientAccessRepository extends JpaRepository<UserPatientAc
 
         List<UserPatientAccess> findByUserIdOrderByCreatedAtDesc(
                         Long userId);
+
+        Optional<UserPatientAccess> findByPatientIdAndAccessRoleAndStatus(
+                        Long patientId,
+                        AccessRole accessRole,
+                        AccessStatus status);
 }

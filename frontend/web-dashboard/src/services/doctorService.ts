@@ -1,7 +1,9 @@
-// TODO:
-// Integrate Doctor Dashboard APIs
-// Integrate Assigned Patients APIs
-// Integrate Reports APIs
+import api from "./api";
+import type { DoctorAssignedPatient } from "../types/doctor";
+
 export const doctorService = {
-  // Skeleton service for future API integration
+  async getAssignedPatients(): Promise<DoctorAssignedPatient[]> {
+    const response = await api.get("/relationships/my-patients");
+    return response.data.data;
+  },
 };

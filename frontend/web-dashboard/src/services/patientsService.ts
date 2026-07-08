@@ -1,3 +1,15 @@
+import api from "./api";
+
+export interface PatientProfileResponse {
+  patientId: number;
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
+  diabetesType: string;
+  contactNumber: string;
+  emergencyContactNumber: string;
+}
+
 export const patientsService = {
   async getPatients() {
     return [
@@ -26,5 +38,10 @@ export const patientsService = {
         status: "Stable",
       },
     ];
+  },
+
+  async getPatientProfile(patientId: number): Promise<PatientProfileResponse> {
+    const response = await api.get(`/patients/${patientId}`);
+    return response.data.data;
   },
 };

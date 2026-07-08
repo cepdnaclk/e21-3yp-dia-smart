@@ -1,38 +1,76 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
-
+import {
+  Card,
+  CardContent,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+} from "@mui/material";
 import { Link } from "react-router-dom";
-import { Button } from "@mui/material";
+import type { DoctorAssignedPatient } from "../../types/doctor";
 
-const PatientList = () => {
+interface PatientListProps {
+  patients: DoctorAssignedPatient[];
+}
+
+const PatientList = ({ patients }: PatientListProps) => {
   return (
     <Card elevation={2} sx={{ borderRadius: 2 }}>
       <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
+        <Typography
+          variant="h6"
+          sx={{ mb: 2, fontWeight: "medium" }}
+        >
           Patient List
         </Typography>
 
-        {/* TODO: Integrate with patient catalog APIs */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          This section will present a complete grid/list of patients assigned to you, including their current monitoring statistics, device battery levels, last active timelines, and links to detailed analytics reports.
-        </Typography>
-
-        <Box sx={{ p: 4, bgcolor: "action.hover", borderRadius: 1, textAlign: "center" }}>
-          <Typography variant="caption" color="text.disabled" sx={{ display: "block", mb: 2 }}>
-            [Placeholder: Patient table grid with columns (Name, Age, Glucose Status, Device Info, Last Active, Actions)]
+        {patients.length === 0 ? (
+          <Typography color="text.secondary" sx={{ py: 2 }}>
+            No assigned patients found
           </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 2, mt: 2, flexWrap: "wrap" }}>
-            <Button component={Link} to="/workspace/1" variant="outlined" size="small" sx={{ textTransform: "none" }}>
-              Open Patient #1 Workspace (John Silva)
-            </Button>
-            <Button component={Link} to="/workspace/2" variant="outlined" size="small" sx={{ textTransform: "none" }}>
-              Open Patient #2 Workspace (Nimal Perera)
-            </Button>
-            <Button component={Link} to="/workspace/3" variant="outlined" size="small" sx={{ textTransform: "none" }}>
-              Open Patient #3 Workspace (Kamala Fernando)
-            </Button>
-          </Box>
-        </Box>
+        ) : (
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Patient ID</TableCell>
+                  <TableCell>Patient Name</TableCell>
+                  <TableCell>Relationship Type</TableCell>
+                  <TableCell>Connection Status</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {patients.map((pat) => (
+                  <TableRow key={pat.requestId}>
+                    <TableCell>{pat.patientId}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {pat.patientName}
+                    </TableCell>
+                    <TableCell>{pat.relationshipRole}</TableCell>
+                    <TableCell>Connected</TableCell>
+                    <TableCell align="right">
+                      <Button
+                        component={Link}
+                        to={`/workspace/${pat.patientId}`}
+                        variant="outlined"
+                        size="small"
+                        sx={{ textTransform: "none" }}
+                      >
+                        Open Workspace
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </CardContent>
     </Card>
   );

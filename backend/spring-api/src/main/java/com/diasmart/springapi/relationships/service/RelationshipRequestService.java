@@ -239,9 +239,9 @@ public class RelationshipRequestService {
                 .findByUserIdAndPatientIdAndStatus(request.getTargetUserId(), request.getPatientId(), AccessStatus.ACTIVE);
 
         Long accessIdToRevoke = null;
-        if (access1.isPresent()) {
+        if (access1.isPresent() && access1.get().getAccessRole() != AccessRole.SELF) {
             accessIdToRevoke = access1.get().getAccessId();
-        } else if (access2.isPresent()) {
+        } else if (access2.isPresent() && access2.get().getAccessRole() != AccessRole.SELF) {
             accessIdToRevoke = access2.get().getAccessId();
         }
 

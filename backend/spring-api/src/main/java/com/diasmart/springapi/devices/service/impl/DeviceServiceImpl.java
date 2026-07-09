@@ -229,10 +229,10 @@ public class DeviceServiceImpl implements DeviceService {
                 });
 
                 // Create the Devices
-                if (hasOuter) createDevice(dto.getOuterGatewayId(), "Outer Gateway", buyer.getBuyerId());
-                if (hasInner) createDevice(dto.getInnerUnitId(), "Inner Unit", buyer.getBuyerId());
-                if (hasPen) createDevice(dto.getPenUnitId(), "Pen Unit", buyer.getBuyerId());
-                if (hasGluco) createDevice(dto.getGlucoseMeterId(), "Glucose Meter", buyer.getBuyerId());
+                if (hasOuter) createDevice(dto.getOuterGatewayId(), "OUTER_GATEWAY", "DiaSmart Outer Gateway", "MQTTS", buyer.getBuyerId());
+                if (hasInner) createDevice(dto.getInnerUnitId(), "INNER_UNIT", "DiaSmart Inner Unit", "ESP_NOW", buyer.getBuyerId());
+                if (hasPen) createDevice(dto.getPenUnitId(), "PEN_UNIT", "DiaSmart Pen Unit", "BLE", buyer.getBuyerId());
+                if (hasGluco) createDevice(dto.getGlucoseMeterId(), "GLUCOMETER", "DiaSmart Glucose Meter", "BLE", buyer.getBuyerId());
         }
 
         private void checkDeviceExists(String uid, String label) {
@@ -244,10 +244,12 @@ public class DeviceServiceImpl implements DeviceService {
                 }
         }
 
-        private void createDevice(String uid, String type, Long buyerId) {
+        private void createDevice(String uid, String type, String name, String commType, Long buyerId) {
                 Device d = new Device();
                 d.setDeviceUid(uid);
                 d.setDeviceType(type);
+                d.setDeviceName(name);
+                d.setCommunicationType(commType);
                 d.setBuyerId(buyerId);
                 d.setPatientId(null);
                 d.setActive(true);

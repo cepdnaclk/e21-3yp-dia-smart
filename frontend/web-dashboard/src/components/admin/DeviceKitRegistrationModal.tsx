@@ -107,19 +107,19 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
 
           <Typography variant="h6" gutterBottom>Buyer Information</Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField required fullWidth label="Full Name" name="buyerFullName" value={formData.buyerFullName} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField required fullWidth label="NIC / Passport" name="nic" value={formData.nic} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField required fullWidth label="Contact Number" name="contactNumber" value={formData.contactNumber} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField required fullWidth type="date" label="Purchase Date" InputLabelProps={{ shrink: true }} name="purchaseDate" value={formData.purchaseDate} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} />
             </Grid>
           </Grid>
@@ -128,16 +128,16 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
 
           <Typography variant="h6" gutterBottom>Device Information</Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Outer Gateway Device ID" name="outerGatewayId" value={formData.outerGatewayId} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Inner Unit Device ID" name="innerUnitId" value={formData.innerUnitId} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Pen Unit Device ID" name="penUnitId" value={formData.penUnitId} onChange={handleChange} />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Glucose Meter Device ID" name="glucoseMeterId" value={formData.glucoseMeterId} onChange={handleChange} />
             </Grid>
           </Grid>

@@ -218,17 +218,15 @@ public class DeviceServiceImpl implements DeviceService {
                 checkDeviceExists(dto.getGlucoseMeterId(), "Glucose Meter");
 
                 // Get or Create the Buyer
-                buyerRepository.findByNic(dto.getNic()).ifPresent(b -> {
-                        throw new ApiException(HttpStatus.CONFLICT, "BUYER_ALREADY_REGISTERED", "A device kit is already registered under this NIC/Passport.");
+                Buyer buyer = buyerRepository.findByNic(dto.getNic()).orElseGet(() -> {
+                        Buyer newBuyer = new Buyer();
+                        newBuyer.setFullName(dto.getBuyerFullName());
+                        newBuyer.setNic(dto.getNic());
+                        newBuyer.setContactNumber(dto.getContactNumber());
+                        newBuyer.setAddress(dto.getAddress());
+                        newBuyer.setPurchaseDate(dto.getPurchaseDate());
+                        return buyerRepository.save(newBuyer);
                 });
-
-                Buyer buyer = new Buyer();
-                buyer.setFullName(dto.getBuyerFullName());
-                buyer.setNic(dto.getNic());
-                buyer.setContactNumber(dto.getContactNumber());
-                buyer.setAddress(dto.getAddress());
-                buyer.setPurchaseDate(dto.getPurchaseDate());
-                buyer = buyerRepository.save(buyer);
 
                 // Create the Devices
                 if (hasOuter) createDevice(dto.getOuterGatewayId(), "OUTER_GATEWAY", "DiaSmart Outer Gateway", "MQTTS", buyer.getBuyerId());

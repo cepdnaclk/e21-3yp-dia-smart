@@ -80,7 +80,18 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
         });
       }, 2000);
     } catch (err: any) {
-      setError(err.message);
+      if (err.response && err.response.data) {
+        // Handle custom API error format if present
+        if (err.response.data.error && err.response.data.error.message) {
+          setError(err.response.data.error.message);
+        } else if (err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError(`Request failed: ${err.response.statusText}`);
+        }
+      } else {
+        setError(err.message || "An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }

@@ -7,11 +7,15 @@ import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 
+import com.diasmart.springapi.devices.dto.BuyerDeviceKitsDTO;
+
 import java.util.List;
 
 public interface DeviceService {
 
     List<DeviceSummaryDTO> getAllDevices();
+    
+    List<BuyerDeviceKitsDTO> getDeviceKits();
 
     DeviceResponseDTO getDeviceById(Long id);
 

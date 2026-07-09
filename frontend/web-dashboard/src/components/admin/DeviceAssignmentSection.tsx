@@ -41,6 +41,7 @@ interface Device {
   online: boolean;
   active: boolean;
   buyer: Buyer | null;
+  patientDisplayName: string | null;
 }
 
 const DeviceAssignmentSection = () => {
@@ -86,8 +87,9 @@ const DeviceAssignmentSection = () => {
                 <TableRow>
                   <TableCell>Device ID</TableCell>
                   <TableCell>Type</TableCell>
+                  <TableCell>Buyer</TableCell>
+                  <TableCell>Assigned Patient</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell align="right">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -95,24 +97,21 @@ const DeviceAssignmentSection = () => {
                   <TableRow key={device.deviceId}>
                     <TableCell>{device.deviceUid}</TableCell>
                     <TableCell>{device.deviceType}</TableCell>
+                    <TableCell>{device.buyer?.fullName || "Unknown"}</TableCell>
+                    <TableCell>{device.patientDisplayName || "Not Assigned"}</TableCell>
                     <TableCell>
                       <Chip 
-                        label={device.patientId ? "Assigned" : "Not Assigned"} 
+                        label={device.patientId ? "Assigned" : "Available"} 
                         color={device.patientId ? "primary" : "default"} 
                         size="small" 
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell align="right">
-                      <Button size="small" onClick={() => setSelectedDevice(device)}>
-                        View Details
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
                 {devices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">No devices found.</TableCell>
+                    <TableCell colSpan={5} align="center">No devices found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -150,7 +149,7 @@ const DeviceAssignmentSection = () => {
                   <Divider sx={{ mb: 2 }} />
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     <Typography>
-                      <strong>Assigned Patient:</strong> {selectedDevice.patientId ? `Patient ID: ${selectedDevice.patientId}` : "Not Assigned"}
+                      <strong>Assigned Patient:</strong> {selectedDevice.patientDisplayName ? selectedDevice.patientDisplayName : "Not Assigned"}
                     </Typography>
                     <Typography>
                       <strong>Device Status:</strong> {selectedDevice.status}

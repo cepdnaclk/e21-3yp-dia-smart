@@ -10,6 +10,8 @@ public class DeviceResponseDTO {
 
     private Long patientId;
 
+    private String patientDisplayName;
+
     private String deviceUid;
 
     private String awsThingName;
@@ -81,6 +83,14 @@ public class DeviceResponseDTO {
 
     public void setPatientId(Long patientId) {
         this.patientId = patientId;
+    }
+
+    public String getPatientDisplayName() {
+        return patientDisplayName;
+    }
+
+    public void setPatientDisplayName(String patientDisplayName) {
+        this.patientDisplayName = patientDisplayName;
     }
 
     public String getDeviceUid() {

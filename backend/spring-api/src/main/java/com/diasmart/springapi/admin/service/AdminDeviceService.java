@@ -2,6 +2,7 @@ package com.diasmart.springapi.admin.service;
 
 import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
+import com.diasmart.springapi.devices.dto.BuyerDeviceKitsDTO;
 import com.diasmart.springapi.devices.service.DeviceService;
 import com.diasmart.springapi.shared.enums.UserRole;
 import com.diasmart.springapi.shared.security.CurrentUserService;
@@ -27,6 +28,11 @@ public class AdminDeviceService {
     public List<DeviceSummaryDTO> getAllDevices() {
         requireAdmin();
         return deviceService.getAllDevices();
+    }
+
+    public List<BuyerDeviceKitsDTO> getDeviceKits() {
+        requireAdmin();
+        return deviceService.getDeviceKits();
     }
 
     public void registerDeviceKit(DeviceKitRegistrationRequestDTO request) {

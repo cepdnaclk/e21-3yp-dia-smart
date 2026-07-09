@@ -32,6 +32,7 @@ interface Device {
   status: string;
   online: boolean;
   active: boolean;
+  buyer: { fullName: string } | null;
   batteryPercent: number | null;
   lastSeenAt: string | null;
   firmwareVersion: string | null;
@@ -113,10 +114,13 @@ const DeviceHealthSection = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Device ID</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell>Device Type</TableCell>
+                  <TableCell>Buyer</TableCell>
                   <TableCell>Online</TableCell>
                   <TableCell>Battery</TableCell>
                   <TableCell>Last Seen</TableCell>
+                  <TableCell>Firmware</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell align="right">Action</TableCell>
                 </TableRow>
               </TableHead>
@@ -124,7 +128,8 @@ const DeviceHealthSection = () => {
                 {devices.map((device) => (
                   <TableRow key={device.deviceId}>
                     <TableCell>{device.deviceUid}</TableCell>
-                    <TableCell>{device.status}</TableCell>
+                    <TableCell>{device.deviceType}</TableCell>
+                    <TableCell>{device.buyer?.fullName || "N/A"}</TableCell>
                     <TableCell>
                       <Chip 
                         label={device.online ? "Online" : "Offline"} 
@@ -141,6 +146,8 @@ const DeviceHealthSection = () => {
                     <TableCell>
                       {device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleString() : "Never"}
                     </TableCell>
+                    <TableCell>{device.firmwareVersion || "N/A"}</TableCell>
+                    <TableCell>{device.status}</TableCell>
                     <TableCell align="right">
                       <Button size="small" onClick={() => handleViewDetails(device)}>
                         View Details
@@ -150,7 +157,7 @@ const DeviceHealthSection = () => {
                 ))}
                 {devices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">No active devices found.</TableCell>
+                    <TableCell colSpan={9} align="center">No active devices found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

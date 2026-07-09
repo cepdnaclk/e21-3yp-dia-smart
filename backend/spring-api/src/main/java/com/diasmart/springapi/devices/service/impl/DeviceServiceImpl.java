@@ -20,10 +20,14 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.LocalDate;
+import com.diasmart.springapi.devices.dto.BuyerDeviceKitsDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitDTO;
 import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.entity.Buyer;
 import com.diasmart.springapi.devices.entity.DeviceStatus;
 import com.diasmart.springapi.devices.repository.BuyerRepository;
+import com.diasmart.springapi.patients.repository.PatientRepository;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
@@ -56,18 +60,21 @@ public class DeviceServiceImpl implements DeviceService {
         private final RawDeviceEventRepository rawDeviceEventRepository;
         private final AuditService auditService;
         private final BuyerRepository buyerRepository;
+        private final PatientRepository patientRepository;
 
         public DeviceServiceImpl(
                         DeviceRepository deviceRepository,
                         DeviceHealthLogRepository healthLogRepository,
                         RawDeviceEventRepository rawDeviceEventRepository,
                         AuditService auditService,
-                        BuyerRepository buyerRepository) {
+                        BuyerRepository buyerRepository,
+                        PatientRepository patientRepository) {
                 this.deviceRepository = deviceRepository;
                 this.healthLogRepository = healthLogRepository;
                 this.rawDeviceEventRepository = rawDeviceEventRepository;
                 this.auditService = auditService;
                 this.buyerRepository = buyerRepository;
+                this.patientRepository = patientRepository;
         }
 
         @Override
@@ -77,6 +84,48 @@ public class DeviceServiceImpl implements DeviceService {
                                 .stream()
                                 .map(this::mapToSummaryDTO)
                                 .toList();
+        }
+
+        @Override
+        public List<BuyerDeviceKitsDTO> getDeviceKits() {
+                List<Device> allDevices = deviceRepository.findAllByOrderByDeviceIdAsc();
+                List<Buyer> allBuyers = buyerRepository.findAll();
+
+                return allBuyers.stream().map(buyer -> {
+                        BuyerDeviceKitsDTO dto = new BuyerDeviceKitsDTO();
+                        
+                        DeviceResponseDTO.BuyerDTO buyerDto = new DeviceResponseDTO.BuyerDTO();
+                        buyerDto.setFullName(buyer.getFullName());
+                        buyerDto.setNic(buyer.getNic());
+                        buyerDto.setContactNumber(buyer.getContactNumber());
+                        buyerDto.setAddress(buyer.getAddress());
+                        buyerDto.setPurchaseDate(buyer.getPurchaseDate());
+                        dto.setBuyer(buyerDto);
+
+                        List<Device> buyerDevices = allDevices.stream()
+                                .filter(d -> buyer.getBuyerId().equals(d.getBuyerId()))
+                                .toList();
+
+                        java.util.Map<LocalDate, List<Device>> groupedByDate = buyerDevices.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(d -> 
+                                        d.getCreatedAt() != null ? d.getCreatedAt().toLocalDate() : buyer.getPurchaseDate()
+                                ));
+
+                        List<DeviceKitDTO> kits = groupedByDate.entrySet().stream()
+                                .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey())) // Sort descending by date
+                                .map(entry -> {
+                                        DeviceKitDTO kitDto = new DeviceKitDTO();
+                                        kitDto.setPurchaseDate(entry.getKey());
+                                        kitDto.setDevices(entry.getValue().stream().map(this::mapToSummaryDTO).toList());
+                                        return kitDto;
+                                })
+                                .toList();
+
+                        dto.setKits(kits);
+                        dto.setPurchaseCount(kits.size());
+
+                        return dto;
+                }).filter(dto -> dto.getPurchaseCount() > 0).toList();
         }
 
         @Override
@@ -168,14 +217,16 @@ public class DeviceServiceImpl implements DeviceService {
                 checkDeviceExists(dto.getPenUnitId(), "Pen Unit");
                 checkDeviceExists(dto.getGlucoseMeterId(), "Glucose Meter");
 
-                // Create the Buyer
-                Buyer buyer = new Buyer();
-                buyer.setFullName(dto.getBuyerFullName());
-                buyer.setNic(dto.getNic());
-                buyer.setContactNumber(dto.getContactNumber());
-                buyer.setAddress(dto.getAddress());
-                buyer.setPurchaseDate(dto.getPurchaseDate());
-                buyer = buyerRepository.save(buyer);
+                // Get or Create the Buyer
+                Buyer buyer = buyerRepository.findByNic(dto.getNic()).orElseGet(() -> {
+                        Buyer newBuyer = new Buyer();
+                        newBuyer.setFullName(dto.getBuyerFullName());
+                        newBuyer.setNic(dto.getNic());
+                        newBuyer.setContactNumber(dto.getContactNumber());
+                        newBuyer.setAddress(dto.getAddress());
+                        newBuyer.setPurchaseDate(dto.getPurchaseDate());
+                        return buyerRepository.save(newBuyer);
+                });
 
                 // Create the Devices
                 if (hasOuter) createDevice(dto.getOuterGatewayId(), "Outer Gateway", buyer.getBuyerId());
@@ -429,6 +480,12 @@ public class DeviceServiceImpl implements DeviceService {
                         });
                 }
 
+                if (device.getPatientId() != null) {
+                        patientRepository.findById(device.getPatientId()).ifPresent(patient -> {
+                                dto.setPatientDisplayName(patient.getFullName());
+                        });
+                }
+
                 return dto;
         }
 
@@ -471,6 +528,12 @@ public class DeviceServiceImpl implements DeviceService {
                                 buyerDto.setAddress(buyer.getAddress());
                                 buyerDto.setPurchaseDate(buyer.getPurchaseDate());
                                 dto.setBuyer(buyerDto);
+                        });
+                }
+
+                if (device.getPatientId() != null) {
+                        patientRepository.findById(device.getPatientId()).ifPresent(patient -> {
+                                dto.setPatientDisplayName(patient.getFullName());
                         });
                 }
 

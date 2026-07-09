@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -124,7 +124,7 @@ const DeviceAssignmentSection = () => {
           <DialogContent dividers>
             {selectedDevice && (
               <Grid container spacing={4}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="h6" color="primary" gutterBottom>
                     Buyer Information
                   </Typography>
@@ -142,7 +142,7 @@ const DeviceAssignmentSection = () => {
                   )}
                 </Grid>
                 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="h6" color="primary" gutterBottom>
                     Patient Information
                   </Typography>

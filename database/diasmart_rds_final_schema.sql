@@ -891,25 +891,47 @@ CREATE TABLE notification_preferences (
 -- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO diasmart_app;
 
 -- ============================================================
--- 9. Device Registry Updates (Buyers)
+-- End of Dia-Smart final RDS schema.
 -- ============================================================
-
 CREATE TABLE buyers (
     buyer_id BIGSERIAL PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    nic VARCHAR(20) NOT NULL,
+
+    full_name VARCHAR(150) NOT NULL,
+
+    nic VARCHAR(30) NOT NULL UNIQUE,
+
     contact_number VARCHAR(20) NOT NULL,
+
     address TEXT,
-    purchase_date DATE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+    purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE devices
 ADD COLUMN buyer_id BIGINT;
 
 ALTER TABLE devices
-ADD CONSTRAINT fk_device_buyer FOREIGN KEY (buyer_id) REFERENCES buyers(buyer_id) ON DELETE SET NULL;
+ADD CONSTRAINT fk_devices_buyer
+FOREIGN KEY (buyer_id)
+REFERENCES buyers(buyer_id)
+ON DELETE SET NULL;
 
--- ============================================================
--- End of Dia-Smart final RDS schema.
--- ============================================================
+INSERT INTO buyers (
+    full_name,
+    nic,
+    contact_number,
+    address,
+    purchase_date
+)
+VALUES
+(
+    'John Silva',
+    '991234567V',
+    '0771234567',
+    'Colombo',
+    CURRENT_DATE
+);

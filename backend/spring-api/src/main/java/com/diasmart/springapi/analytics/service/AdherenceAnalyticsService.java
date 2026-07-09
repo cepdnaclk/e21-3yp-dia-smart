@@ -44,14 +44,13 @@ public class AdherenceAnalyticsService {
         authorizationService.authorize(Permission.READ_ADHERENCE_ANALYTICS, patientId);
 
         // Fetch all active schedules for this patient
-        List<DoseSchedule> activeSchedules =
-                doseScheduleRepository.findByPatientIdAndActiveTrue(patientId);
+        List<DoseSchedule> activeSchedules = doseScheduleRepository.findByPatientIdAndActiveTrue(patientId);
 
         // Fetch all dose events in the full date range (UTC boundaries)
         OffsetDateTime rangeStart = startDate.atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime rangeEnd = endDate.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
-        List<DoseEvent> eventsInRange =
-                doseEventRepository.findByPatientIdAndInjectedAtBetween(patientId, rangeStart, rangeEnd);
+        List<DoseEvent> eventsInRange = doseEventRepository.findByPatientIdAndInjectedAtBetween(patientId, rangeStart,
+                rangeEnd);
 
         // Counters
         int totalScheduled = 0;
@@ -89,9 +88,11 @@ public class AdherenceAnalyticsService {
                 totalScheduled++;
 
                 int earlyMinutes = schedule.getAllowedEarlyMinutes() != null
-                        ? schedule.getAllowedEarlyMinutes() : 60;
+                        ? schedule.getAllowedEarlyMinutes()
+                        : 60;
                 int lateMinutes = schedule.getAllowedLateMinutes() != null
-                        ? schedule.getAllowedLateMinutes() : 120;
+                        ? schedule.getAllowedLateMinutes()
+                        : 120;
 
                 OffsetDateTime scheduledAt = OffsetDateTime.of(
                         currentDay, schedule.getScheduledTime(), ZoneOffset.UTC);
@@ -168,7 +169,8 @@ public class AdherenceAnalyticsService {
         return response;
     }
 
-    // Returns true if the schedule applies on the given ISO day-of-week (1=Mon, 7=Sun)
+    // Returns true if the schedule applies on the given ISO day-of-week (1=Mon,
+    // 7=Sun)
     private boolean scheduleAppliesToDay(DoseSchedule schedule, int dayOfWeek) {
         if (schedule.getDaysOfWeek() == null || schedule.getDaysOfWeek().isBlank()) {
             return false;

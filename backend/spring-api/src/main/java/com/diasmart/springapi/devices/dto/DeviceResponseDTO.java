@@ -57,16 +57,45 @@ public class DeviceResponseDTO {
         private String address;
         private java.time.LocalDate purchaseDate;
 
-        public String getFullName() { return fullName; }
-        public void setFullName(String fullName) { this.fullName = fullName; }
-        public String getNic() { return nic; }
-        public void setNic(String nic) { this.nic = nic; }
-        public String getContactNumber() { return contactNumber; }
-        public void setContactNumber(String contactNumber) { this.contactNumber = contactNumber; }
-        public String getAddress() { return address; }
-        public void setAddress(String address) { this.address = address; }
-        public java.time.LocalDate getPurchaseDate() { return purchaseDate; }
-        public void setPurchaseDate(java.time.LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
+        public String getFullName() {
+            return fullName;
+        }
+
+        public void setFullName(String fullName) {
+            this.fullName = fullName;
+        }
+
+        public String getNic() {
+            return nic;
+        }
+
+        public void setNic(String nic) {
+            this.nic = nic;
+        }
+
+        public String getContactNumber() {
+            return contactNumber;
+        }
+
+        public void setContactNumber(String contactNumber) {
+            this.contactNumber = contactNumber;
+        }
+
+        public String getAddress() {
+            return address;
+        }
+
+        public void setAddress(String address) {
+            this.address = address;
+        }
+
+        public java.time.LocalDate getPurchaseDate() {
+            return purchaseDate;
+        }
+
+        public void setPurchaseDate(java.time.LocalDate purchaseDate) {
+            this.purchaseDate = purchaseDate;
+        }
     }
 
     public Long getDeviceId() {

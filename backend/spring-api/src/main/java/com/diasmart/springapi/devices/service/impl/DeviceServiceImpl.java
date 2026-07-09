@@ -231,7 +231,7 @@ public class DeviceServiceImpl implements DeviceService {
                 // Create the Devices
                 if (hasOuter) createDevice(dto.getOuterGatewayId(), "OUTER_GATEWAY", "DiaSmart Outer Gateway", "MQTTS", buyer.getBuyerId());
                 if (hasInner) createDevice(dto.getInnerUnitId(), "INNER_UNIT", "DiaSmart Inner Unit", "ESP_NOW", buyer.getBuyerId());
-                if (hasPen) createDevice(dto.getPenUnitId(), "PEN_UNIT", "DiaSmart Pen Unit", "BLE", buyer.getBuyerId());
+                if (hasPen) createDevice(dto.getPenUnitId(), "DOSE_CAP", "DiaSmart Pen Unit", "BLE", buyer.getBuyerId());
                 if (hasGluco) createDevice(dto.getGlucoseMeterId(), "GLUCOMETER", "DiaSmart Glucose Meter", "BLE", buyer.getBuyerId());
         }
 

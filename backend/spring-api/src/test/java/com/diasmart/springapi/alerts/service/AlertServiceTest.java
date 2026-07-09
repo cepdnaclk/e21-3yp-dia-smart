@@ -22,128 +22,121 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AlertServiceTest {
 
-    @Mock
-    private AlertRepository alertRepository;
+        @Mock
+        private AlertRepository alertRepository;
 
-    @Mock
-    private CurrentUserService currentUserService;
+        @Mock
+        private CurrentUserService currentUserService;
 
-    @Mock
-    private PatientAccessService patientAccessService;
+        @Mock
+        private PatientAccessService patientAccessService;
 
-    @InjectMocks
-    private AlertService alertService;
+        @InjectMocks
+        private AlertService alertService;
 
-    @Test
-    void getAlertShouldReturnAlert() {
+        @Test
+        void getAlertShouldReturnAlert() {
 
-        Alert alert = new Alert();
-        alert.setAlertId(1L);
-        alert.setPatientId(10L);
+                Alert alert = new Alert();
+                alert.setAlertId(1L);
+                alert.setPatientId(10L);
 
-        when(alertRepository.findById(1L))
-                .thenReturn(Optional.of(alert));
+                when(alertRepository.findById(1L))
+                                .thenReturn(Optional.of(alert));
 
-        alertService.getAlert(1L);
+                alertService.getAlert(1L);
 
-        verify(patientAccessService)
-                .requireCanViewPatient(10L);
-    }
+                verify(patientAccessService)
+                                .requireCanViewPatient(10L);
+        }
 
-    @Test
-    void getAlertShouldThrowWhenMissing() {
+        @Test
+        void getAlertShouldThrowWhenMissing() {
 
-        when(alertRepository.findById(1L))
-                .thenReturn(Optional.empty());
+                when(alertRepository.findById(1L))
+                                .thenReturn(Optional.empty());
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> alertService.getAlert(1L)
-        );
-    }
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> alertService.getAlert(1L));
+        }
 
-    @Test
-    void acknowledgeAlertShouldUpdateStatus() {
+        @Test
+        void acknowledgeAlertShouldUpdateStatus() {
 
-        AppUser user = new AppUser();
-        user.setUserId(5L);
+                AppUser user = new AppUser();
+                user.setUserId(5L);
 
-        Alert alert = new Alert();
-        alert.setAlertId(1L);
-        alert.setPatientId(10L);
+                Alert alert = new Alert();
+                alert.setAlertId(1L);
+                alert.setPatientId(10L);
 
-        when(currentUserService.getCurrentUser())
-                .thenReturn(user);
+                when(currentUserService.getCurrentUser())
+                                .thenReturn(user);
 
-        when(alertRepository.findById(1L))
-                .thenReturn(Optional.of(alert));
+                when(alertRepository.findById(1L))
+                                .thenReturn(Optional.of(alert));
 
-        when(alertRepository.save(any(Alert.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
+                when(alertRepository.save(any(Alert.class)))
+                                .thenAnswer(inv -> inv.getArgument(0));
 
-        alertService.acknowledgeAlert(1L);
+                alertService.acknowledgeAlert(1L);
 
-        assertEquals(
-                "ACKNOWLEDGED",
-                alert.getStatus()
-        );
+                assertEquals(
+                                "ACKNOWLEDGED",
+                                alert.getStatus());
 
-        verify(patientAccessService)
-                .requireCanAcknowledgeAlerts(10L);
-    }
+                verify(patientAccessService)
+                                .requireCanAcknowledgeAlerts(10L);
+        }
 
-    @Test
-    void resolveAlertShouldUpdateStatus() {
+        @Test
+        void resolveAlertShouldUpdateStatus() {
 
-        AppUser user = new AppUser();
-        user.setUserId(5L);
+                AppUser user = new AppUser();
+                user.setUserId(5L);
 
-        Alert alert = new Alert();
-        alert.setAlertId(1L);
-        alert.setPatientId(10L);
+                Alert alert = new Alert();
+                alert.setAlertId(1L);
+                alert.setPatientId(10L);
 
-        when(currentUserService.getCurrentUser())
-                .thenReturn(user);
+                when(currentUserService.getCurrentUser())
+                                .thenReturn(user);
 
-        when(alertRepository.findById(1L))
-                .thenReturn(Optional.of(alert));
+                when(alertRepository.findById(1L))
+                                .thenReturn(Optional.of(alert));
 
-        when(alertRepository.save(any(Alert.class)))
-                .thenAnswer(inv -> inv.getArgument(0));
+                when(alertRepository.save(any(Alert.class)))
+                                .thenAnswer(inv -> inv.getArgument(0));
 
-        alertService.resolveAlert(
-                1L,
-                "Issue fixed"
-        );
+                alertService.resolveAlert(
+                                1L,
+                                "Issue fixed");
 
-        assertEquals(
-                "RESOLVED",
-                alert.getStatus()
-        );
+                assertEquals(
+                                "RESOLVED",
+                                alert.getStatus());
 
-        assertEquals(
-                "Issue fixed",
-                alert.getResolutionNote()
-        );
-    }
+                assertEquals(
+                                "Issue fixed",
+                                alert.getResolutionNote());
+        }
 
-    @Test
-    void resolveAlertShouldThrowWhenMissing() {
+        @Test
+        void resolveAlertShouldThrowWhenMissing() {
 
-        AppUser user = new AppUser();
+                AppUser user = new AppUser();
 
-        when(currentUserService.getCurrentUser())
-                .thenReturn(user);
+                when(currentUserService.getCurrentUser())
+                                .thenReturn(user);
 
-        when(alertRepository.findById(1L))
-                .thenReturn(Optional.empty());
+                when(alertRepository.findById(1L))
+                                .thenReturn(Optional.empty());
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> alertService.resolveAlert(
-                        1L,
-                        "fixed"
-                )
-        );
-    }
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> alertService.resolveAlert(
+                                                1L,
+                                                "fixed"));
+        }
 }

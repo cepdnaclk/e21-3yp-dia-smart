@@ -1,4 +1,5 @@
 package com.diasmart.springapi.dose_schedules.entity;
+
 import com.diasmart.springapi.dose_schedules.dto.CreateDoseScheduleRequest;
 
 import jakarta.persistence.*;

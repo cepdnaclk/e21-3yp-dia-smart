@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { 
   Card, CardContent, Typography, Button, Box
 } from "@mui/material";
 import DeviceKitRegistrationModal from "./DeviceKitRegistrationModal";
+import RegistrationDetailsModal from "./RegistrationDetailsModal";
 
 const DevicesListSection = () => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
@@ -14,9 +16,14 @@ const DevicesListSection = () => {
           <Typography variant="h6" sx={{ fontWeight: "medium" }}>
             Registered Device Kits
           </Typography>
-          <Button variant="contained" onClick={() => setModalOpen(true)}>
-            Register New Device Kit
-          </Button>
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button variant="outlined" onClick={() => setDetailsModalOpen(true)}>
+              View Registration Details
+            </Button>
+            <Button variant="contained" onClick={() => setModalOpen(true)}>
+              Register New Device Kit
+            </Button>
+          </Box>
         </Box>
         
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -26,6 +33,11 @@ const DevicesListSection = () => {
         <DeviceKitRegistrationModal 
           open={modalOpen} 
           onClose={() => setModalOpen(false)} 
+        />
+        
+        <RegistrationDetailsModal
+          open={detailsModalOpen}
+          onClose={() => setDetailsModalOpen(false)}
         />
       </CardContent>
     </Card>

@@ -1,19 +1,21 @@
 import { Card, CardContent, Typography } from "@mui/material";
 
-const ActivePatientsCard = () => {
+interface ActivePatientsCardProps {
+  count: number;
+}
+
+const ActivePatientsCard: React.FC<ActivePatientsCardProps> = ({ count }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Typography variant="subtitle2" color="text.secondary">
           Active Patients
         </Typography>
-        
-        {/* TODO: Integrate active patient sessions count statistics api */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Number of patients actively using monitoring systems, dosing schedules, and caregiver support.
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main" }}>
+          {count}
         </Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
-          [Placeholder Count: --]
+        <Typography variant="body2" color="text.secondary">
+          Number of patients actively using monitoring systems, dosing schedules, and caregiver support.
         </Typography>
       </CardContent>
     </Card>

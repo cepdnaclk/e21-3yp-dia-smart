@@ -1,19 +1,21 @@
 import { Card, CardContent, Typography } from "@mui/material";
 
-const TotalUsersCard = () => {
+interface TotalUsersCardProps {
+  count: number;
+}
+
+const TotalUsersCard: React.FC<TotalUsersCardProps> = ({ count }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          Total Users
+    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Total Registered Users
         </Typography>
-        
-        {/* TODO: Integrate total users count statistics api */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Total registered users across all accounts including patients, clinicians, caregivers, and admins.
+        <Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main" }}>
+          {count}
         </Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
-          [Placeholder Count: --]
+        <Typography variant="body2" color="text.secondary">
+          Total registered users across patients, clinicians, caregivers, and administrators.
         </Typography>
       </CardContent>
     </Card>

@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - develop
+    paths:
+      - 'backend/**'
 
 jobs:
   deploy:
@@ -22,20 +24,26 @@ jobs:
           script: |
             set -e
 
+            echo "Go to project directory..."
             cd /home/ubuntu/e21-3yp-dia-smart
 
             echo "Pull latest code..."
             git fetch origin
             git reset --hard origin/develop
 
-            echo "Build backend..."
+            echo "Go to backend project..."
             cd backend/spring-api
+
+            echo "Build Spring Boot project..."
             mvn clean package -Dmaven.test.skip=true
 
-            echo "Deploy JAR..."
-            cp target/springapi-0.0.1-SNAPSHOT.jar /opt/diasmart-backend/springapi-0.0.1-SNAPSHOT.jar
+            echo "Copy JAR file..."
+            sudo cp target/springapi-0.0.1-SNAPSHOT.jar /opt/diasmart-backend/springapi-0.0.1-SNAPSHOT.jar
 
-            echo "Restart service..."
+            echo "Restart backend service..."
             sudo systemctl restart diasmart
 
-            echo "Deployment completed successfully."
+            echo "Check service status..."
+            sudo systemctl status diasmart --no-pager
+
+            echo "Backend deployment completed successfully."

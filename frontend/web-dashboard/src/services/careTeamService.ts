@@ -30,6 +30,21 @@ export const careTeamService = {
     return response.data.data;
   },
 
+  async getIncomingRequests(): Promise<RelationshipRequestDto[]> {
+    const response = await api.get("/relationship-requests/incoming");
+    return response.data.data;
+  },
+
+  async acceptRequest(requestId: number): Promise<RelationshipRequestDto> {
+    const response = await api.patch(`/relationship-requests/${requestId}/accept`);
+    return response.data.data;
+  },
+
+  async rejectRequest(requestId: number): Promise<RelationshipRequestDto> {
+    const response = await api.patch(`/relationship-requests/${requestId}/reject`);
+    return response.data.data;
+  },
+
   async getMyRelationships(): Promise<RelationshipSummaryDto[]> {
     const response = await api.get("/relationships/me");
     return response.data.data;

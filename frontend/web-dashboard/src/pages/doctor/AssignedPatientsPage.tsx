@@ -7,6 +7,7 @@ import PageError from "../../components/common/PageError";
 
 import PatientSearchFilter from "../../components/doctor/PatientSearchFilter";
 import PatientList from "../../components/doctor/PatientList";
+import PendingRequestsCard from "../../components/doctor/PendingRequestsCard";
 import { doctorService } from "../../services/doctorService";
 import type { DoctorAssignedPatient } from "../../types/doctor";
 
@@ -16,17 +17,18 @@ const AssignedPatientsPage = () => {
   const [patients, setPatients] = useState<DoctorAssignedPatient[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const fetchPatients = async () => {
+    try {
+      const data = await doctorService.getAssignedPatients();
+      setPatients(data);
+    } catch (err: any) {
+      setError("Failed to load assigned patients. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const data = await doctorService.getAssignedPatients();
-        setPatients(data);
-      } catch (err: any) {
-        setError("Failed to load assigned patients. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPatients();
   }, []);
 
@@ -45,6 +47,8 @@ const AssignedPatientsPage = () => {
   return (
     <Box sx={{ flexGrow: 1 }}>
       <PageTitle>Assigned Patients</PageTitle>
+
+      <PendingRequestsCard onRefresh={fetchPatients} />
 
       <PatientSearchFilter query={searchQuery} onQueryChange={setSearchQuery} />
 

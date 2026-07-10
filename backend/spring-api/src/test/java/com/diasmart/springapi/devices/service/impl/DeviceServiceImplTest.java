@@ -9,6 +9,7 @@ import com.diasmart.springapi.devices.repository.DeviceHealthLogRepository;
 import com.diasmart.springapi.devices.repository.DeviceRepository;
 import com.diasmart.springapi.devices.repository.BuyerRepository;
 import com.diasmart.springapi.raw_events.repository.RawDeviceEventRepository;
+import com.diasmart.springapi.patients.repository.PatientRepository;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,9 @@ class DeviceServiceImplTest {
 
         @Mock
         private BuyerRepository buyerRepository;
+
+        @Mock
+        private PatientRepository patientRepository;
 
         @InjectMocks
         private DeviceServiceImpl deviceService;

@@ -180,4 +180,27 @@ describe("adminService", () => {
     expect(api.patch).toHaveBeenCalledWith("/patient-access/10/revoke");
     expect(result).toEqual(mockResponse);
   });
+
+  it("should get audit logs successfully", async () => {
+    const mockResponse = {
+      content: [
+        { auditLogId: 1, actionType: "CREATE", entityType: "USER", createdAt: "2026-05-09T00:00:00Z" }
+      ],
+      totalElements: 1,
+      totalPages: 1
+    };
+
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        data: mockResponse
+      }
+    });
+
+    const result = await adminService.getAuditLogs(0, 10);
+
+    expect(api.get).toHaveBeenCalledWith("/admin/audit-logs", {
+      params: { page: 0, size: 10 }
+    });
+    expect(result).toEqual(mockResponse);
+  });
 });

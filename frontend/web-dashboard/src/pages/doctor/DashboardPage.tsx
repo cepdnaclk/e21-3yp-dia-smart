@@ -1,4 +1,5 @@
-import { Grid, Box } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Grid, Box, CircularProgress, Alert } from "@mui/material";
 
 import PageTitle from "../../components/common/PageTitle";
 
@@ -7,15 +8,62 @@ import AssignedPatientsSummary from "../../components/doctor/AssignedPatientsSum
 import CriticalAlerts from "../../components/doctor/CriticalAlerts";
 import RecentActivity from "../../components/doctor/RecentActivity";
 
+import { doctorService } from "../../services/doctorService";
+import type { Alert as VitalsAlert } from "../../types/alert";
+import type { DoctorAssignedPatient } from "../../types/doctor";
+
 const DashboardPage = () => {
-  // TODO: Integrate Doctor Dashboard APIs via doctorService during feature implementation.
+  const [patientsCount, setPatientsCount] = useState<number>(0);
+  const [patients, setPatients] = useState<DoctorAssignedPatient[]>([]);
+  const [alerts, setAlerts] = useState<VitalsAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [patientsList, alertsList] = await Promise.all([
+        doctorService.getAssignedPatients(),
+        doctorService.getAlerts()
+      ]);
+      setPatientsCount(patientsList.length);
+      setPatients(patientsList);
+      setAlerts(alertsList);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to retrieve clinician dashboard overview stats.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  const openAlertsCount = alerts.filter((a) => a.status === "OPEN").length;
 
   return (
     <Box sx={{ flexGrow: 1 }}>
       <PageTitle>Doctor Dashboard</PageTitle>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
       <Box sx={{ mb: 4 }}>
-        <OverviewStats />
+        <OverviewStats patientsCount={patientsCount} openAlertsCount={openAlertsCount} />
       </Box>
 
       <Grid container spacing={3}>
@@ -28,7 +76,7 @@ const DashboardPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12 }}>
-          <CriticalAlerts />
+          <CriticalAlerts alerts={alerts} patients={patients} onRefresh={loadData} />
         </Grid>
       </Grid>
     </Box>

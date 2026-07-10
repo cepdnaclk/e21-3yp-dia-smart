@@ -3,7 +3,8 @@ import type {
   AdminUserRecord,
   AdminCreateUserRequest,
   PatientAccessResponse,
-  CreatePatientAccessRequest
+  CreatePatientAccessRequest,
+  PaginatedAuditLogsResponse
 } from "../types/admin";
 
 export const adminService = {
@@ -34,6 +35,13 @@ export const adminService = {
 
   revokePatientAccess: async (accessId: number): Promise<PatientAccessResponse> => {
     const response = await api.patch(`/patient-access/${accessId}/revoke`);
+    return response.data?.data;
+  },
+
+  getAuditLogs: async (page: number = 0, size: number = 20): Promise<PaginatedAuditLogsResponse> => {
+    const response = await api.get("/admin/audit-logs", {
+      params: { page, size }
+    });
     return response.data?.data;
   }
 };

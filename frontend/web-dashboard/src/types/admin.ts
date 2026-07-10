@@ -54,3 +54,23 @@ export interface CreatePatientAccessRequest {
   canAcknowledgeAlerts?: boolean;
   canEditPrescriptions?: boolean;
 }
+
+export interface AuditLogRecord {
+  auditLogId: number;
+  userId?: number;
+  patientId?: number;
+  actionType: string;
+  entityType: string;
+  entityId?: number;
+  ipAddress?: string;
+  details?: Record<string, any>;
+  createdAt: string;
+}
+
+export interface PaginatedAuditLogsResponse {
+  content: AuditLogRecord[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

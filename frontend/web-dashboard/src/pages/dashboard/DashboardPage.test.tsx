@@ -56,7 +56,7 @@ describe("DashboardPage", () => {
     ).toBeTruthy();
 
     expect(
-      screen.getByText("80 Units")
+      screen.getByText("80 g")
     ).toBeTruthy();
 
     expect(

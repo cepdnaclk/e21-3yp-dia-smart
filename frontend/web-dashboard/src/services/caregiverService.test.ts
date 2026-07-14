@@ -66,4 +66,34 @@ describe("caregiverService", () => {
     expect(api.get).toHaveBeenCalledWith("/patients/1/schedule-adherence");
     expect(result).toEqual(mockAdherence);
   });
+
+  it("should get latest storage reading successfully", async () => {
+    const mockStorage = { readingId: 5, temperatureC: 4.5, temperatureStatus: "NORMAL" };
+
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        data: mockStorage
+      }
+    });
+
+    const result = await caregiverService.getLatestStorageReading(1);
+
+    expect(api.get).toHaveBeenCalledWith("/patients/1/storage-readings/latest");
+    expect(result).toEqual(mockStorage);
+  });
+
+  it("should get latest inventory reading successfully", async () => {
+    const mockInventory = { readingId: 12, currentWeightG: 15.0, status: "NORMAL" };
+
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        data: mockInventory
+      }
+    });
+
+    const result = await caregiverService.getLatestInventoryReading(1);
+
+    expect(api.get).toHaveBeenCalledWith("/patients/1/inventory-readings/latest");
+    expect(result).toEqual(mockInventory);
+  });
 });

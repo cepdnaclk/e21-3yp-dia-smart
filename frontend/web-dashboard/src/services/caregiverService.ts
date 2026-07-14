@@ -18,5 +18,15 @@ export const caregiverService = {
   async getPatientTodayAdherence(patientId: number): Promise<ScheduleAdherenceResponse[]> {
     const response = await api.get(`/patients/${patientId}/schedule-adherence`);
     return response.data?.data ?? [];
+  },
+
+  async getLatestStorageReading(patientId: number): Promise<any> {
+    const response = await api.get(`/patients/${patientId}/storage-readings/latest`);
+    return response.data?.data;
+  },
+
+  async getLatestInventoryReading(patientId: number): Promise<any> {
+    const response = await api.get(`/patients/${patientId}/inventory-readings/latest`);
+    return response.data?.data;
   }
 };

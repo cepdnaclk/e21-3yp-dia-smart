@@ -139,11 +139,21 @@ const ReportsPage = () => {
 
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 7 }}>
-          <PatientReports />
+          <PatientReports
+            patientId={Number(selectedPatientId)}
+            startDate={startDate}
+            endDate={endDate}
+            patientName={patients.find((p) => p.patientId === selectedPatientId)?.patientName || ""}
+          />
         </Grid>
 
         <Grid size={{ xs: 12, md: 5 }}>
-          <ExportReports />
+          <ExportReports
+            patientId={Number(selectedPatientId)}
+            startDate={startDate}
+            endDate={endDate}
+            patientName={patients.find((p) => p.patientId === selectedPatientId)?.patientName || ""}
+          />
         </Grid>
 
         <Grid size={{ xs: 12 }}>

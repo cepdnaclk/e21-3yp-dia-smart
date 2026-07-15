@@ -1,14 +1,15 @@
 package com.diasmart.springapi.mqtt.subscriber;
 
 import com.diasmart.springapi.audit.service.AuditService;
+import com.diasmart.springapi.mqtt.dto.CommandAckDTO;
 import com.diasmart.springapi.mqtt.dto.TelemetryPayloadDTO;
+import com.diasmart.springapi.mqtt.service.CommandAckProcessingService;
+import com.diasmart.springapi.mqtt.service.MqttService;
 import com.diasmart.springapi.mqtt.service.TelemetryProcessingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -17,88 +18,75 @@ import java.nio.charset.StandardCharsets;
 @ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true", matchIfMissing = true)
 public class MqttSubscriber {
 
-        @Value("${mqtt.broker.ssl}")
-        private String broker;
+    @Value("${mqtt.topic}")
+    private String telemetryTopic;
 
-        @Value("${mqtt.topic}")
-        private String topic;
+    private final String commandAckTopic = "diasmart/v1/devices/+/command-ack";
 
-        @Value("${mqtt.client.id}")
-        private String clientId;
+    private final MqttService mqttService;
+    private final AuditService auditService;
+    private final TelemetryProcessingService telemetryProcessingService;
+    private final CommandAckProcessingService commandAckProcessingService;
 
-        private final MqttConnectOptions options;
-        private final AuditService auditService;
-        private final TelemetryProcessingService telemetryProcessingService;
+    private final ObjectMapper mapper = new ObjectMapper();
 
-        private final ObjectMapper mapper = new ObjectMapper();
+    public MqttSubscriber(
+            MqttService mqttService,
+            AuditService auditService,
+            TelemetryProcessingService telemetryProcessingService,
+            CommandAckProcessingService commandAckProcessingService) {
+        this.mqttService = mqttService;
+        this.auditService = auditService;
+        this.telemetryProcessingService = telemetryProcessingService;
+        this.commandAckProcessingService = commandAckProcessingService;
+    }
 
-        public MqttSubscriber(
-                        MqttConnectOptions options,
-                        AuditService auditService,
-                        TelemetryProcessingService telemetryProcessingService) {
-                this.options = options;
-                this.auditService = auditService;
-                this.telemetryProcessingService = telemetryProcessingService;
-        }
+    @PostConstruct
+    public void init() {
+        System.out.println("MQTT subscriber initializing...");
 
-        @PostConstruct
-        public void init() {
-                try {
-                        System.out.println("MQTT subscriber starting...");
+        // 1. Subscribe to telemetry
+        mqttService.subscribe(telemetryTopic, (t, message) -> {
+            String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+            System.out.println("MQTT Telemetry received on " + t);
+            
+            TelemetryPayloadDTO dto;
+            try {
+                dto = mapper.readValue(payload, TelemetryPayloadDTO.class);
+            } catch (Exception e) {
+                System.out.println("MQTT Telemetry parsing error");
+                auditService.logFailedPayloadValidation(null, null, null, null, null, t, e.getMessage(), payload);
+                return;
+            }
 
-                        MqttClient client = new MqttClient(
-                                        broker,
-                                        clientId);
+            try {
+                telemetryProcessingService.process(dto, payload, t);
+            } catch (Exception e) {
+                System.out.println("MQTT Telemetry processing error");
+                e.printStackTrace();
+            }
+        });
 
-                        client.connect(options);
-                        System.out.println("Connected to AWS IoT Core");
+        // 2. Subscribe to command ACKs
+        mqttService.subscribe(commandAckTopic, (t, message) -> {
+            String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+            System.out.println("MQTT Command ACK received on " + t);
 
-                        client.subscribe(
-                                        topic,
-                                        (t, message) -> {
-                                                String payload = new String(
-                                                                message.getPayload(),
-                                                                StandardCharsets.UTF_8);
+            CommandAckDTO dto;
+            try {
+                dto = mapper.readValue(payload, CommandAckDTO.class);
+            } catch (Exception e) {
+                System.out.println("MQTT Command ACK parsing error");
+                e.printStackTrace();
+                return;
+            }
 
-                                                System.out.println(
-                                                                "MQTT message received");
-                                                System.out.println(payload);
-
-                                                TelemetryPayloadDTO dto;
-
-                                                try {
-                                                        dto = mapper.readValue(
-                                                                        payload,
-                                                                        TelemetryPayloadDTO.class);
-                                                } catch (Exception e) {
-                                                        System.out.println(
-                                                                        "MQTT payload parsing error");
-                                                        auditService.logFailedPayloadValidation(
-                                                                        null,
-                                                                        null,
-                                                                        null,
-                                                                        null,
-                                                                        null,
-                                                                        t,
-                                                                        e.getMessage(),
-                                                                        payload);
-                                                        e.printStackTrace();
-                                                        return;
-                                                }
-
-                                                try {
-                                                        telemetryProcessingService
-                                                                        .process(dto, payload, t);
-                                                } catch (Exception e) {
-                                                        System.out.println(
-                                                                        "MQTT message processing error");
-                                                        e.printStackTrace();
-                                                }
-                                        });
-
-                } catch (Exception e) {
-                        System.out.println("MQTT connection error");
-                        e.printStackTrace();
-                }
-        }
+            try {
+                commandAckProcessingService.processAck(dto);
+            } catch (Exception e) {
+                System.out.println("MQTT Command ACK processing error");
+                e.printStackTrace();
+            }
+        });
+    }
 }

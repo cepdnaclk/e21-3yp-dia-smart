@@ -935,3 +935,115 @@ VALUES
     'Colombo',
     CURRENT_DATE
 );
+
+CREATE TABLE IF NOT EXISTS device_configurations (
+
+    configuration_id BIGSERIAL PRIMARY KEY,
+
+    outer_device_id BIGINT NOT NULL
+        REFERENCES devices(device_id) ON DELETE CASCADE,
+
+    patient_id BIGINT NOT NULL
+        REFERENCES patients(patient_id) ON DELETE CASCADE,
+
+    wifi_ssid VARCHAR(100) NOT NULL,
+
+    wifi_password TEXT NOT NULL,
+
+    configuration_status VARCHAR(20)
+        DEFAULT 'PENDING'
+        CHECK (configuration_status IN (
+            'PENDING',
+            'SENT',
+            'APPLIED',
+            'FAILED'
+        )),
+
+    last_synced_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (outer_device_id)
+);
+
+CREATE INDEX idx_device_config_patient
+ON device_configurations(patient_id);
+
+CREATE INDEX idx_device_config_outer
+ON device_configurations(outer_device_id);
+
+CREATE TABLE IF NOT EXISTS device_commands (
+
+    command_id BIGSERIAL PRIMARY KEY,
+
+    device_id BIGINT NOT NULL
+        REFERENCES devices(device_id) ON DELETE CASCADE,
+
+    patient_id BIGINT
+        REFERENCES patients(patient_id) ON DELETE SET NULL,
+
+    command_type VARCHAR(40) NOT NULL
+        CHECK (command_type IN (
+            'CONFIG_UPDATE',
+            'CARE_PLAN_UPDATE',
+            'REMINDER_UPDATE',
+            'SYNC_REQUEST',
+            'RESTART_DEVICE'
+        )),
+
+    payload JSONB NOT NULL,
+
+    command_status VARCHAR(20)
+        DEFAULT 'PENDING'
+        CHECK (command_status IN (
+            'PENDING',
+            'SENT',
+            'RECEIVED',
+            'APPLIED',
+            'FAILED',
+            'EXPIRED'
+        )),
+
+    published_at TIMESTAMPTZ,
+
+    acknowledged_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_device_commands_device
+ON device_commands(device_id);
+
+CREATE INDEX idx_device_commands_status
+ON device_commands(command_status);
+
+CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
+
+    acknowledgement_id BIGSERIAL PRIMARY KEY,
+
+    command_id BIGINT NOT NULL
+        REFERENCES device_commands(command_id)
+        ON DELETE CASCADE,
+
+    device_id BIGINT NOT NULL
+        REFERENCES devices(device_id)
+        ON DELETE CASCADE,
+
+    ack_status VARCHAR(20)
+        CHECK (ack_status IN (
+            'RECEIVED',
+            'APPLIED',
+            'REJECTED',
+            'FAILED'
+        )),
+
+    response_message TEXT,
+
+    acknowledged_at TIMESTAMPTZ
+        DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_device_ack_command
+ON device_command_acknowledgements(command_id);

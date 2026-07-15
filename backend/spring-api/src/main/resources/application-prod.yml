@@ -21,6 +21,8 @@ logging:
     "[org.hibernate.SQL]": DEBUG
 
 app:
+  encryption:
+    key: ${ENCRYPTION_KEY:prod-secret-key-must-be-32-chars}
   jwt:
     secret: diasmart_super_secure_local_jwt_secret_123456
     expiration-ms: 3600000

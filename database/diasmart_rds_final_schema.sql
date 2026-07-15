@@ -935,3 +935,11 @@ VALUES
     'Colombo',
     CURRENT_DATE
 );
+
+CREATE UNIQUE INDEX ux_user_patient_access_single_self
+ON user_patient_access (user_id)
+WHERE access_role = 'SELF' AND status = 'ACTIVE';
+
+CREATE UNIQUE INDEX ux_user_patient_access_single_self
+ON user_patient_access (user_id)
+WHERE access_role = 'SELF' AND status = 'ACTIVE';

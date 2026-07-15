@@ -946,6 +946,15 @@ CREATE TABLE IF NOT EXISTS device_configurations (
     patient_id BIGINT NOT NULL
         REFERENCES patients(patient_id) ON DELETE CASCADE,
 
+    inner_device_id BIGINT
+        REFERENCES devices(device_id) ON DELETE SET NULL,
+
+    pen_device_id BIGINT
+        REFERENCES devices(device_id) ON DELETE SET NULL,
+
+    glucometer_device_id BIGINT
+        REFERENCES devices(device_id) ON DELETE SET NULL,
+
     wifi_ssid VARCHAR(100) NOT NULL,
 
     wifi_password TEXT NOT NULL,
@@ -956,8 +965,11 @@ CREATE TABLE IF NOT EXISTS device_configurations (
             'PENDING',
             'SENT',
             'APPLIED',
-            'FAILED'
+            'FAILED',
+            'OUTDATED'
         )),
+
+    configuration_version INTEGER NOT NULL DEFAULT 1,
 
     last_synced_at TIMESTAMPTZ,
 
@@ -990,7 +1002,11 @@ CREATE TABLE IF NOT EXISTS device_commands (
             'CARE_PLAN_UPDATE',
             'REMINDER_UPDATE',
             'SYNC_REQUEST',
-            'RESTART_DEVICE'
+            'RESTART_DEVICE',
+            'OTA_UPDATE',
+            'ALERT',
+            'DEVICE_SETTINGS',
+            'DEVICE_STATUS'
         )),
 
     payload JSONB NOT NULL,
@@ -1001,6 +1017,7 @@ CREATE TABLE IF NOT EXISTS device_commands (
             'PENDING',
             'SENT',
             'RECEIVED',
+            'VALIDATED',
             'APPLIED',
             'FAILED',
             'EXPIRED'
@@ -1034,6 +1051,7 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
     ack_status VARCHAR(20)
         CHECK (ack_status IN (
             'RECEIVED',
+            'VALIDATED',
             'APPLIED',
             'REJECTED',
             'FAILED'

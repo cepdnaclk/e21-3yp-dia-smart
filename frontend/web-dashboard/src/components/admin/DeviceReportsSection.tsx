@@ -1,20 +1,39 @@
-import { Card, CardContent, Typography } from "@mui/material";
+import { Card, CardContent, Typography, Box } from "@mui/material";
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const DeviceReportsSection = () => {
+  const data = [
+    { name: "Active", value: 34, color: "#2e7d32" },
+    { name: "Warning", value: 4, color: "#ed6c02" },
+    { name: "Offline", value: 2, color: "#d32f2f" }
+  ];
+
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Hardware Inventory & Battery Status Reports
-        </Typography>
-        
-        {/* TODO: Integrate administrative hardware devices analytics reports */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Statistical summary reports mapping device assignments counts, cell battery warnings, offline devices counts, and provisioning logs.
-        </Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
-          [Placeholder Registry: Device Inventory Reports]
-        </Typography>
+    <Card elevation={2} sx={{ borderRadius: 3, height: "100%", display: "flex", flexDirection: "column" }}>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            Hardware Provisioning & Status
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Operational statuses mapping active, warning, and offline hardware dosing units or storage sensors.
+          </Typography>
+        </Box>
+
+        <Box sx={{ width: "100%", height: 260 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -117,7 +117,7 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
               <TextField required fullWidth label="Contact Number" name="contactNumber" value={formData.contactNumber} onChange={handleChange} />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField required fullWidth type="date" label="Purchase Date" InputLabelProps={{ shrink: true }} name="purchaseDate" value={formData.purchaseDate} onChange={handleChange} />
+              <TextField required fullWidth type="date" label="Purchase Date" slotProps={{ inputLabel: { shrink: true } }} name="purchaseDate" value={formData.purchaseDate} onChange={handleChange} />
             </Grid>
             <Grid size={{ xs: 12 }}>
               <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} />

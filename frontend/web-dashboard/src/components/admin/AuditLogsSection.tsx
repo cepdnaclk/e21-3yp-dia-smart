@@ -1,20 +1,92 @@
-import { Card, CardContent, Typography } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Typography,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  CircularProgress,
+  TablePagination,
+  Box
+} from "@mui/material";
+import type { AuditLogRecord } from "../../types/admin";
 
-const AuditLogsSection = () => {
+interface AuditLogsSectionProps {
+  logs: AuditLogRecord[];
+  loading: boolean;
+  page: number;
+  totalElements: number;
+  rowsPerPage: number;
+  onPageChange: (event: any, newPage: number) => void;
+}
+
+const AuditLogsSection: React.FC<AuditLogsSectionProps> = ({
+  logs,
+  loading,
+  page,
+  totalElements,
+  rowsPerPage,
+  onPageChange
+}) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Audit Logs
+    <Card elevation={2} sx={{ borderRadius: 3, height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+          Administrative Audit Logs
         </Typography>
-        
-        {/* TODO: Integrate administrative audit logs list query api */}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Security logging tracking access attempts, settings adjustments, device registrations, and data exports. Filterable by user, role, and event type.
-        </Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ display: "block" }}>
-          [Placeholder Table: Audit Logs List]
-        </Typography>
+
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            <TableContainer sx={{ maxHeight: 440 }}>
+              <Table stickyHeader size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Entity</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>IP Address</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Timestamp</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.auditLogId} hover>
+                      <TableCell sx={{ fontWeight: "medium" }}>{log.actionType}</TableCell>
+                      <TableCell>
+                        {log.entityType} (ID: {log.entityId || "N/A"})
+                      </TableCell>
+                      <TableCell>{log.ipAddress || "Localhost"}</TableCell>
+                      <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+
+                  {logs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center" sx={{ py: 3, color: "text.secondary" }}>
+                        No audit records registered.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <TablePagination
+              component="div"
+              count={totalElements}
+              page={page}
+              onPageChange={onPageChange}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[rowsPerPage]}
+            />
+          </>
+        )}
       </CardContent>
     </Card>
   );

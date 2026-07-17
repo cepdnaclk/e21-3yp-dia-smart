@@ -936,6 +936,13 @@ VALUES
     CURRENT_DATE
 );
 
+CREATE UNIQUE INDEX ux_user_patient_access_single_self
+ON user_patient_access (user_id)
+WHERE access_role = 'SELF' AND status = 'ACTIVE';
+
+CREATE UNIQUE INDEX ux_user_patient_access_single_self
+ON user_patient_access (user_id)
+WHERE access_role = 'SELF' AND status = 'ACTIVE';
 CREATE TABLE IF NOT EXISTS device_configurations (
 
     configuration_id BIGSERIAL PRIMARY KEY,

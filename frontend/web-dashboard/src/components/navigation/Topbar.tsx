@@ -12,21 +12,23 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from "@mui/icons-material/Home";
 import SettingsIcon from "@mui/icons-material/Settings";
+import MenuIcon from "@mui/icons-material/Menu";
 import { useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo/diasmart-logo.png";
-
 import { useAuth } from "../../context/AuthContext";
 
 const appBarStyles = {
-  backgroundColor: "#3B567C",
+  backgroundColor: "#12233b",
+  zIndex: (theme: any) => theme.zIndex.drawer + 1,
 };
 
 const logoStyles = {
-  width: 40,
-  height: 40,
-  mr: 2,
+  width: 36,
+  height: 36,
+  mr: 1.5,
   borderRadius: 1,
+  display: { xs: "none", sm: "block" },
 };
 
 const titleStyles = {
@@ -35,20 +37,30 @@ const titleStyles = {
 };
 
 const homeButtonStyles = {
-  mx: 1,
+  mx: 0.5,
   textTransform: "none",
   fontWeight: 600,
+  display: { xs: "none", md: "inline-flex" },
 };
 
 const logoutButtonStyles = {
-  mx: 1,
+  mx: 0.5,
   textTransform: "none",
+  display: { xs: "none", md: "inline-flex" },
+};
+
+const settingsButtonStyles = {
+  display: { xs: "none", sm: "inline-flex" },
 };
 
 const getRoleInitial = (role: string) =>
-  role.charAt(0);
+  role.charAt(0).toUpperCase();
 
-const Topbar = () => {
+interface TopbarProps {
+  onDrawerToggle: () => void;
+}
+
+const Topbar = ({ onDrawerToggle }: TopbarProps) => {
   const { role, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -74,8 +86,18 @@ const Topbar = () => {
       position="fixed"
       sx={appBarStyles}
     >
-      {/* TODO: Add mobile menu trigger here when responsive drawer navigation is implemented. */}
       <Toolbar>
+        {/* Hamburger Menu Toggle on Mobile */}
+        <IconButton
+          color="inherit"
+          aria-label="open drawer"
+          edge="start"
+          onClick={onDrawerToggle}
+          sx={{ mr: 2, display: { md: "none" } }}
+        >
+          <MenuIcon />
+        </IconButton>
+
         <Box
           component="img"
           src={logo}
@@ -90,7 +112,7 @@ const Topbar = () => {
           Dia-Smart
         </Typography>
 
-        <IconButton color="inherit">
+        <IconButton color="inherit" sx={{ mr: 1 }}>
           <NotificationsIcon />
         </IconButton>
 
@@ -116,6 +138,7 @@ const Topbar = () => {
           color="inherit"
           aria-label="Settings"
           onClick={handleSettings}
+          sx={settingsButtonStyles}
         >
           <SettingsIcon />
         </IconButton>
@@ -124,8 +147,9 @@ const Topbar = () => {
           color="inherit"
           aria-label="Profile"
           onClick={handleProfile}
+          sx={{ ml: 1 }}
         >
-          <Avatar>
+          <Avatar sx={{ bgcolor: "#3ec1fa", color: "#12233b", fontWeight: "bold", width: 32, height: 32, fontSize: "0.9rem" }}>
             {getRoleInitial(role)}
           </Avatar>
         </IconButton>
@@ -135,3 +159,4 @@ const Topbar = () => {
 };
 
 export default Topbar;
+

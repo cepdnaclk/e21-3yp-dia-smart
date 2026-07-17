@@ -25,10 +25,10 @@ describe("dashboardService", () => {
             glucoseValueMgDl: 140,
           },
           latestStorageReading: {
-            temperatureCelsius: 5,
+            temperatureC: 5,
           },
           latestInventoryReading: {
-            remainingUnits: 80,
+            weightG: 80,
           },
           latestDoseEvent: {
             doseUnits: 8,

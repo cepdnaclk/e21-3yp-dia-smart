@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogActions,
   Grid,
-  Divider,
   Chip,
   Box,
   CircularProgress
@@ -180,7 +179,7 @@ const DeviceHealthSection = () => {
                   </Box>
                 ) : diagnostics ? (
                   <Grid container spacing={3} sx={{ mt: 1 }}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle2" color="text.secondary">Connectivity</Typography>
                       <Typography variant="body1" sx={{ mb: 2 }}>
                         {diagnostics.online ? "🟢 Online" : "🔴 Offline"}
@@ -197,7 +196,7 @@ const DeviceHealthSection = () => {
                       </Typography>
                     </Grid>
                     
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <Typography variant="subtitle2" color="text.secondary">Battery Level</Typography>
                       <Typography variant="body1" sx={{ mb: 2 }}>
                         {diagnostics.batteryPercent ? `${diagnostics.batteryPercent}%` : "N/A"}

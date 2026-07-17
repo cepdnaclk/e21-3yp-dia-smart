@@ -18,8 +18,10 @@ vi.mock("../../context/AuthContext", () => ({
 }));
 
 describe("Sidebar", () => {
+  const renderSidebar = () => render(<Sidebar mobileOpen={false} onClose={vi.fn()} />);
+
   it("renders Dashboard menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.getByText("Dashboard")
@@ -27,7 +29,7 @@ describe("Sidebar", () => {
   });
 
   it("renders Alerts menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.getByText("Alerts")
@@ -35,7 +37,7 @@ describe("Sidebar", () => {
   });
 
   it("renders Devices menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.getByText("Devices")
@@ -43,7 +45,7 @@ describe("Sidebar", () => {
   });
 
   it("renders Care Team menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.getByText("Care Team")
@@ -51,7 +53,7 @@ describe("Sidebar", () => {
   });
 
   it("does not show removed Patient menu items", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.queryByText("Patients")

@@ -1,36 +1,59 @@
-import { Box, Toolbar } from "@mui/material";
+import { useState } from "react";
+import { Box, Toolbar, useTheme, useMediaQuery } from "@mui/material";
 import { Outlet } from "react-router-dom";
 
 import Sidebar from "../../components/navigation/Sidebar";
 import Topbar from "../../components/navigation/Topbar";
+import BottomNav from "../../components/navigation/BottomNav";
 
 const layoutStyles = {
   display: "flex",
-};
-
-const mainContentStyles = {
-  flexGrow: 1,
-  p: 3,
+  minHeight: "100vh",
+  backgroundColor: "#f8f9fa",
 };
 
 const DashboardLayout = () => {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleDrawerClose = () => {
+    setMobileOpen(false);
+  };
+
   return (
     <Box sx={layoutStyles}>
-      <Topbar />
+      <Topbar onDrawerToggle={handleDrawerToggle} />
 
-      <Sidebar />
+      <Sidebar mobileOpen={mobileOpen} onClose={handleDrawerClose} />
 
-      {/* TODO: Adjust content offset when mobile drawer navigation is introduced. */}
       <Box
         component="main"
-        sx={mainContentStyles}
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3 },
+          width: { md: `calc(100% - 260px)` }, // accounts for sidebar width on desktop
+          pb: isMobile ? "80px" : "24px", // adds buffer at the bottom for bottom navigation on mobile
+          transition: theme.transitions.create(["margin", "width"], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
       >
         <Toolbar />
 
         <Outlet />
       </Box>
+
+      {/* Conditionally render BottomNav only on Mobile/Tablet viewports */}
+      {isMobile && <BottomNav onDrawerToggle={handleDrawerToggle} />}
     </Box>
   );
 };
 
 export default DashboardLayout;
+

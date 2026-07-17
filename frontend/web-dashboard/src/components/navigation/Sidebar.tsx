@@ -13,6 +13,8 @@ import {
 } from "@mui/material";
 
 import { useNavigate, useLocation } from "react-router-dom";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 import { patientNavigation } from "../../config/navigation/patientNavigation";
 import { doctorNavigation } from "../../config/navigation/doctorNavigation";
@@ -38,7 +40,7 @@ const isActiveNavigationItem = (
 const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, logout } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -134,6 +136,73 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
             </ListItemButton>
           );
         })}
+
+        <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+
+        <ListItemButton
+          onClick={() => {
+            navigate("/settings");
+            if (isMobile) onClose();
+          }}
+          sx={{
+            borderRadius: 2,
+            mb: 0.5,
+            py: 1.25,
+            px: 2,
+            color: "rgba(255, 255, 255, 0.7)",
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.04)",
+              color: "#ffffff",
+              "& .MuiListItemIcon-root": {
+                color: "#ffffff",
+              },
+            },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
+            <SettingsIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              <Typography variant="body2" sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
+                Settings
+              </Typography>
+            }
+          />
+        </ListItemButton>
+
+        <ListItemButton
+          onClick={() => {
+            logout();
+            navigate("/");
+            if (isMobile) onClose();
+          }}
+          sx={{
+            borderRadius: 2,
+            mb: 0.5,
+            py: 1.25,
+            px: 2,
+            color: "rgba(255, 255, 255, 0.7)",
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.04)",
+              color: "#ffffff",
+              "& .MuiListItemIcon-root": {
+                color: "#ffffff",
+              },
+            },
+          }}
+        >
+          <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              <Typography variant="body2" sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
+                Logout
+              </Typography>
+            }
+          />
+        </ListItemButton>
       </List>
 
       {/* Optional footer area in the drawer */}

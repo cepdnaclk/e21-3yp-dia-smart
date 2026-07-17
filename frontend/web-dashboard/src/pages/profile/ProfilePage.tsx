@@ -11,9 +11,13 @@ import {
   TextField,
   Button,
   Alert,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import PageError from "../../components/common/PageError";
 import PageLoading from "../../components/common/PageLoading";
@@ -37,6 +41,11 @@ const ProfilePage = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Show/Hide Password States
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Action status states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -311,26 +320,71 @@ const ProfilePage = () => {
 
                   <TextField
                     label="Current Password"
-                    type="password"
+                    type={showCurrentPassword ? "text" : "password"}
                     fullWidth
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle current password visibility"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              edge="end"
+                            >
+                              {showCurrentPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
 
                   <TextField
                     label="New Password"
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     fullWidth
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle new password visibility"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              edge="end"
+                            >
+                              {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
 
                   <TextField
                     label="Confirm New Password"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     fullWidth
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle confirm password visibility"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              edge="end"
+                            >
+                              {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
 
                   <Button

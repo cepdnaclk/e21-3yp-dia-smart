@@ -14,6 +14,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({
     role: "PATIENT",
+    logout: vi.fn(),
   }),
 }));
 

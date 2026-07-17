@@ -45,7 +45,6 @@ const AlertCard = ({
   return (
     <Alert
       severity={severity}
-      action={action}
       sx={{
         backgroundColor: "#ffffff !important",
         color: "#1e293b",
@@ -64,8 +63,8 @@ const AlertCard = ({
         },
       }}
     >
-      <Stack spacing={1}>
-        <Box>
+      <Stack spacing={1} sx={{ width: "100%" }}>
+        <Box sx={{ width: "100%" }}>
           <AlertTitle sx={{ fontWeight: 700, color: "#12233b", fontSize: "0.95rem", mb: 0.5 }}>
             {title}
           </AlertTitle>
@@ -111,6 +110,12 @@ const AlertCard = ({
               </Typography>
             )}
           </Stack>
+        )}
+
+        {action && (
+          <Box sx={{ mt: 1.5, display: "flex", justifyContent: "flex-end", width: "100%", gap: 1 }}>
+            {action}
+          </Box>
         )}
       </Stack>
     </Alert>

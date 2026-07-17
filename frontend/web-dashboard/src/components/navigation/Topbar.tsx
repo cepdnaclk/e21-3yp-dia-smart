@@ -6,6 +6,7 @@ import {
   IconButton,
   Avatar,
   Button,
+  Tooltip,
 } from "@mui/material";
 
 import NotificationsIcon from "@mui/icons-material/Notifications";
@@ -24,11 +25,11 @@ const appBarStyles = {
 };
 
 const logoStyles = {
-  width: 36,
-  height: 36,
-  mr: 1.5,
+  width: 32,
+  height: 32,
+  mr: 1,
   borderRadius: 1,
-  display: { xs: "none", sm: "block" },
+  display: "block",
 };
 
 const titleStyles = {
@@ -112,47 +113,57 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
           Dia-Smart
         </Typography>
 
-        <IconButton color="inherit" sx={{ mr: 1 }}>
-          <NotificationsIcon />
-        </IconButton>
+        <Tooltip title="View notifications">
+          <IconButton color="inherit" sx={{ mr: 1 }}>
+            <NotificationsIcon />
+          </IconButton>
+        </Tooltip>
 
-        <Button
-          color="inherit"
-          startIcon={<HomeIcon />}
-          onClick={handleHome}
-          sx={homeButtonStyles}
-        >
-          Home
-        </Button>
+        <Tooltip title="Go to home dashboard">
+          <Button
+            color="inherit"
+            startIcon={<HomeIcon />}
+            onClick={handleHome}
+            sx={homeButtonStyles}
+          >
+            Home
+          </Button>
+        </Tooltip>
 
-        <Button
-          color="inherit"
-          startIcon={<LogoutIcon />}
-          onClick={handleLogout}
-          sx={logoutButtonStyles}
-        >
-          Logout
-        </Button>
+        <Tooltip title="Logout of account">
+          <Button
+            color="inherit"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={logoutButtonStyles}
+          >
+            Logout
+          </Button>
+        </Tooltip>
 
-        <IconButton
-          color="inherit"
-          aria-label="Settings"
-          onClick={handleSettings}
-          sx={settingsButtonStyles}
-        >
-          <SettingsIcon />
-        </IconButton>
+        <Tooltip title="Edit settings">
+          <IconButton
+            color="inherit"
+            aria-label="Settings"
+            onClick={handleSettings}
+            sx={settingsButtonStyles}
+          >
+            <SettingsIcon />
+          </IconButton>
+        </Tooltip>
 
-        <IconButton
-          color="inherit"
-          aria-label="Profile"
-          onClick={handleProfile}
-          sx={{ ml: 1 }}
-        >
-          <Avatar sx={{ bgcolor: "#3ec1fa", color: "#12233b", fontWeight: "bold", width: 32, height: 32, fontSize: "0.9rem" }}>
-            {getRoleInitial(role)}
-          </Avatar>
-        </IconButton>
+        <Tooltip title="View profile details">
+          <IconButton
+            color="inherit"
+            aria-label="Profile"
+            onClick={handleProfile}
+            sx={{ ml: 1 }}
+          >
+            <Avatar sx={{ bgcolor: "#3ec1fa", color: "#12233b", fontWeight: "bold", width: 32, height: 32, fontSize: "0.9rem" }}>
+              {getRoleInitial(role)}
+            </Avatar>
+          </IconButton>
+        </Tooltip>
       </Toolbar>
     </AppBar>
   );

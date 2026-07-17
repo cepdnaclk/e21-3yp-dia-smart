@@ -7,10 +7,14 @@ import {
   MenuItem,
   TextField,
   Typography,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import { authService } from "../../services/authService";
 import type { RegisterRequest } from "../../services/authService";
@@ -27,6 +31,7 @@ const RegisterPage = () => {
     contactNumber: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -136,7 +141,7 @@ const RegisterPage = () => {
 
           <TextField
             label="Password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             fullWidth
             margin="dense"
             value={form.password}
@@ -146,6 +151,21 @@ const RegisterPage = () => {
                 password: e.target.value,
               })
             }
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
 
           <TextField

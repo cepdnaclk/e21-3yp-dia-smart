@@ -1,4 +1,4 @@
-import { BottomNavigation, BottomNavigationAction, Paper } from "@mui/material";
+import { BottomNavigation, BottomNavigationAction, Paper, Tooltip } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WarningIcon from "@mui/icons-material/Warning";
@@ -98,18 +98,21 @@ const BottomNav = ({ onDrawerToggle }: BottomNavProps) => {
         }}
       >
         {navItems.map((item) => (
-          <BottomNavigationAction
-            key={item.label}
-            label={item.label}
-            icon={item.icon}
-          />
+          <Tooltip key={item.label} title={`Navigate to ${item.label}`}>
+            <BottomNavigationAction
+              label={item.label}
+              icon={item.icon}
+            />
+          </Tooltip>
         ))}
         {/* The last button triggers the sidebar drawer on mobile for less-frequently used paths */}
-        <BottomNavigationAction
-          label="Menu"
-          icon={<MenuIcon />}
-          onClick={onDrawerToggle}
-        />
+        <Tooltip title="Open menu drawer">
+          <BottomNavigationAction
+            label="Menu"
+            icon={<MenuIcon />}
+            onClick={onDrawerToggle}
+          />
+        </Tooltip>
       </BottomNavigation>
     </Paper>
   );

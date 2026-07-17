@@ -36,7 +36,8 @@ const DashboardLayout = () => {
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
-          width: { md: `calc(100% - 260px)` }, // accounts for sidebar width on desktop
+          width: { xs: "100%", md: `calc(100% - 260px)` }, // accounts for sidebar width on desktop
+          minWidth: 0,
           pb: isMobile ? "80px" : "24px", // adds buffer at the bottom for bottom navigation on mobile
           transition: theme.transitions.create(["margin", "width"], {
             easing: theme.transitions.easing.sharp,

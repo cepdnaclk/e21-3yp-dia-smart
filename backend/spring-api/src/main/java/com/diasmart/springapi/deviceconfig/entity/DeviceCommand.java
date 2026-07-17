@@ -12,6 +12,9 @@ public class DeviceCommand {
     @Column(name = "command_id")
     private Long commandId;
 
+    @Column(name = "command_uid", unique = true, length = 80)
+    private String commandUid;
+
     @Column(name = "device_id", nullable = false)
     private Long deviceId;
 
@@ -26,6 +29,12 @@ public class DeviceCommand {
 
     @Column(name = "command_status", length = 20)
     private String commandStatus;
+
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    private String lastError;
 
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
@@ -45,6 +54,9 @@ public class DeviceCommand {
         if (commandStatus == null) {
             commandStatus = "PENDING";
         }
+        if (retryCount == null) {
+            retryCount = 0;
+        }
     }
 
     public Long getCommandId() {
@@ -53,6 +65,14 @@ public class DeviceCommand {
 
     public void setCommandId(Long commandId) {
         this.commandId = commandId;
+    }
+
+    public String getCommandUid() {
+        return commandUid;
+    }
+
+    public void setCommandUid(String commandUid) {
+        this.commandUid = commandUid;
     }
 
     public Long getDeviceId() {
@@ -93,6 +113,22 @@ public class DeviceCommand {
 
     public void setCommandStatus(String commandStatus) {
         this.commandStatus = commandStatus;
+    }
+
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(Integer retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
     }
 
     public OffsetDateTime getPublishedAt() {

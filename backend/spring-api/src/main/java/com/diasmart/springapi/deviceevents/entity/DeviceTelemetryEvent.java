@@ -40,6 +40,7 @@ public class DeviceTelemetryEvent {
     @Column(name = "mqtt_topic", length = 255)
     private String mqttTopic;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "JSONB")
     private String payload;
 

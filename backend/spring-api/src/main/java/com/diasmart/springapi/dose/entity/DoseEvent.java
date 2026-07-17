@@ -46,6 +46,9 @@ public class DoseEvent {
     @Column(name = "event_status")
     private String eventStatus;
 
+    @Column(name = "dose_status")
+    private String doseStatus;
+
     @Column(name = "notes")
     private String notes;
 
@@ -90,6 +93,10 @@ public class DoseEvent {
 
     public String getEventStatus() {
         return eventStatus;
+    }
+
+    public String getDoseStatus() {
+        return doseStatus;
     }
 
     public String getNotes() {
@@ -146,6 +153,10 @@ public class DoseEvent {
 
     public void setEventStatus(String eventStatus) {
         this.eventStatus = eventStatus;
+    }
+
+    public void setDoseStatus(String doseStatus) {
+        this.doseStatus = doseStatus;
     }
 
     public void setNotes(String notes) {

@@ -8,6 +8,12 @@ public class UpdateDoseScheduleRequest {
 
     private String scheduledTime;
 
+    private String windowStart;
+
+    private String targetTime;
+
+    private String windowEnd;
+
     private BigDecimal doseUnits;
 
     private String daysOfWeek;
@@ -32,6 +38,30 @@ public class UpdateDoseScheduleRequest {
 
     public void setScheduledTime(String scheduledTime) {
         this.scheduledTime = scheduledTime;
+    }
+
+    public String getWindowStart() {
+        return windowStart;
+    }
+
+    public void setWindowStart(String windowStart) {
+        this.windowStart = windowStart;
+    }
+
+    public String getTargetTime() {
+        return targetTime;
+    }
+
+    public void setTargetTime(String targetTime) {
+        this.targetTime = targetTime;
+    }
+
+    public String getWindowEnd() {
+        return windowEnd;
+    }
+
+    public void setWindowEnd(String windowEnd) {
+        this.windowEnd = windowEnd;
     }
 
     public BigDecimal getDoseUnits() {

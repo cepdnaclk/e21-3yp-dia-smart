@@ -18,8 +18,9 @@ constexpr uint16_t COLOR_TEXT = 0xFFFF;
 constexpr uint16_t COLOR_MUTED = 0xAD55;
 constexpr uint16_t COLOR_ACCENT = 0x07FF;
 constexpr uint16_t COLOR_OK = 0x07E0;
-constexpr uint16_t COLOR_WARN = 0xFFE0;
+constexpr uint16_t COLOR_WARN = 0xB145;
 constexpr uint16_t COLOR_BAD = 0xF800;
+constexpr uint16_t COLOR_COLD = 0x041F;
 
 bool forceFullRedraw = true;
 
@@ -233,8 +234,9 @@ void drawText(int x, int y, const char* text, uint16_t color, uint16_t bg, uint8
 }
 
 uint16_t tempColor(float tempC) {
-    if (isnan(tempC)) return COLOR_WARN;
-    if (tempC < TEMP_MIN_C || tempC > TEMP_MAX_C) return COLOR_BAD;
+    if (isnan(tempC)) return COLOR_MUTED;
+    if (tempC < TEMP_MIN_C) return COLOR_COLD;
+    if (tempC > TEMP_MAX_C) return COLOR_BAD;
     return COLOR_OK;
 }
 
@@ -343,13 +345,15 @@ void drawDashboard(const DisplayState& state) {
     }
     drawCard(10, 248, 145, 76, "LAST DOSE", doseBuf, COLOR_TEXT);
 
-    char seqBuf[24];
-    if (state.hasTelemetry && state.glucometerSequenceNumber > 0) {
-        snprintf(seqBuf, sizeof(seqBuf), "#%d", state.glucometerSequenceNumber);
+    char innerBatteryBuf[24];
+    if (state.hasTelemetry) {
+        snprintf(innerBatteryBuf, sizeof(innerBatteryBuf), "%d%%", state.innerBatteryPercent);
     } else {
-        snprintf(seqBuf, sizeof(seqBuf), "--");
+        snprintf(innerBatteryBuf, sizeof(innerBatteryBuf), "--%%");
     }
-    drawCard(165, 248, 145, 76, "GLUCOSE SEQ", seqBuf, COLOR_TEXT, true);
+    drawCard(165, 248, 145, 76, "INNER BAT", innerBatteryBuf,
+             state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT ? COLOR_BAD : COLOR_TEXT,
+             true);
 
     rawFillRect(10, 336, 300, 72, COLOR_PANEL);
     drawText(20, 346, "INJECTED AT", COLOR_MUTED, COLOR_PANEL, 2);
@@ -406,10 +410,10 @@ void drawAlerts(const DisplayState& state) {
     uint16_t tempStatusColor = COLOR_OK;
     if (!state.hasTelemetry || isnan(state.temperatureC)) {
         tempStatus = "UNKNOWN";
-        tempStatusColor = COLOR_WARN;
+        tempStatusColor = COLOR_MUTED;
     } else if (state.temperatureC < TEMP_MIN_C) {
         tempStatus = "LOW";
-        tempStatusColor = COLOR_BAD;
+        tempStatusColor = COLOR_COLD;
     } else if (state.temperatureC > TEMP_MAX_C) {
         tempStatus = "HIGH";
         tempStatusColor = COLOR_BAD;

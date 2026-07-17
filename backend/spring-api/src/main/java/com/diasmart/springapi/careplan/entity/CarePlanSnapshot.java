@@ -38,6 +38,7 @@ public class CarePlanSnapshot {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "JSONB")
     private String payload;
 

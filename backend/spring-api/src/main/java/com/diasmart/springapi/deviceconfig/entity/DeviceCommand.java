@@ -24,6 +24,7 @@ public class DeviceCommand {
     @Column(name = "command_type", nullable = false, length = 40)
     private String commandType;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "JSONB")
     private String payload;
 

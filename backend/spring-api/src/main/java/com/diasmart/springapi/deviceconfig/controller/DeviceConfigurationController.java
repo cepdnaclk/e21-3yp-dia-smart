@@ -15,7 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/patient/device-configurations")
-@PreAuthorize("hasRole('PATIENT')")
+@PreAuthorize("hasAnyRole('PATIENT', 'CAREGIVER', 'DOCTOR', 'ADMIN')")
 public class DeviceConfigurationController {
 
     private final DeviceConfigurationService configurationService;

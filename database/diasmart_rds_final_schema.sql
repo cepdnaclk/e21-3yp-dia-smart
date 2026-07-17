@@ -924,6 +924,9 @@ ALTER TABLE devices
 ADD COLUMN buyer_id BIGINT;
 
 ALTER TABLE devices
+ADD COLUMN status VARCHAR(20) DEFAULT 'UNKNOWN';
+
+ALTER TABLE devices
 ADD CONSTRAINT fk_devices_buyer
 FOREIGN KEY (buyer_id)
 REFERENCES buyers(buyer_id)

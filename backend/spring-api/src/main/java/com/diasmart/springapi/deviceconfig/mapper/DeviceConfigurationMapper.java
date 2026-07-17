@@ -22,6 +22,11 @@ public class DeviceConfigurationMapper {
         dto.setGlucometerDeviceId(entity.getGlucometerDeviceId());
         dto.setWifiSsid(entity.getWifiSsid());
         dto.setConfigurationStatus(entity.getConfigurationStatus());
+        dto.setOuterUnitStatus(entity.getOuterUnitStatus());
+        dto.setInnerUnitStatus(entity.getInnerUnitStatus());
+        dto.setInnerUnitIpAddress(entity.getInnerUnitIpAddress());
+        dto.setInnerUnitMessage(entity.getInnerUnitMessage());
+        dto.setLastInnerUnitStatusAt(entity.getLastInnerUnitStatusAt());
         dto.setConfigurationVersion(entity.getConfigurationVersion());
         dto.setLastSyncedAt(entity.getLastSyncedAt());
         dto.setCreatedAt(entity.getCreatedAt());

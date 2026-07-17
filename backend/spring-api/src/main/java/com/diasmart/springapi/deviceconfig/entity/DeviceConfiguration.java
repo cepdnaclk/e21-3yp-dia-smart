@@ -33,8 +33,32 @@ public class DeviceConfiguration {
     @Column(name = "wifi_password", nullable = false, columnDefinition = "TEXT")
     private String wifiPassword;
 
+    @Column(name = "wifi_password_ciphertext", columnDefinition = "TEXT")
+    private String wifiPasswordCiphertext;
+
+    @Column(name = "wifi_password_nonce", length = 64)
+    private String wifiPasswordNonce;
+
+    @Column(name = "wifi_password_tag", length = 64)
+    private String wifiPasswordTag;
+
     @Column(name = "configuration_status", length = 20)
     private String configurationStatus;
+
+    @Column(name = "outer_unit_status", length = 30)
+    private String outerUnitStatus;
+
+    @Column(name = "inner_unit_status", length = 30)
+    private String innerUnitStatus;
+
+    @Column(name = "inner_unit_ip_address", length = 64)
+    private String innerUnitIpAddress;
+
+    @Column(name = "inner_unit_message", columnDefinition = "TEXT")
+    private String innerUnitMessage;
+
+    @Column(name = "last_inner_unit_status_at")
+    private OffsetDateTime lastInnerUnitStatusAt;
 
     @Column(name = "configuration_version", nullable = false)
     private Integer configurationVersion;
@@ -132,12 +156,76 @@ public class DeviceConfiguration {
         this.wifiPassword = wifiPassword;
     }
 
+    public String getWifiPasswordCiphertext() {
+        return wifiPasswordCiphertext;
+    }
+
+    public void setWifiPasswordCiphertext(String wifiPasswordCiphertext) {
+        this.wifiPasswordCiphertext = wifiPasswordCiphertext;
+    }
+
+    public String getWifiPasswordNonce() {
+        return wifiPasswordNonce;
+    }
+
+    public void setWifiPasswordNonce(String wifiPasswordNonce) {
+        this.wifiPasswordNonce = wifiPasswordNonce;
+    }
+
+    public String getWifiPasswordTag() {
+        return wifiPasswordTag;
+    }
+
+    public void setWifiPasswordTag(String wifiPasswordTag) {
+        this.wifiPasswordTag = wifiPasswordTag;
+    }
+
     public String getConfigurationStatus() {
         return configurationStatus;
     }
 
     public void setConfigurationStatus(String configurationStatus) {
         this.configurationStatus = configurationStatus;
+    }
+
+    public String getOuterUnitStatus() {
+        return outerUnitStatus;
+    }
+
+    public void setOuterUnitStatus(String outerUnitStatus) {
+        this.outerUnitStatus = outerUnitStatus;
+    }
+
+    public String getInnerUnitStatus() {
+        return innerUnitStatus;
+    }
+
+    public void setInnerUnitStatus(String innerUnitStatus) {
+        this.innerUnitStatus = innerUnitStatus;
+    }
+
+    public String getInnerUnitIpAddress() {
+        return innerUnitIpAddress;
+    }
+
+    public void setInnerUnitIpAddress(String innerUnitIpAddress) {
+        this.innerUnitIpAddress = innerUnitIpAddress;
+    }
+
+    public String getInnerUnitMessage() {
+        return innerUnitMessage;
+    }
+
+    public void setInnerUnitMessage(String innerUnitMessage) {
+        this.innerUnitMessage = innerUnitMessage;
+    }
+
+    public OffsetDateTime getLastInnerUnitStatusAt() {
+        return lastInnerUnitStatusAt;
+    }
+
+    public void setLastInnerUnitStatusAt(OffsetDateTime lastInnerUnitStatusAt) {
+        this.lastInnerUnitStatusAt = lastInnerUnitStatusAt;
     }
 
     public Integer getConfigurationVersion() {

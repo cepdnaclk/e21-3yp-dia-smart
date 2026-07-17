@@ -29,6 +29,15 @@ public class DoseSchedule {
     @Column(name = "scheduled_time")
     private LocalTime scheduledTime;
 
+    @Column(name = "window_start")
+    private LocalTime windowStart;
+
+    @Column(name = "target_time")
+    private LocalTime targetTime;
+
+    @Column(name = "window_end")
+    private LocalTime windowEnd;
+
     @Column(name = "dose_units")
     private BigDecimal doseUnits;
 
@@ -88,6 +97,30 @@ public class DoseSchedule {
 
     public void setScheduledTime(LocalTime scheduledTime) {
         this.scheduledTime = scheduledTime;
+    }
+
+    public LocalTime getWindowStart() {
+        return windowStart;
+    }
+
+    public void setWindowStart(LocalTime windowStart) {
+        this.windowStart = windowStart;
+    }
+
+    public LocalTime getTargetTime() {
+        return targetTime;
+    }
+
+    public void setTargetTime(LocalTime targetTime) {
+        this.targetTime = targetTime;
+    }
+
+    public LocalTime getWindowEnd() {
+        return windowEnd;
+    }
+
+    public void setWindowEnd(LocalTime windowEnd) {
+        this.windowEnd = windowEnd;
     }
 
     public BigDecimal getDoseUnits() {

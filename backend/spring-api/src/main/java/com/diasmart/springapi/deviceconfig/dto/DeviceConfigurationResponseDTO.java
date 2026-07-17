@@ -12,6 +12,11 @@ public class DeviceConfigurationResponseDTO {
     private Long glucometerDeviceId;
     private String wifiSsid;
     private String configurationStatus;
+    private String outerUnitStatus;
+    private String innerUnitStatus;
+    private String innerUnitIpAddress;
+    private String innerUnitMessage;
+    private OffsetDateTime lastInnerUnitStatusAt;
     private Integer configurationVersion;
     private OffsetDateTime lastSyncedAt;
     private OffsetDateTime createdAt;
@@ -82,6 +87,46 @@ public class DeviceConfigurationResponseDTO {
 
     public void setConfigurationStatus(String configurationStatus) {
         this.configurationStatus = configurationStatus;
+    }
+
+    public String getOuterUnitStatus() {
+        return outerUnitStatus;
+    }
+
+    public void setOuterUnitStatus(String outerUnitStatus) {
+        this.outerUnitStatus = outerUnitStatus;
+    }
+
+    public String getInnerUnitStatus() {
+        return innerUnitStatus;
+    }
+
+    public void setInnerUnitStatus(String innerUnitStatus) {
+        this.innerUnitStatus = innerUnitStatus;
+    }
+
+    public String getInnerUnitIpAddress() {
+        return innerUnitIpAddress;
+    }
+
+    public void setInnerUnitIpAddress(String innerUnitIpAddress) {
+        this.innerUnitIpAddress = innerUnitIpAddress;
+    }
+
+    public String getInnerUnitMessage() {
+        return innerUnitMessage;
+    }
+
+    public void setInnerUnitMessage(String innerUnitMessage) {
+        this.innerUnitMessage = innerUnitMessage;
+    }
+
+    public OffsetDateTime getLastInnerUnitStatusAt() {
+        return lastInnerUnitStatusAt;
+    }
+
+    public void setLastInnerUnitStatusAt(OffsetDateTime lastInnerUnitStatusAt) {
+        this.lastInnerUnitStatusAt = lastInnerUnitStatusAt;
     }
 
     public Integer getConfigurationVersion() {

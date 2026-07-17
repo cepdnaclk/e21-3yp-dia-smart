@@ -14,6 +14,12 @@ public class DoseScheduleResponse {
 
     private LocalTime scheduledTime;
 
+    private LocalTime windowStart;
+
+    private LocalTime targetTime;
+
+    private LocalTime windowEnd;
+
     private BigDecimal doseUnits;
 
     private String daysOfWeek;
@@ -56,6 +62,30 @@ public class DoseScheduleResponse {
 
     public void setScheduledTime(LocalTime scheduledTime) {
         this.scheduledTime = scheduledTime;
+    }
+
+    public LocalTime getWindowStart() {
+        return windowStart;
+    }
+
+    public void setWindowStart(LocalTime windowStart) {
+        this.windowStart = windowStart;
+    }
+
+    public LocalTime getTargetTime() {
+        return targetTime;
+    }
+
+    public void setTargetTime(LocalTime targetTime) {
+        this.targetTime = targetTime;
+    }
+
+    public LocalTime getWindowEnd() {
+        return windowEnd;
+    }
+
+    public void setWindowEnd(LocalTime windowEnd) {
+        this.windowEnd = windowEnd;
     }
 
     public BigDecimal getDoseUnits() {

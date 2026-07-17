@@ -39,8 +39,10 @@ describe("Topbar", () => {
     vi.clearAllMocks();
   });
 
+  const renderTopbar = () => render(<Topbar onDrawerToggle={vi.fn()} />);
+
   it("renders application title", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     expect(
       screen.getByText("Dia-Smart")
@@ -48,7 +50,7 @@ describe("Topbar", () => {
   });
 
   it("renders Home button", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     expect(
       screen.getByText("Home")
@@ -56,7 +58,7 @@ describe("Topbar", () => {
   });
 
   it("renders Logout button", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     expect(
       screen.getByText("Logout")
@@ -64,7 +66,7 @@ describe("Topbar", () => {
   });
 
   it("logout button calls logout", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     fireEvent.click(
       screen.getByText("Logout")
@@ -75,7 +77,7 @@ describe("Topbar", () => {
   });
 
   it("settings icon navigates to settings", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     fireEvent.click(
       screen.getByLabelText("Settings")
@@ -86,7 +88,7 @@ describe("Topbar", () => {
   });
 
   it("profile avatar navigates to profile", () => {
-    render(<Topbar />);
+    renderTopbar();
 
     fireEvent.click(
       screen.getByLabelText("Profile")

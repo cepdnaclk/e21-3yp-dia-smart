@@ -43,10 +43,17 @@ import AdminReportsPage from "../pages/admin/ReportsPage";
 
 // Shared Workspace Pages
 import PatientWorkspacePage from "../pages/workspace/PatientWorkspacePage";
+import { useHardwareBackButton } from "../hooks/useHardwareBackButton";
+
+const BackButtonHandler = () => {
+  useHardwareBackButton();
+  return null;
+};
 
 const AppRouter = () => {
   return (
     <BrowserRouter>
+      <BackButtonHandler />
       <Routes>
 
         {/* Landing Page */}

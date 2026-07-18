@@ -41,7 +41,7 @@ public class CarePlanPublisherService {
 
         for (int attempt = 1; attempt <= 2; attempt++) {
             try {
-                mqttService.publish(topic, snapshot.getPayload(), MQTT_QOS_ONE, true);
+                mqttService.publish(topic, snapshot.getPayload(), MQTT_QOS_ONE, false);
 
                 OffsetDateTime publishedAt = OffsetDateTime.now();
                 snapshot.setStatus("PUBLISHED");

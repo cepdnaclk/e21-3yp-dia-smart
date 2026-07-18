@@ -82,7 +82,11 @@ public class AuthService {
         user.setRole(request.getRole());
         user.setDisplayName(displayName);
         user.setContactNumber(normalizeNullableText(request.getContactNumber()));
-        user.setActive(true);
+        if (request.getRole() == UserRole.DOCTOR) {
+            user.setActive(false);
+        } else {
+            user.setActive(true);
+        }
 
         AppUser savedUser = appUserRepository.save(user);
 

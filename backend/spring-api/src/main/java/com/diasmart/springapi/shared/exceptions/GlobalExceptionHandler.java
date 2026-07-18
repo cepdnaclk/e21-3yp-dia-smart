@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,14 @@ public class GlobalExceptionHandler {
                                                 ErrorResponse.of(
                                                                 "Internal server error",
                                                                 "INTERNAL_ERROR"));
+        }
+
+        @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+        public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupported(
+                        HttpRequestMethodNotSupportedException exception) {
+                return ResponseEntity
+                                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                                .body(ErrorResponse.of(exception.getMessage(), "METHOD_NOT_ALLOWED"));
         }
 
         @ExceptionHandler(AccessDeniedException.class)

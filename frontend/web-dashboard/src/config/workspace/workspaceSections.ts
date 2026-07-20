@@ -13,12 +13,10 @@ export interface WorkspaceSectionConfig {
 export const workspaceSections: Record<UserRole, WorkspaceSectionConfig[]> = {
   [UserRole.DOCTOR]: [
     { id: "patient-details", gridSize: { xs: 12, md: 4 } },
-    { id: "glucose-trends", gridSize: { xs: 12, md: 8 } },
-    { id: "dose-history", gridSize: { xs: 12, md: 6 } },
-    { id: "alerts", gridSize: { xs: 12, md: 6 } },
-    { id: "prescriptions", gridSize: { xs: 12, md: 4 } },
-    { id: "dose-schedule", gridSize: { xs: 12, md: 4 } },
-    { id: "analytics", gridSize: { xs: 12, md: 4 } },
+    { id: "alerts", gridSize: { xs: 12, md: 8 } },
+    { id: "prescriptions", gridSize: { xs: 12, md: 6 } },
+    { id: "dose-schedule", gridSize: { xs: 12, md: 6 } },
+    { id: "analytics", gridSize: { xs: 12, md: 12 } },
     { id: "reports", gridSize: { xs: 12 } },
   ],
   [UserRole.CAREGIVER]: [

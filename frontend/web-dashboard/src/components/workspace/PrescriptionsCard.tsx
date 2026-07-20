@@ -183,33 +183,37 @@ const PrescriptionsCard = ({ patientId }: PrescriptionsCardProps) => {
                   px: 1.5,
                   py: 1,
                   bgcolor: "action.hover",
-                  borderRadius: 2
+                  borderRadius: 2,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2
                 }}
-                secondaryAction={
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Chip
-                      label={pres.active ? "Active" : "Inactive"}
-                      color={pres.active ? "success" : "default"}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {isDoctor && (
-                      <>
-                        <IconButton size="small" color="primary" onClick={() => handleOpenEdit(pres)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(pres.prescriptionId)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </>
-                    )}
-                  </Box>
-                }
               >
-                <ListItemText
-                  primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{pres.prescriptionName}</Typography>}
-                  secondary={`Regimen: ${new Date(pres.startDate).toLocaleDateString()} - ${new Date(pres.endDate).toLocaleDateString()} ${pres.notes ? `• ${pres.notes}` : ""}`}
-                />
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <ListItemText
+                    primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{pres.prescriptionName}</Typography>}
+                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{`Regimen: ${new Date(pres.startDate).toLocaleDateString()} - ${new Date(pres.endDate).toLocaleDateString()} ${pres.notes ? `• ${pres.notes}` : ""}`}</Typography>}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+                  <Chip
+                    label={pres.active ? "Active" : "Inactive"}
+                    color={pres.active ? "success" : "default"}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {isDoctor && (
+                    <>
+                      <IconButton size="small" color="primary" onClick={() => handleOpenEdit(pres)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(pres.prescriptionId)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  )}
+                </Box>
               </ListItem>
             ))}
           </List>

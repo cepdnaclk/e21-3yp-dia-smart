@@ -4,6 +4,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
 
 import DashboardPage from "./DashboardPage";
 
@@ -12,6 +13,16 @@ vi.mock(
   () => ({
     dashboardService: {
       getDashboardData: vi.fn(),
+    },
+  })
+);
+
+vi.mock(
+  "../../services/analyticsService",
+  () => ({
+    analyticsService: {
+      getGlucoseHistory: vi.fn().mockResolvedValue([]),
+      getDoseHistory: vi.fn().mockResolvedValue([]),
     },
   })
 );
@@ -26,7 +37,11 @@ describe("DashboardPage", () => {
       new Promise(() => {})
     );
 
-    render(<DashboardPage />);
+    render(
+      <BrowserRouter>
+        <DashboardPage />
+      </BrowserRouter>
+    );
 
     expect(
       screen.getByText("Loading...")
@@ -43,7 +58,11 @@ describe("DashboardPage", () => {
       lastDose: 8,
     });
 
-    render(<DashboardPage />);
+    render(
+      <BrowserRouter>
+        <DashboardPage />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       expect(

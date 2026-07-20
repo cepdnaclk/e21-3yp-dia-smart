@@ -24,7 +24,7 @@ public class UserSettingsService {
     @Transactional
     public UserSettings getUserSettings() {
         AppUser user = currentUserService.getCurrentUser();
-        return userSettingsRepository.findByAppUser_UserId(user.getUserId())
+        return userSettingsRepository.findByAppUser(user)
                 .orElseGet(() -> {
                     UserSettings settings = new UserSettings(user);
                     return userSettingsRepository.save(settings);

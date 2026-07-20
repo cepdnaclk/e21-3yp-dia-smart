@@ -25,6 +25,8 @@ import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../types/roles";
 import logo from "../../assets/logo/diasmart-logo.png";
 
+import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
+
 const drawerWidth = 260;
 
 interface SidebarProps {
@@ -58,12 +60,30 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
     }
   };
 
+  const handleLogoClick = () => {
+    const targetRoute = DEFAULT_ROLE_ROUTES[role] || "/dashboard";
+    navigate(targetRoute);
+    if (isMobile) onClose();
+  };
+
   const navItems = getNavigationItems();
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "#12233b" }}>
       {/* Drawer Header / Logo */}
-      <Toolbar sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2 }}>
+      <Toolbar
+        onClick={handleLogoClick}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          px: 2,
+          cursor: "pointer",
+          "&:hover": {
+            opacity: 0.95
+          }
+        }}
+      >
         <Box
           component="img"
           src={logo}

@@ -238,33 +238,37 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
                   px: 1.5,
                   py: 1,
                   bgcolor: "action.hover",
-                  borderRadius: 2
+                  borderRadius: 2,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 2
                 }}
-                secondaryAction={
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Chip
-                      label={sched.active ? "Active" : "Inactive"}
-                      color={sched.active ? "success" : "default"}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {isDoctor && (
-                      <>
-                        <IconButton size="small" color="primary" onClick={() => handleOpenEdit(sched)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(sched.scheduleId)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </>
-                    )}
-                  </Box>
-                }
               >
-                <ListItemText
-                  primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{sched.scheduleLabel}</Typography>}
-                  secondary={`Target: ${sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5)} (Window: ${sched.windowStart ? sched.windowStart.substring(0, 5) : "—"} to ${sched.windowEnd ? sched.windowEnd.substring(0, 5) : "—"}) • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}
-                />
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                  <ListItemText
+                    primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{sched.scheduleLabel}</Typography>}
+                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{`Target: ${sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5)} (Window: ${sched.windowStart ? sched.windowStart.substring(0, 5) : "—"} to ${sched.windowEnd ? sched.windowEnd.substring(0, 5) : "—"}) • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}</Typography>}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+                  <Chip
+                    label={sched.active ? "Active" : "Inactive"}
+                    color={sched.active ? "success" : "default"}
+                    size="small"
+                    variant="outlined"
+                  />
+                  {isDoctor && (
+                    <>
+                      <IconButton size="small" color="primary" onClick={() => handleOpenEdit(sched)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(sched.scheduleId)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  )}
+                </Box>
               </ListItem>
             ))}
           </List>

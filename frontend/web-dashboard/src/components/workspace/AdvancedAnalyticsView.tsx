@@ -293,7 +293,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
 
       {/* Clinical Metrics Insights Grid */}
       <Grid container spacing={2.5}>
-        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
           <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
@@ -308,7 +308,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
           <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
@@ -323,7 +323,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
           <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
@@ -338,7 +338,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
           <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
@@ -353,7 +353,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
           <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
             <CardContent sx={{ p: 2.5 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>

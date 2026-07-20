@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   Paper,
   Table,
@@ -13,43 +12,42 @@ import {
   Typography,
   Box,
   Divider,
+  Stack
 } from "@mui/material";
 
 import PageError from "../../components/common/PageError";
 import PageLoading from "../../components/common/PageLoading";
 import PageTitle from "../../components/common/PageTitle";
 import { prescriptionsService } from "../../services/prescriptionsService";
+import { doseScheduleService } from "../../services/doseScheduleService";
 import type { Prescription } from "../../types/prescription";
+import type { DoseSchedule } from "../../types/doseSchedule";
 
 const PrescriptionsPage = () => {
-  const [prescriptions, setPrescriptions] =
-    useState<Prescription[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [schedules, setSchedules] = useState<DoseSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadPrescriptions = async () => {
+    const loadPrescriptionsAndSchedules = async () => {
       try {
-        const data =
-          await prescriptionsService.getPrescriptions();
+        const [presData, schedData] = await Promise.all([
+          prescriptionsService.getPrescriptions(),
+          doseScheduleService.getDoseSchedules()
+        ]);
 
-        setPrescriptions(data);
+        setPrescriptions(presData);
+        setSchedules(schedData?.content ?? []);
       } catch (err) {
         console.error(err);
-
-        setError(
-          "Failed to load prescriptions"
-        );
+        setError("Failed to load prescriptions and schedules");
       } finally {
         setLoading(false);
       }
     };
 
-    loadPrescriptions();
+    loadPrescriptionsAndSchedules();
   }, []);
 
   if (loading) {
@@ -59,6 +57,10 @@ const PrescriptionsPage = () => {
   if (error) {
     return <PageError message={error} />;
   }
+
+  const getSchedulesForPrescription = (prescriptionId: number) => {
+    return schedules.filter((s) => s.prescriptionId === prescriptionId && s.active);
+  };
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -72,6 +74,7 @@ const PrescriptionsPage = () => {
               <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Prescription</TableCell>
               <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Start Date</TableCell>
               <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>End Date</TableCell>
+              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Dosing Schedules</TableCell>
               <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Notes</TableCell>
             </TableRow>
@@ -80,7 +83,7 @@ const PrescriptionsPage = () => {
           <TableBody>
             {prescriptions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 3, color: "text.secondary" }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 3, color: "text.secondary" }}>
                   No prescriptions available
                 </TableCell>
               </TableRow>
@@ -90,6 +93,35 @@ const PrescriptionsPage = () => {
                   <TableCell sx={{ fontWeight: 600 }}>{item.prescriptionName}</TableCell>
                   <TableCell>{item.startDate}</TableCell>
                   <TableCell>{item.endDate}</TableCell>
+                  <TableCell>
+                    {getSchedulesForPrescription(item.prescriptionId).length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                        None configured
+                      </Typography>
+                    ) : (
+                      <Stack spacing={1}>
+                        {getSchedulesForPrescription(item.prescriptionId).map((s) => (
+                          <Box
+                            key={s.scheduleId}
+                            sx={{
+                              p: 1,
+                              bgcolor: "#f1f5f9",
+                              borderRadius: 2,
+                              border: "1px solid #e2e8f0",
+                              minWidth: 160
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: "#1e293b", display: "block" }}>
+                              {s.scheduleLabel}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Time: {s.targetTime ? s.targetTime.substring(0, 5) : s.scheduledTime.substring(0, 5)} • {s.doseUnits} Units
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Chip
                       size="small"
@@ -148,6 +180,48 @@ const PrescriptionsPage = () => {
                     </Typography>
                   </Box>
                 </Box>
+
+                <Divider sx={{ my: 1.5 }} />
+
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block", mb: 1 }}>
+                  Dosing Schedules
+                </Typography>
+                {getSchedulesForPrescription(item.prescriptionId).length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic", mb: 1.5 }}>
+                    No dosing schedules configured.
+                  </Typography>
+                ) : (
+                  <Stack spacing={1} sx={{ mb: 1.5 }}>
+                    {getSchedulesForPrescription(item.prescriptionId).map((s) => (
+                      <Box
+                        key={s.scheduleId}
+                        sx={{
+                          p: 1.25,
+                          bgcolor: "#f8fafc",
+                          borderRadius: 2,
+                          border: "1px solid #e2e8f0",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center"
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: "#1e293b" }}>
+                            {s.scheduleLabel}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Dosage: {s.doseUnits} Units
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={s.targetTime ? s.targetTime.substring(0, 5) : s.scheduledTime.substring(0, 5)}
+                          size="small"
+                          sx={{ fontWeight: 700, bgcolor: "#e0f2fe", color: "#0369a1" }}
+                        />
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
 
                 <Divider sx={{ my: 1.5 }} />
 

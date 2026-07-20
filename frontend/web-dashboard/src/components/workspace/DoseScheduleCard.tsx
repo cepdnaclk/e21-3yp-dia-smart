@@ -58,8 +58,8 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
   const [scheduledTime, setScheduledTime] = useState("08:00");
   const [doseUnits, setDoseUnits] = useState<number | "">(4);
   const [daysOfWeek, setDaysOfWeek] = useState("1,2,3,4,5,6,7");
-  const [allowedEarlyMinutes, setAllowedEarlyMinutes] = useState<number>(30);
-  const [allowedLateMinutes, setAllowedLateMinutes] = useState<number>(30);
+  const [windowStart, setWindowStart] = useState("07:30");
+  const [windowEnd, setWindowEnd] = useState("08:30");
   const [active, setActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -89,8 +89,8 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
     setScheduledTime("08:00");
     setDoseUnits(4);
     setDaysOfWeek("1,2,3,4,5,6,7");
-    setAllowedEarlyMinutes(30);
-    setAllowedLateMinutes(30);
+    setWindowStart("07:30");
+    setWindowEnd("08:30");
     setCreateDialogOpen(true);
     setError(null);
   };
@@ -98,14 +98,26 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
   const handleOpenEdit = (sched: DoseSchedule) => {
     setSelectedSchedule(sched);
     setScheduleLabel(sched.scheduleLabel);
-    setScheduledTime(sched.scheduledTime.substring(0, 5)); // format HH:MM
+    setScheduledTime(sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5));
     setDoseUnits(sched.doseUnits);
     setDaysOfWeek(sched.daysOfWeek);
-    setAllowedEarlyMinutes(sched.allowedEarlyMinutes);
-    setAllowedLateMinutes(sched.allowedLateMinutes);
+    setWindowStart(sched.windowStart ? sched.windowStart.substring(0, 5) : "07:30");
+    setWindowEnd(sched.windowEnd ? sched.windowEnd.substring(0, 5) : "08:30");
     setActive(sched.active);
     setEditDialogOpen(true);
     setError(null);
+  };
+
+  const validateTimeWindow = (target: string, start: string, end: string): boolean => {
+    if (start >= target) {
+      setError("Window Start must be before the Target Time.");
+      return false;
+    }
+    if (target >= end) {
+      setError("Target Time must be before the Window End.");
+      return false;
+    }
+    return true;
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -114,19 +126,25 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
       setError("Active prescription is required to set dose schedules.");
       return;
     }
+    if (!validateTimeWindow(scheduledTime, windowStart, windowEnd)) {
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      // API expects HH:MM:SS format
       const formattedTime = scheduledTime.length === 5 ? `${scheduledTime}:00` : scheduledTime;
+      const formattedStart = windowStart.length === 5 ? `${windowStart}:00` : windowStart;
+      const formattedEnd = windowEnd.length === 5 ? `${windowEnd}:00` : windowEnd;
+
       await doseScheduleService.createDoseSchedule(patientId, {
         prescriptionId: Number(prescriptionId),
         scheduleLabel,
         scheduledTime: formattedTime,
+        targetTime: formattedTime,
+        windowStart: formattedStart,
+        windowEnd: formattedEnd,
         doseUnits: Number(doseUnits),
-        daysOfWeek,
-        allowedEarlyMinutes: Number(allowedEarlyMinutes),
-        allowedLateMinutes: Number(allowedLateMinutes)
+        daysOfWeek
       });
       setCreateDialogOpen(false);
       fetchSchedules();
@@ -141,17 +159,24 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSchedule) return;
+    if (!validateTimeWindow(scheduledTime, windowStart, windowEnd)) {
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const formattedTime = scheduledTime.length === 5 ? `${scheduledTime}:00` : scheduledTime;
+      const formattedStart = windowStart.length === 5 ? `${windowStart}:00` : windowStart;
+      const formattedEnd = windowEnd.length === 5 ? `${windowEnd}:00` : windowEnd;
+
       await doseScheduleService.updateDoseSchedule(selectedSchedule.scheduleId, {
         scheduleLabel,
         scheduledTime: formattedTime,
+        targetTime: formattedTime,
+        windowStart: formattedStart,
+        windowEnd: formattedEnd,
         doseUnits: Number(doseUnits),
         daysOfWeek,
-        allowedEarlyMinutes: Number(allowedEarlyMinutes),
-        allowedLateMinutes: Number(allowedLateMinutes),
         active
       });
       setEditDialogOpen(false);
@@ -238,7 +263,7 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               >
                 <ListItemText
                   primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{sched.scheduleLabel}</Typography>}
-                  secondary={`Time: ${sched.scheduledTime.substring(0, 5)} • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}
+                  secondary={`Target: ${sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5)} (Window: ${sched.windowStart ? sched.windowStart.substring(0, 5) : "—"} to ${sched.windowEnd ? sched.windowEnd.substring(0, 5) : "—"}) • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}
                 />
               </ListItem>
             ))}
@@ -275,7 +300,7 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               fullWidth
             />
             <TextField
-              label="Scheduled Time"
+              label="Target Dose Time"
               type="time"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
@@ -283,6 +308,26 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                label="Window Start"
+                type="time"
+                value={windowStart}
+                onChange={(e) => setWindowStart(e.target.value)}
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                label="Window End"
+                type="time"
+                value={windowEnd}
+                onChange={(e) => setWindowEnd(e.target.value)}
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+            </Box>
             <TextField
               label="Dose Units"
               type="number"
@@ -298,22 +343,6 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               required
               fullWidth
             />
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <TextField
-                label="Early Windows (Mins)"
-                type="number"
-                value={allowedEarlyMinutes}
-                onChange={(e) => setAllowedEarlyMinutes(Number(e.target.value))}
-                fullWidth
-              />
-              <TextField
-                label="Late Windows (Mins)"
-                type="number"
-                value={allowedLateMinutes}
-                onChange={(e) => setAllowedLateMinutes(Number(e.target.value))}
-                fullWidth
-              />
-            </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, py: 2 }}>
             <Button onClick={() => setCreateDialogOpen(false)} disabled={submitting}>
@@ -340,7 +369,7 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               fullWidth
             />
             <TextField
-              label="Scheduled Time"
+              label="Target Dose Time"
               type="time"
               value={scheduledTime}
               onChange={(e) => setScheduledTime(e.target.value)}
@@ -348,6 +377,26 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <TextField
+                label="Window Start"
+                type="time"
+                value={windowStart}
+                onChange={(e) => setWindowStart(e.target.value)}
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+              <TextField
+                label="Window End"
+                type="time"
+                value={windowEnd}
+                onChange={(e) => setWindowEnd(e.target.value)}
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+              />
+            </Box>
             <TextField
               label="Dose Units"
               type="number"
@@ -363,22 +412,6 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
               required
               fullWidth
             />
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <TextField
-                label="Early Windows (Mins)"
-                type="number"
-                value={allowedEarlyMinutes}
-                onChange={(e) => setAllowedEarlyMinutes(Number(e.target.value))}
-                fullWidth
-              />
-              <TextField
-                label="Late Windows (Mins)"
-                type="number"
-                value={allowedLateMinutes}
-                onChange={(e) => setAllowedLateMinutes(Number(e.target.value))}
-                fullWidth
-              />
-            </Box>
             <FormControlLabel
               control={
                 <Switch

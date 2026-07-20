@@ -39,7 +39,7 @@ describe("ProfilePage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Profile")
+        screen.getByText("Profile Management")
       ).toBeTruthy();
     });
 

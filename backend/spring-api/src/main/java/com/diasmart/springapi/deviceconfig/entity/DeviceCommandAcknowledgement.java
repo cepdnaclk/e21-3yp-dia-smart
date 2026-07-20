@@ -15,6 +15,9 @@ public class DeviceCommandAcknowledgement {
     @Column(name = "command_id", nullable = false)
     private Long commandId;
 
+    @Column(name = "command_uid", length = 80)
+    private String commandUid;
+
     @Column(name = "device_id", nullable = false)
     private Long deviceId;
 
@@ -49,6 +52,14 @@ public class DeviceCommandAcknowledgement {
 
     public void setCommandId(Long commandId) {
         this.commandId = commandId;
+    }
+
+    public String getCommandUid() {
+        return commandUid;
+    }
+
+    public void setCommandUid(String commandUid) {
+        this.commandUid = commandUid;
     }
 
     public Long getDeviceId() {

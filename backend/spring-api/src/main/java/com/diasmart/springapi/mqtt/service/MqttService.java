@@ -47,14 +47,19 @@ public class MqttService {
     }
 
     public void publish(String topic, String payload) {
+        publish(topic, payload, 1, false);
+    }
+
+    public void publish(String topic, String payload, int qos, boolean retained) {
         if (client == null || !client.isConnected()) {
             connect();
         }
         try {
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
-            message.setQos(1);
+            message.setQos(qos);
+            message.setRetained(retained);
             client.publish(topic, message);
-            System.out.println("Published to " + topic + ": " + payload);
+            System.out.println("Published MQTT message to " + topic);
         } catch (MqttException e) {
             System.err.println("Failed to publish to " + topic);
             e.printStackTrace();
@@ -62,16 +67,33 @@ public class MqttService {
         }
     }
 
+    public void subscribe(String topic) {
+        subscribe(topic, (receivedTopic, message) -> {
+        });
+    }
+
     public void subscribe(String topic, IMqttMessageListener messageListener) {
         if (client == null || !client.isConnected()) {
             connect();
         }
         try {
-            client.subscribe(topic, messageListener);
+            client.subscribe(topic, 1, messageListener);
             System.out.println("Subscribed to " + topic);
         } catch (MqttException e) {
             System.err.println("Failed to subscribe to " + topic);
             e.printStackTrace();
         }
+    }
+
+    public synchronized void reconnect() {
+        try {
+            if (client != null && client.isConnected()) {
+                client.disconnect();
+            }
+        } catch (MqttException e) {
+            System.err.println("Failed to disconnect MQTT client before reconnect: " + e.getMessage());
+        }
+
+        connect();
     }
 }

@@ -39,7 +39,7 @@ public class PatientAccessManagementService {
      */
     @Transactional
     public PatientAccessResponse createAccess(CreatePatientAccessRequest request) {
-        requireAdmin();
+        requireAdminOrSelfDoctor(request.getUserId());
         return createAccessInternal(request);
     }
 
@@ -169,6 +169,20 @@ public class PatientAccessManagementService {
         }
 
         return currentUser;
+    }
+
+    private void requireAdminOrSelfDoctor(Long targetUserId) {
+        AppUser currentUser = currentUserService.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        if (currentUser.getRole() == UserRole.DOCTOR && currentUser.getUserId().equals(targetUserId)) {
+            return;
+        }
+
+        throw new AccessDeniedException("Only admins or doctors assigning themselves can manage patient access relationships");
     }
 
     private String normalizeNullableText(String value) {

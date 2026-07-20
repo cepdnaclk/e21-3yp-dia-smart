@@ -32,6 +32,6 @@ mqtt:
     ssl: ssl://a36biie00zvpfg-ats.iot.eu-north-1.amazonaws.com:8883
 
   client:
-    id: diasmart-backend
+    id: diasmart-backend-prod
 
   topic: diasmart/device/telemetry

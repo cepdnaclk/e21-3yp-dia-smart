@@ -20,7 +20,8 @@ const TestComponent = () => {
         onClick={() =>
           auth.login(
             "jwt-token",
-            UserRole.PATIENT
+            UserRole.PATIENT,
+            1
           )
         }
       >

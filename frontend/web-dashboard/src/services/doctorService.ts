@@ -9,6 +9,19 @@ export const doctorService = {
     return response.data.data;
   },
 
+  async assignPatient(request: {
+    userId: number;
+    patientId: number;
+    accessRole: string;
+    relationshipLabel: string;
+    canView: boolean;
+    canAcknowledgeAlerts: boolean;
+    canEditPrescriptions: boolean;
+  }): Promise<any> {
+    const response = await api.post("/patient-access", request);
+    return response.data?.data;
+  },
+
   async getAlerts(status?: string): Promise<Alert[]> {
     const params = status && status !== "ALL" ? { status } : {};
     const response = await api.get("/alerts", { params });

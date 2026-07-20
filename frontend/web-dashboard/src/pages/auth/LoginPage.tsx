@@ -39,7 +39,7 @@ const LoginPage = () => {
 
       const data = await authService.login(email, password);
 
-      login(data.accessToken, data.user.role);
+      login(data.accessToken, data.user.role, data.user.userId);
 
       if (data.user.role !== UserRole.DOCTOR && data.user.role !== UserRole.CAREGIVER) {
         const accesses = await patientAccessService.getMyPatientAccess();

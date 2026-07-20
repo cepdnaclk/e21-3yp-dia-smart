@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 
 import logo from "../../assets/logo/diasmart-logo.png";
 import { useAuth } from "../../context/AuthContext";
+import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 
 const appBarStyles = {
   backgroundColor: "#12233b",
@@ -28,13 +29,12 @@ const logoStyles = {
   width: 32,
   height: 32,
   mr: 1,
-  borderRadius: 1,
-  display: "block",
 };
 
 const titleStyles = {
-  fontWeight: 700,
   flexGrow: 1,
+  fontWeight: 700,
+  letterSpacing: "0.5px",
 };
 
 const homeButtonStyles = {
@@ -45,9 +45,15 @@ const homeButtonStyles = {
 };
 
 const logoutButtonStyles = {
-  mx: 0.5,
   textTransform: "none",
-  display: { xs: "none", md: "inline-flex" },
+  borderRadius: 2,
+  borderColor: "rgba(255, 255, 255, 0.3)",
+  color: "#ffffff",
+  fontWeight: 600,
+  "&:hover": {
+    borderColor: "#ffffff",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
 };
 
 const settingsButtonStyles = {
@@ -62,12 +68,12 @@ interface TopbarProps {
 }
 
 const Topbar = ({ onDrawerToggle }: TopbarProps) => {
-  const { role, logout } = useAuth();
   const navigate = useNavigate();
+  const { role, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate("/login");
   };
 
   const handleHome = () => {
@@ -80,6 +86,11 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
 
   const handleProfile = () => {
     navigate("/profile");
+  };
+
+  const handleLogoClick = () => {
+    const targetRoute = DEFAULT_ROLE_ROUTES[role] || "/dashboard";
+    navigate(targetRoute);
   };
 
   return (
@@ -100,18 +111,31 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
         </IconButton>
 
         <Box
-          component="img"
-          src={logo}
-          alt="Dia-Smart Logo"
-          sx={logoStyles}
-        />
-
-        <Typography
-          variant="h6"
-          sx={titleStyles}
+          onClick={handleLogoClick}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            cursor: "pointer",
+            flexGrow: 1,
+            "&:hover": {
+              opacity: 0.95
+            }
+          }}
         >
-          Dia-Smart
-        </Typography>
+          <Box
+            component="img"
+            src={logo}
+            alt="Dia-Smart Logo"
+            sx={logoStyles}
+          />
+
+          <Typography
+            variant="h6"
+            sx={titleStyles}
+          >
+            Dia-Smart
+          </Typography>
+        </Box>
 
         <Tooltip title="View notifications">
           <IconButton color="inherit" sx={{ mr: 1 }}>

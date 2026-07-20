@@ -1263,3 +1263,15 @@ CREATE TABLE IF NOT EXISTS device_sync_requests (
 
 CREATE INDEX IF NOT EXISTS idx_device_sync_requests_outer_time
 ON device_sync_requests(outer_device_uid, created_at DESC);
+
+CREATE TABLE user_settings (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL,
+    inventory_alerts BOOLEAN DEFAULT TRUE,
+    temperature_alerts BOOLEAN DEFAULT TRUE,
+    missed_dose_alerts BOOLEAN DEFAULT TRUE,
+    email_notifications BOOLEAN DEFAULT TRUE,
+    sms_notifications BOOLEAN DEFAULT FALSE,
+    two_factor_auth BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES app_users(user_id) ON DELETE CASCADE
+);

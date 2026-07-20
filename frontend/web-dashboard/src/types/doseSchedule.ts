@@ -3,10 +3,13 @@ export interface DoseSchedule {
   prescriptionId: number;
   scheduleLabel: string;
   scheduledTime: string; // "HH:MM:SS"
+  targetTime?: string;   // "HH:MM:SS"
+  windowStart?: string;  // "HH:MM:SS"
+  windowEnd?: string;    // "HH:MM:SS"
   doseUnits: number;
   daysOfWeek: string;
-  allowedEarlyMinutes: number;
-  allowedLateMinutes: number;
+  allowedEarlyMinutes?: number;
+  allowedLateMinutes?: number;
   active: boolean;
   createdAt: string;
 }

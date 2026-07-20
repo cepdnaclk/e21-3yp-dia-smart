@@ -17,10 +17,13 @@ export const doseScheduleService = {
       prescriptionId: number;
       scheduleLabel: string;
       scheduledTime: string; // "HH:MM:SS" or "HH:MM"
+      targetTime?: string;
+      windowStart?: string;
+      windowEnd?: string;
       doseUnits: number;
       daysOfWeek: string;
-      allowedEarlyMinutes: number;
-      allowedLateMinutes: number;
+      allowedEarlyMinutes?: number;
+      allowedLateMinutes?: number;
     }
   ): Promise<DoseSchedule> {
     const response = await api.post(`/patients/${patientId}/dose-schedules`, data);
@@ -32,6 +35,9 @@ export const doseScheduleService = {
     data: {
       scheduleLabel?: string;
       scheduledTime?: string;
+      targetTime?: string;
+      windowStart?: string;
+      windowEnd?: string;
       doseUnits?: number;
       daysOfWeek?: string;
       allowedEarlyMinutes?: number;

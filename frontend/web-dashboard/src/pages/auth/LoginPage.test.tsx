@@ -52,15 +52,15 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     expect(
-      screen.getByText(/Dia-Smart Login/i)
+      screen.getByText(/Welcome to Dia-Smart/i)
     ).toBeTruthy();
 
     expect(
-      screen.getByLabelText(/Email/i)
+      screen.getAllByLabelText(/Email/i)[0]
     ).toBeTruthy();
 
     expect(
-      screen.getByLabelText(/Password/i)
+      screen.getAllByLabelText(/Password/i)[0]
     ).toBeTruthy();
   });
 
@@ -87,7 +87,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     fireEvent.change(
-      screen.getByLabelText(/Email/i),
+      screen.getAllByLabelText(/Email/i)[0],
       {
         target: {
           value: "test@test.com",
@@ -96,7 +96,7 @@ describe("LoginPage", () => {
     );
 
     fireEvent.change(
-      screen.getByLabelText(/Password/i),
+      screen.getAllByLabelText(/Password/i)[0],
       {
         target: {
           value: "password",
@@ -106,7 +106,7 @@ describe("LoginPage", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: /login/i,
+        name: /sign in/i,
       })
     );
 
@@ -134,7 +134,7 @@ describe("LoginPage", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: /login/i,
+        name: /sign in/i,
       })
     );
 

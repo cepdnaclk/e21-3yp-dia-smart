@@ -8,6 +8,7 @@
 #include "include/system_queues.h"
 #include "config/app_config.h"
 #include "managers/display_state_manager.h"
+#include "services/care_plan_service.h"
 
 // Shared variable written by bleManagerTask, read here for battery section.
 // Declared extern in ble_manager.cpp.
@@ -136,6 +137,7 @@ static void clearDosePrompt() {
 }
 
 static void startDosePrompt(PendingDoseConfirmation& pending, const DoseReading& doseReading) {
+    carePlanFocusCurrentSchedule();
     pending = {};
     pending.active = true;
     pending.editing = false;
@@ -188,6 +190,7 @@ void eventAggregatorTask(void* parameter) {
     for (;;) {
         bool gotInner = false;
         uint32_t nowMs = millis();
+        carePlanTick();
         if ((nowMs - lastRxStatsLogMs) >= 5000) {
             lastRxStatsLogMs = nowMs;
             Serial.printf("[ESP-NOW RX] total=%lu queued=%lu dupDrop=%lu lenDrop=%lu magicDrop=%lu queueDrop=%lu\n",
@@ -255,7 +258,18 @@ void eventAggregatorTask(void* parameter) {
         while (xQueueReceive(keypadQueue, &keyEvent, 0) == pdTRUE) {
             char key = keyEvent.key;
             if (!pendingDose.active) {
-                if (key == 'A') {
+                DisplayState displayState = getDisplayStateSnapshot();
+                if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '*') {
+                    carePlanSelectPreviousSchedule();
+                    Serial.println("[EventAgg] Prescription: previous schedule");
+                } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '#') {
+                    carePlanSelectNextSchedule();
+                    Serial.println("[EventAgg] Prescription: next schedule");
+                } else if (key == '1') {
+                    carePlanFocusCurrentSchedule();
+                    updateDisplayPage(DISPLAY_PAGE_PRESCRIPTION);
+                    Serial.println("[EventAgg] Display page: prescription");
+                } else if (key == 'A') {
                     updateDisplayPage(DISPLAY_PAGE_DASHBOARD);
                     Serial.println("[EventAgg] Display page: dashboard");
                 } else if (key == 'B') {
@@ -280,6 +294,7 @@ void eventAggregatorTask(void* parameter) {
                     lastResolvedDose = pendingDose.original;
                     hasLastResolvedDose = true;
                     confirmedDose = true;
+                    carePlanMarkDoseTaken(lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
                                   pendingDose.roundedUnits);
                     pendingDose = {};
@@ -298,6 +313,10 @@ void eventAggregatorTask(void* parameter) {
                         pendingDose.editBuffer[pendingDose.editLen] = '\0';
                         refreshDosePrompt(pendingDose, millis());
                     }
+                } else if (key == '*' && pendingDose.editLen > 0) {
+                    pendingDose.editLen--;
+                    pendingDose.editBuffer[pendingDose.editLen] = '\0';
+                    refreshDosePrompt(pendingDose, millis());
                 } else if (key == '#') {
                     pendingDose.editLen = 0;
                     pendingDose.editBuffer[0] = '\0';
@@ -318,6 +337,7 @@ void eventAggregatorTask(void* parameter) {
                     lastResolvedDose = pendingDose.original;
                     hasLastResolvedDose = true;
                     confirmedDose = true;
+                    carePlanMarkDoseTaken(lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
                                   pendingDose.original.doseUnits,
                                   editedUnits);
@@ -337,6 +357,7 @@ void eventAggregatorTask(void* parameter) {
                 lastResolvedDose = pendingDose.original;
                 hasLastResolvedDose = true;
                 confirmedDose = true;
+                carePlanMarkDoseTaken(lastDose.doseUnits);
                 Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
                               pendingDose.roundedUnits);
                 pendingDose = {};

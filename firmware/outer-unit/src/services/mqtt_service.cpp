@@ -2,8 +2,12 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <esp_system.h>
+#include <time.h>
 #include "config/app_config.h"
 #include "config/aws_certs.h"
+#include "services/care_plan_service.h"
 
 // Secure Wi-Fi client for TLS 1.2
 WiFiClientSecure secureClient;
@@ -11,7 +15,92 @@ WiFiClientSecure secureClient;
 // MQTT Client instance
 PubSubClient mqttClient(secureClient);
 
-static constexpr uint16_t MQTT_BUFFER_BYTES = 2048;
+namespace {
+String pendingCarePlanAck;
+bool carePlanAckPending = false;
+bool carePlanSubscribed = false;
+String pendingDeviceSync;
+bool deviceSyncPending = false;
+
+void currentTimestamp(char* output, size_t outputLength)
+{
+    struct tm timeInfo;
+    if (getLocalTime(&timeInfo)) {
+        strftime(output, outputLength, "%Y-%m-%dT%H:%M:%SZ", &timeInfo);
+    } else {
+        strncpy(output, "1970-01-01T00:00:00Z", outputLength - 1);
+        output[outputLength - 1] = '\0';
+    }
+}
+
+void queueCarePlanAck(const CarePlanApplyResult& result)
+{
+    JsonDocument document;
+    document["carePlanId"] = result.carePlanId;
+    document["version"] = result.version;
+    document["status"] = result.accepted ? "APPLIED" : "REJECTED";
+    document["outerDeviceId"] = DEVICE_UID_OUTER;
+    document["message"] = result.message;
+
+    char timestamp[32];
+    currentTimestamp(timestamp, sizeof(timestamp));
+    document["timestamp"] = timestamp;
+
+    String payload;
+    serializeJson(document, payload);
+    pendingCarePlanAck = payload;
+    carePlanAckPending = true;
+}
+
+void queueDeviceSyncRequest()
+{
+    JsonDocument document;
+    char timestamp[32];
+    currentTimestamp(timestamp, sizeof(timestamp));
+
+    char eventId[48];
+    snprintf(eventId,
+             sizeof(eventId),
+             "SYNC-%lu-%08lX",
+             (unsigned long)time(nullptr),
+             (unsigned long)esp_random());
+
+    document["eventId"] = eventId;
+    document["eventType"] = "DEVICE_SYNC_REQUEST";
+    document["outerDeviceId"] = DEVICE_UID_OUTER;
+    document["timestamp"] = timestamp;
+
+    pendingDeviceSync = "";
+    serializeJson(document, pendingDeviceSync);
+    deviceSyncPending = true;
+}
+
+void mqttMessageCallback(char* topic, byte* payload, unsigned int length)
+{
+    if (strcmp(topic, AWS_IOT_CARE_PLAN_TOPIC) != 0) {
+        return;
+    }
+
+    Serial.printf("[MQTT] Care Plan received. bytes=%u\n", length);
+    CarePlanApplyResult result = applyCarePlanPayload(payload, length);
+    Serial.printf("[MQTT] Care Plan %s: %s\n",
+                  result.accepted ? "accepted" : "rejected",
+                  result.message);
+    queueCarePlanAck(result);
+}
+
+bool subscribeDeviceTopics()
+{
+    carePlanSubscribed = mqttClient.subscribe(AWS_IOT_CARE_PLAN_TOPIC, 1);
+    Serial.printf("[MQTT] Care Plan subscription %s: %s\n",
+                  carePlanSubscribed ? "ready" : "failed",
+                  AWS_IOT_CARE_PLAN_TOPIC);
+    if (carePlanSubscribed) {
+        queueDeviceSyncRequest();
+    }
+    return carePlanSubscribed;
+}
+}
 
 void setupMQTT()
 {
@@ -22,6 +111,7 @@ void setupMQTT()
 
     // Configure the MQTT broker endpoint and port (8883 for MQTTS)
     mqttClient.setServer(AWS_IOT_ENDPOINT, AWS_IOT_PORT);
+    mqttClient.setCallback(mqttMessageCallback);
 
     // Increase limits for full COMBINED_TELEMETRY payloads over TLS.
     mqttClient.setBufferSize(MQTT_BUFFER_BYTES);
@@ -32,7 +122,7 @@ void setupMQTT()
 bool connectMQTT()
 {
     if (mqttClient.connected()) {
-        return true;
+        return carePlanSubscribed || subscribeDeviceTopics();
     }
 
     if (WiFi.status() != WL_CONNECTED) {
@@ -43,15 +133,21 @@ bool connectMQTT()
     Serial.print("Connecting to AWS IoT Core... ");
     if (mqttClient.connect(DEVICE_UID)) {
         Serial.println("CONNECTED!");
-        return true;
+        return subscribeDeviceTopics();
     }
 
     Serial.print("FAILED, Return Code: ");
     Serial.println(mqttClient.state());
+    carePlanSubscribed = false;
     return false;
 }
 
 bool publishTelemetry(const String& payload)
+{
+    return publishMqttMessage(AWS_IOT_PUBLISH_TOPIC, payload);
+}
+
+bool publishMqttMessage(const char* topic, const String& payload, bool retained)
 {
     if (!mqttClient.connected() && !connectMQTT()) {
         return false;
@@ -71,7 +167,7 @@ bool publishTelemetry(const String& payload)
     }
 
     // Publish the JSON payload to the defined topic
-    if (mqttClient.publish(AWS_IOT_PUBLISH_TOPIC, payload.c_str()))
+    if (mqttClient.publish(topic, payload.c_str(), retained))
     {
         Serial.println("[MQTT] SUCCESS: Payload delivered to AWS.");
         return true;
@@ -82,7 +178,7 @@ bool publishTelemetry(const String& payload)
     Serial.print(", connected=");
     Serial.print(mqttClient.connected() ? "true" : "false");
     Serial.print(", topic=");
-    Serial.print(AWS_IOT_PUBLISH_TOPIC);
+    Serial.print(topic);
     Serial.print(", len=");
     Serial.println(payloadLen);
     return false;
@@ -92,6 +188,31 @@ void mqttLoop()
 {
     // This must be called frequently to maintain the MQTT keep-alive ping
     mqttClient.loop();
+
+    // Publish outside the inbound callback to avoid re-entering PubSubClient.
+    if (carePlanAckPending && mqttClient.connected()) {
+        if (mqttClient.publish(AWS_IOT_COMMAND_ACK_TOPIC,
+                               pendingCarePlanAck.c_str(),
+                               false)) {
+            carePlanAckPending = false;
+            pendingCarePlanAck = "";
+            Serial.println("[MQTT] Care Plan ACK delivered");
+        }
+    }
+
+    if (deviceSyncPending && mqttClient.connected()) {
+        if (mqttClient.publish(AWS_IOT_DEVICE_TELEMETRY_TOPIC,
+                               pendingDeviceSync.c_str(),
+                               false)) {
+            deviceSyncPending = false;
+            pendingDeviceSync = "";
+            Serial.println("[MQTT] Device sync request delivered");
+        }
+    }
+
+    if (!mqttClient.connected()) {
+        carePlanSubscribed = false;
+    }
 }
 
 bool isMqttConnected()

@@ -21,6 +21,10 @@
 #define AWS_IOT_PORT                 8883
 // Must match backend MQTT_TOPIC subscription.
 #define AWS_IOT_PUBLISH_TOPIC        "diasmart/device/telemetry"
+#define AWS_IOT_CARE_PLAN_TOPIC      "diasmart/devices/" DEVICE_UID_OUTER "/care-plan"
+#define AWS_IOT_COMMAND_ACK_TOPIC    "diasmart/devices/" DEVICE_UID_OUTER "/command-ack"
+#define AWS_IOT_DEVICE_TELEMETRY_TOPIC "diasmart/devices/" DEVICE_UID_OUTER "/telemetry"
+#define MQTT_BUFFER_BYTES            8192
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200
@@ -98,6 +102,10 @@
 #define DOSE_CONFIRM_TIMEOUT_MS      40000
 #define DOSE_EDIT_MAX_DIGITS         3
 #define DOSE_CONFIRM_MAX_UNITS       100
+
+// ---- Care Plan / prescription display ----------------------------------- //
+// Reject oversized plans instead of silently hiding prescribed schedules.
+#define CARE_PLAN_MAX_SCHEDULES      8
 
 // ---- Offline telemetry queue -------------------------------------------- //
 // Stores exact compact backend JSON payloads in LittleFS and retries later.

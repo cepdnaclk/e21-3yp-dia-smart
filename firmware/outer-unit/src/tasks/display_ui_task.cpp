@@ -5,6 +5,7 @@
 
 #include "config/app_config.h"
 #include "managers/display_state_manager.h"
+#include "services/care_plan_service.h"
 
 #if DISPLAY_ENABLED
 
@@ -120,10 +121,18 @@ bool textChanged(const char* left, const char* right, size_t len) {
 
 bool displayNeedsRedraw(const DisplayState& current,
                         const DisplayState& previous,
+                        const CarePlanView& carePlan,
+                        const CarePlanView& previousCarePlan,
                         uint32_t lastDrawMs,
                         bool hasPrevious) {
     if (!hasPrevious) return true;
     if (visibleMode(current) != visibleMode(previous)) return true;
+    if (carePlan.revision != previousCarePlan.revision &&
+        (current.dosePromptActive ||
+         current.activePage == DISPLAY_PAGE_DASHBOARD ||
+         current.activePage == DISPLAY_PAGE_PRESCRIPTION)) {
+        return true;
+    }
 
     if (current.dosePromptActive) {
         return current.dosePromptEditing != previous.dosePromptEditing ||
@@ -262,6 +271,26 @@ const char* okBad(bool ok) {
     return ok ? "OK" : "BAD";
 }
 
+const char* carePlanStatusText(CarePlanScheduleStatus status) {
+    switch (status) {
+        case CARE_PLAN_STATUS_DUE: return "DOSE DUE";
+        case CARE_PLAN_STATUS_TAKEN: return "TAKEN";
+        case CARE_PLAN_STATUS_UPCOMING: return "UPCOMING";
+        case CARE_PLAN_STATUS_NONE:
+        default: return "NO PLAN";
+    }
+}
+
+uint16_t carePlanStatusColor(CarePlanScheduleStatus status) {
+    switch (status) {
+        case CARE_PLAN_STATUS_DUE: return COLOR_WARN;
+        case CARE_PLAN_STATUS_TAKEN: return COLOR_OK;
+        case CARE_PLAN_STATUS_UPCOMING: return COLOR_ACCENT;
+        case CARE_PLAN_STATUS_NONE:
+        default: return COLOR_MUTED;
+    }
+}
+
 uint16_t okBadColor(bool ok) {
     return ok ? COLOR_OK : COLOR_BAD;
 }
@@ -305,7 +334,7 @@ void drawStatusRow(int y, const char* label, const char* value, uint16_t color) 
     drawText(168, y + 10, value, color, COLOR_PANEL, 2);
 }
 
-void drawDashboard(const DisplayState& state) {
+void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "DASHBOARD");
 
@@ -365,13 +394,17 @@ void drawDashboard(const DisplayState& state) {
 
     rawFillRect(0, 424, DISPLAY_WIDTH, 56, COLOR_BG);
     char footer[56];
-    if (state.hasTelemetry) {
-        snprintf(footer, sizeof(footer), "INBAT %d%% | WIFI %d | HEAP %luK | A HOME",
+    if (carePlan.available && carePlan.scheduleCount > 0) {
+        snprintf(footer, sizeof(footer), "1 RX | NEXT %s %.0fU | B DEV C ALERT D QUEUE",
+                 carePlan.targetTime,
+                 carePlan.doseUnits);
+    } else if (state.hasTelemetry) {
+        snprintf(footer, sizeof(footer), "1 RX | INBAT %d%% WIFI %d HEAP %luK",
                  state.innerBatteryPercent,
                  state.wifiRssiDbm,
                  (unsigned long)(state.freeHeapBytes / 1024));
     } else {
-        snprintf(footer, sizeof(footer), "WAITING FOR TELEMETRY | B STATUS C ALERT D QUEUE");
+        snprintf(footer, sizeof(footer), "1 RX | WAITING FOR TELEMETRY");
     }
     drawText(10, 442, footer, COLOR_MUTED, COLOR_BG, 1);
 }
@@ -462,7 +495,67 @@ void drawQueueStatus(const DisplayState& state) {
     drawText(16, 430, "A DASH  B DEVICE  C ALERTS", COLOR_MUTED, COLOR_BG, 1);
 }
 
-void drawDosePrompt(const DisplayState& state) {
+void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "PRESCRIPTION");
+
+    if (!carePlan.available || carePlan.scheduleCount == 0) {
+        rawFillRect(12, 82, 296, 132, COLOR_PANEL);
+        drawText(30, 106, "NO ACTIVE CARE PLAN", COLOR_MUTED, COLOR_PANEL, 2);
+        drawText(30, 148, "WAITING FOR BACKEND", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(30, 180, "OR DEVICE SYNC", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(16, 438, "A DASH  B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+        return;
+    }
+
+    uint16_t statusColor = carePlanStatusColor(carePlan.status);
+    rawFillRect(12, 72, 296, 42, COLOR_PANEL);
+    drawText(22, 86, carePlanStatusText(carePlan.status), statusColor, COLOR_PANEL, 2);
+    char countText[16];
+    snprintf(countText, sizeof(countText), "%u/%u",
+             carePlan.selectedScheduleIndex + 1,
+             carePlan.scheduleCount);
+    drawText(258, 86, countText, COLOR_MUTED, COLOR_PANEL, 2);
+
+    rawFillRect(12, 126, 296, 82, COLOR_PANEL_ALT);
+    drawText(22, 138, carePlan.period, COLOR_MUTED, COLOR_PANEL_ALT, 2);
+    char insulinText[24];
+    snprintf(insulinText, sizeof(insulinText), "%.22s", carePlan.insulinType);
+    drawText(22, 172, insulinText, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+
+    char doseText[20];
+    snprintf(doseText, sizeof(doseText), "%.1fU", carePlan.doseUnits);
+    drawCard(12, 220, 142, 76, "DOSE", doseText, statusColor);
+    drawCard(166, 220, 142, 76, "TARGET", carePlan.targetTime, COLOR_TEXT, true);
+
+    rawFillRect(12, 308, 296, 50, COLOR_PANEL);
+    char windowText[32];
+    snprintf(windowText, sizeof(windowText), "%s - %s",
+             carePlan.windowStart,
+             carePlan.windowEnd);
+    drawText(22, 318, "WINDOW", COLOR_MUTED, COLOR_PANEL, 2);
+    drawText(142, 318, windowText, COLOR_TEXT, COLOR_PANEL, 2);
+
+    rawFillRect(12, 370, 296, 54, COLOR_PANEL_ALT);
+    char planText[48];
+    snprintf(planText, sizeof(planText), "V%lu FROM %s",
+             (unsigned long)carePlan.version,
+             carePlan.effectiveFrom);
+    drawText(22, 380, planText, COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    char reminderText[48];
+    snprintf(reminderText, sizeof(reminderText), "REMIND %uM | BUZZ %uM",
+             carePlan.repeatIntervalMinutes,
+             carePlan.buzzerDurationMinutes);
+    drawText(22, 402, reminderText, COLOR_TEXT, COLOR_PANEL_ALT, 1);
+
+    if (carePlan.scheduleCount > 1) {
+        drawText(12, 438, "* PREV  # NEXT  A DASH  B/C/D PAGES", COLOR_MUTED, COLOR_BG, 1);
+    } else {
+        drawText(12, 438, "A DASH  B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+    }
+}
+
+void drawDosePrompt(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
     rawFillRect(0, 0, DISPLAY_WIDTH, 54, COLOR_WARN);
     drawText(12, 12, "CONFIRM DOSE", COLOR_BG, COLOR_WARN, 3);
@@ -489,15 +582,45 @@ void drawDosePrompt(const DisplayState& state) {
         }
         drawText(28, 260, editBuf, COLOR_TEXT, COLOR_PANEL_ALT, 4);
     } else {
-        drawText(28, 232, "A CONFIRM | B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
-        char autoBuf[24];
-        snprintf(autoBuf, sizeof(autoBuf), "AUTO %uS", state.dosePromptRemainingSec);
-        drawText(28, 266, autoBuf, COLOR_WARN, COLOR_PANEL, 2);
+        if (carePlan.available && carePlan.scheduleCount > 0) {
+            char prescribedText[32];
+            snprintf(prescribedText, sizeof(prescribedText), "PRESCRIBED %.1fU",
+                     carePlan.doseUnits);
+            drawText(28, 226, prescribedText, COLOR_ACCENT, COLOR_PANEL, 2);
+
+            char scheduleText[40];
+            snprintf(scheduleText, sizeof(scheduleText), "%.16s AT %s",
+                     carePlan.insulinType,
+                     carePlan.targetTime);
+            drawText(28, 254, scheduleText, COLOR_TEXT, COLOR_PANEL, 1);
+
+            float difference = fabsf(state.pendingDoseUnits - carePlan.doseUnits);
+            drawText(28, 278,
+                     difference <= 0.5f ? "MATCHES CARE PLAN" : "CHECK PRESCRIBED DOSE",
+                     difference <= 0.5f ? COLOR_OK : COLOR_WARN,
+                     COLOR_PANEL,
+                     1);
+        } else {
+            drawText(28, 232, "NO PRESCRIPTION LOADED", COLOR_MUTED, COLOR_PANEL, 2);
+            drawText(28, 270, "VERIFY PEN READING", COLOR_TEXT, COLOR_PANEL, 2);
+        }
     }
 
     rawFillRect(12, 322, 296, 74, COLOR_PANEL);
-    drawText(28, 344, "D SUBMIT  # CLEAR", COLOR_TEXT, COLOR_PANEL, 2);
-    drawText(28, 374, "C BACK WHILE EDITING", COLOR_MUTED, COLOR_PANEL, 1);
+    if (state.dosePromptEditing) {
+        if (state.doseEditBuffer[0] != '\0') {
+            drawText(22, 336, "D SUBMIT  * DELETE", COLOR_TEXT, COLOR_PANEL, 2);
+            drawText(22, 370, "# CLEAR  C BACK", COLOR_MUTED, COLOR_PANEL, 2);
+        } else {
+            drawText(22, 336, "ENTER DOSE WITH 0-9", COLOR_TEXT, COLOR_PANEL, 2);
+            drawText(22, 370, "C BACK", COLOR_MUTED, COLOR_PANEL, 2);
+        }
+    } else {
+        drawText(28, 338, "A CONFIRM  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
+        char autoBuf[24];
+        snprintf(autoBuf, sizeof(autoBuf), "AUTO CONFIRM %uS", state.dosePromptRemainingSec);
+        drawText(28, 372, autoBuf, COLOR_WARN, COLOR_PANEL, 1);
+    }
 
     rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
     drawText(10, 450, "CONFIRMED SEND VALUE GOES TO BACKEND", COLOR_MUTED, COLOR_BG, 1);
@@ -548,15 +671,22 @@ void displayUiTask(void* parameter) {
     rawDisplayInit();
     rawFillScreen(COLOR_BG);
     DisplayState previousState = {};
+    CarePlanView previousCarePlan = {};
     bool hasPreviousState = false;
     uint32_t lastDrawMs = 0;
 
     for (;;) {
         DisplayState state = getDisplayStateSnapshot();
-        if (displayNeedsRedraw(state, previousState, lastDrawMs, hasPreviousState)) {
+        CarePlanView carePlan = getCarePlanViewSnapshot();
+        if (displayNeedsRedraw(state,
+                               previousState,
+                               carePlan,
+                               previousCarePlan,
+                               lastDrawMs,
+                               hasPreviousState)) {
             forceFullRedraw = !hasPreviousState || visibleMode(state) != visibleMode(previousState);
             if (state.dosePromptActive) {
-                drawDosePrompt(state);
+                drawDosePrompt(state, carePlan);
             } else {
                 switch (state.activePage) {
                     case DISPLAY_PAGE_DEVICE_STATUS:
@@ -568,13 +698,17 @@ void displayUiTask(void* parameter) {
                     case DISPLAY_PAGE_QUEUE_STATUS:
                         drawQueueStatus(state);
                         break;
+                    case DISPLAY_PAGE_PRESCRIPTION:
+                        drawPrescription(state, carePlan);
+                        break;
                     case DISPLAY_PAGE_DASHBOARD:
                     default:
-                        drawDashboard(state);
+                        drawDashboard(state, carePlan);
                         break;
                 }
             }
             previousState = state;
+            previousCarePlan = carePlan;
             hasPreviousState = true;
             lastDrawMs = millis();
         }

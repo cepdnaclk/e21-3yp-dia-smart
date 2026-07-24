@@ -7,6 +7,7 @@
 #include "models/telemetry_event.h"
 #include "include/system_queues.h"
 #include "managers/wifi_manager.h"
+#include "services/care_plan_service.h"
 
 // ---- Queue definitions (extern declared in system_queues.h) -------------- //
 QueueHandle_t telemetryQueue;
@@ -108,6 +109,9 @@ void setup() {
 
     // NTP time sync (non-fatal — timestamps degrade gracefully)
     syncNtp();
+
+    // Restore the last acknowledged prescription before UI tasks start.
+    setupCarePlanService();
 
     // Create all queues before ESP-NOW registration so receive callback can enqueue.
     telemetryQueue   = xQueueCreate(QUEUE_TELEMETRY_LEN,    sizeof(TelemetryEvent));

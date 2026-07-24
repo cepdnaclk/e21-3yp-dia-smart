@@ -265,6 +265,10 @@ void eventAggregatorTask(void* parameter) {
                 } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '#') {
                     carePlanSelectNextSchedule();
                     Serial.println("[EventAgg] Prescription: next schedule");
+                } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION &&
+                           key == 'C' &&
+                           carePlanStopReminder()) {
+                    Serial.println("[EventAgg] Prescription: reminder stopped");
                 } else if (key == '1') {
                     carePlanFocusCurrentSchedule();
                     updateDisplayPage(DISPLAY_PAGE_PRESCRIPTION);

@@ -12,3 +12,5 @@ void carePlanSelectPreviousSchedule();
 void carePlanSelectNextSchedule();
 void carePlanFocusCurrentSchedule();
 void carePlanMarkDoseTaken(float doseUnits);
+bool carePlanStopReminder();
+bool takePendingCarePlanTelemetry(CarePlanTelemetryEvent& event);

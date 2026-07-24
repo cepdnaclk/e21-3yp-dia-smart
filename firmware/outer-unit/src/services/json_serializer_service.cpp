@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <esp_system.h>
 #include "config/app_config.h"
+#include "models/care_plan.h"
 
 // ---- Helpers -------------------------------------------------------------- //
 
@@ -104,6 +105,26 @@ String serializeTelemetryEvent(const TelemetryEvent& event) {
     // ---- Serialise ------------------------------------------------------- //
     // Use serializeJson (compact) — NOT serializeJsonPretty.
     // serializeJsonPretty is ~3x larger and will overflow the 1024-byte MQTT buffer.
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+String serializeCarePlanTelemetryEvent(const CarePlanTelemetryEvent& event) {
+    JsonDocument doc;
+    doc["eventId"] = event.eventId;
+    doc["eventType"] = event.eventType;
+    doc["outerDeviceId"] = DEVICE_UID_OUTER;
+    doc["scheduleId"] = event.scheduleId;
+    doc["carePlanVersion"] = event.carePlanVersion;
+    if (event.repeatNumber > 0) {
+        doc["repeatNumber"] = event.repeatNumber;
+    }
+    doc["windowStart"] = event.windowStart;
+    doc["targetTime"] = event.targetTime;
+    doc["windowEnd"] = event.windowEnd;
+    doc["timestamp"] = event.timestamp;
+
     String output;
     serializeJson(doc, output);
     return output;

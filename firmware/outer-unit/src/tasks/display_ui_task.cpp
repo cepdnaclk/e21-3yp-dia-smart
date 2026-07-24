@@ -275,6 +275,7 @@ const char* carePlanStatusText(CarePlanScheduleStatus status) {
     switch (status) {
         case CARE_PLAN_STATUS_DUE: return "DOSE DUE";
         case CARE_PLAN_STATUS_TAKEN: return "TAKEN";
+        case CARE_PLAN_STATUS_MISSED: return "MISSED";
         case CARE_PLAN_STATUS_UPCOMING: return "UPCOMING";
         case CARE_PLAN_STATUS_NONE:
         default: return "NO PLAN";
@@ -285,6 +286,7 @@ uint16_t carePlanStatusColor(CarePlanScheduleStatus status) {
     switch (status) {
         case CARE_PLAN_STATUS_DUE: return COLOR_WARN;
         case CARE_PLAN_STATUS_TAKEN: return COLOR_OK;
+        case CARE_PLAN_STATUS_MISSED: return COLOR_BAD;
         case CARE_PLAN_STATUS_UPCOMING: return COLOR_ACCENT;
         case CARE_PLAN_STATUS_NONE:
         default: return COLOR_MUTED;

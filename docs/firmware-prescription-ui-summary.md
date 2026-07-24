@@ -17,6 +17,9 @@ The work covers:
 - Care Plan acknowledgement to the backend.
 - A device sync request after MQTT connection.
 - Correct and context-sensitive dose confirmation keypad controls.
+- Independent completion state for every daily schedule.
+- Reminder lifecycle and missed-dose telemetry for the backend.
+- Patient-facing upcoming, due, silenced, taken, and missed states.
 
 No backend source files were changed.
 
@@ -40,7 +43,8 @@ No backend source files were changed.
    `diasmart/devices/{outerDeviceUid}/telemetry`
 
 This sync request lets the backend resend the current Care Plan after the device
-was offline. The current backend publishes Care Plans as non-retained messages.
+was offline. The current backend publisher sends Care Plans as non-retained
+messages, so reconnect sync remains required.
 
 ## Prescription Page
 
@@ -48,21 +52,31 @@ Press `1` from any normal display page to open `PRESCRIPTION`.
 
 The page shows:
 
-- Care Plan status: `UPCOMING`, `DOSE DUE`, or `TAKEN`.
+- Care Plan status: `UPCOMING`, `DOSE DUE`, `TAKEN`, or `MISSED`.
 - Selected schedule number and total schedule count.
 - Period and insulin type.
 - Prescribed dose.
 - Target time.
 - Allowed dose window.
 - Care Plan version and effective date.
-- Reminder repeat and buzzer-duration settings.
+- Time remaining until an upcoming target.
+- Active or silenced reminder state.
+- Recorded-dose or missed-dose guidance.
 
 When more than one schedule exists:
 
 - `*`: previous schedule.
 - `#`: next schedule.
 
-Normal navigation remains unchanged:
+When a dose is due and the backend allows manual reminder stop:
+
+- `C`: silence reminder reopening for the current schedule window.
+
+The screen only shows `C SILENCE` while that action is available. After the
+reminder is silenced, `C` returns to the alerts-page action. Silencing a reminder
+does not confirm a dose.
+
+Outside an active stoppable reminder, normal navigation remains unchanged:
 
 - `A`: dashboard.
 - `B`: device status.
@@ -106,17 +120,42 @@ At the target time and until the window end:
 - The schedule status changes to `DOSE DUE`.
 - The prescription page opens automatically.
 - The visual reminder reopens at `repeatIntervalMinutes` until the dose is
-  confirmed or the schedule window closes.
+  confirmed, manually silenced, or the schedule window closes.
 
 When the dose is confirmed:
 
 - The schedule status changes to `TAKEN`.
-- The taken state is persisted for that schedule and local date.
+- The taken state is persisted independently for that schedule and local date.
 - Receiving the same Care Plan version again does not clear the taken state.
+- A later schedule can be confirmed without erasing an earlier schedule's state.
+
+When an unconfirmed window closes, the schedule changes to `MISSED` and the
+result is persisted. Windows that cross midnight use the date on which the
+schedule started, preventing a second completion or reminder after midnight.
 
 There is no configured Outer Unit buzzer GPIO in the current hardware
-configuration. This change implements the visual notification and displays the
-backend buzzer settings, but it does not drive a physical buzzer.
+configuration. This change implements visual notification and manual silence,
+but it does not drive a physical buzzer.
+
+## Backend Reminder Events
+
+The Outer Unit publishes these events to:
+
+`diasmart/devices/{outerDeviceUid}/telemetry`
+
+- `REMINDER_STARTED`: first visual reminder for the schedule occurrence.
+- `REMINDER_REPEATED`: configured reminder repeats, with `repeatNumber`.
+- `REMINDER_MANUALLY_STOPPED`: patient pressed `C` while silence was available.
+- `DOSE_MISSED`: the allowed window closed without a confirmed dose.
+- `POSSIBLE_DOUBLE_DOSE`: another distinct pen dose was confirmed for a schedule
+  already marked taken in the same occurrence.
+
+Each event includes a unique event ID, Outer Unit ID, schedule ID, Care Plan
+version, schedule window, and UTC timestamp.
+
+Reminder events use the existing LittleFS offline queue when MQTT is unavailable.
+Queued records retain their MQTT destination, while older combined telemetry
+records remain compatible with the legacy topic.
 
 ## Validation and Storage
 
@@ -137,6 +176,9 @@ The stored plan is restored before the display task starts. A future
 `effectiveFrom` date cannot trigger an early reminder. A confirmed dose marks a
 schedule as taken only when the confirmation occurs inside that schedule's
 allowed window.
+
+Care Plan NVS format version 3 stores taken, silenced, and missed dates for every
+schedule. Stored version-1 and version-2 plans are migrated when loaded.
 
 The MQTT buffer was increased from 2048 to 8192 bytes to match the backend
 subscriber payload limit.
@@ -176,6 +218,24 @@ Flash: 1,544,913 / 3,342,336 bytes (46.2%)
 Static checks confirmed that each displayed keypad action has a matching code
 handler.
 
+Latest build after the reminder and display improvements:
+
+```text
+Environment: esp32-s3-devkitc-1
+Result: SUCCESS
+RAM: 69,852 / 327,680 bytes (21.3%)
+Flash: 1,556,765 / 3,342,336 bytes (46.6%)
+```
+
+## Implementation Commits
+
+- `811a68f` - `Fix per-schedule prescription completion state`
+- `20251ca` - `Add prescription reminder lifecycle telemetry`
+- `932d439` - `Refine patient prescription display states`
+
+The documentation update is committed separately after these implementation
+steps.
+
 ## Hardware Test Checklist
 
 1. Boot with no stored Care Plan and press `1`.
@@ -184,8 +244,23 @@ handler.
 4. Confirm `APPLIED` appears in backend Care Plan delivery status.
 5. Restart the Outer Unit and confirm the prescription is restored.
 6. Use `*` and `#` to browse multiple schedules.
-7. Set a target time a few minutes ahead and verify automatic visual reminder.
-8. Trigger a pen dose and verify `A` confirmation.
-9. Trigger another dose and verify `B`, digits, `*`, `#`, `C`, and `D`.
-10. Confirm dashboard, device, alerts, queue, BLE, ESP-NOW, and telemetry still
+7. Set a target time a few minutes ahead and verify the countdown and automatic
+   visual reminder.
+8. Verify `C SILENCE` appears only while a stoppable reminder is due.
+9. Press `C`, confirm `REMINDER SILENCED`, and verify the backend stores
+   `REMINDER_MANUALLY_STOPPED`.
+10. Allow a test window to close and verify `MISSED` and `DOSE_MISSED`.
+11. Trigger a pen dose and verify `A` confirmation.
+12. Trigger another dose and verify `B`, digits, `*`, `#`, `C`, and `D`.
+13. Confirm two different schedules can both remain `TAKEN` on the same day.
+14. Confirm dashboard, device, alerts, queue, BLE, ESP-NOW, and telemetry still
     operate normally.
+
+## Remaining Gaps
+
+- No physical buzzer GPIO is configured on the Outer Unit.
+- Device telemetry is removed from the current offline queue after MQTT broker
+  publish succeeds. Full deletion after application-level `telemetry-ack` is
+  still future work.
+- The backend Care Plan payload does not include per-schedule `daysOfWeek` or
+  prescription end dates, so firmware evaluates published schedules daily.

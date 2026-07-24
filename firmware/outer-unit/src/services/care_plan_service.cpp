@@ -9,7 +9,7 @@
 
 namespace {
 constexpr uint32_t CARE_PLAN_STORAGE_MAGIC = 0x43504C4EU;
-constexpr uint16_t CARE_PLAN_STORAGE_VERSION = 1;
+constexpr uint16_t CARE_PLAN_STORAGE_VERSION = 2;
 constexpr const char* CARE_PLAN_NVS_NAMESPACE = "care_plan";
 constexpr const char* CARE_PLAN_NVS_KEY = "active";
 constexpr uint32_t MANUAL_SELECTION_HOLD_MS = 30000;
@@ -25,6 +25,23 @@ struct StoredCarePlanSchedule {
 };
 
 struct StoredCarePlan {
+    uint32_t magic;
+    uint16_t formatVersion;
+    uint32_t version;
+    uint8_t scheduleCount;
+    uint16_t buzzerDurationMinutes;
+    uint16_t repeatIntervalMinutes;
+    bool manualStopAllowed;
+    int32_t takenDateKeys[CARE_PLAN_MAX_SCHEDULES];
+    char carePlanId[32];
+    char patientId[24];
+    char outerDeviceId[32];
+    char effectiveFrom[12];
+    char timezone[32];
+    StoredCarePlanSchedule schedules[CARE_PLAN_MAX_SCHEDULES];
+};
+
+struct StoredCarePlanV1 {
     uint32_t magic;
     uint16_t formatVersion;
     uint32_t version;
@@ -48,8 +65,6 @@ uint8_t selectedScheduleIndex = 0;
 uint32_t viewRevision = 0;
 uint32_t manualSelectionUntilMs = 0;
 CarePlanScheduleStatus lastViewStatus = CARE_PLAN_STATUS_NONE;
-uint8_t takenScheduleIndex = 0xFF;
-int32_t takenDateKey = -1;
 uint8_t notifiedScheduleIndex = 0xFF;
 int32_t notifiedDateKey = -1;
 uint32_t lastNotificationMs = 0;
@@ -152,20 +167,81 @@ bool savePlan(const StoredCarePlan& plan) {
     return written == sizeof(plan);
 }
 
+void clearTakenDates(int32_t (&dates)[CARE_PLAN_MAX_SCHEDULES]) {
+    for (uint8_t index = 0; index < CARE_PLAN_MAX_SCHEDULES; ++index) {
+        dates[index] = -1;
+    }
+}
+
 bool loadPlan(StoredCarePlan& plan) {
     Preferences preferences;
     if (!preferences.begin(CARE_PLAN_NVS_NAMESPACE, true)) {
         return false;
     }
     size_t storedLength = preferences.getBytesLength(CARE_PLAN_NVS_KEY);
-    size_t read = storedLength == sizeof(plan)
-        ? preferences.getBytes(CARE_PLAN_NVS_KEY, &plan, sizeof(plan))
-        : 0;
+    bool loaded = false;
+    if (storedLength == sizeof(plan)) {
+        size_t read = preferences.getBytes(CARE_PLAN_NVS_KEY, &plan, sizeof(plan));
+        loaded = read == sizeof(plan) &&
+                 plan.magic == CARE_PLAN_STORAGE_MAGIC &&
+                 plan.formatVersion == CARE_PLAN_STORAGE_VERSION &&
+                 plan.scheduleCount <= CARE_PLAN_MAX_SCHEDULES;
+    } else if (storedLength == sizeof(StoredCarePlanV1)) {
+        StoredCarePlanV1 legacy = {};
+        size_t read = preferences.getBytes(
+            CARE_PLAN_NVS_KEY, &legacy, sizeof(legacy));
+        if (read == sizeof(legacy) &&
+            legacy.magic == CARE_PLAN_STORAGE_MAGIC &&
+            legacy.formatVersion == 1 &&
+            legacy.scheduleCount <= CARE_PLAN_MAX_SCHEDULES) {
+            plan = {};
+            plan.magic = legacy.magic;
+            plan.formatVersion = CARE_PLAN_STORAGE_VERSION;
+            plan.version = legacy.version;
+            plan.scheduleCount = legacy.scheduleCount;
+            plan.buzzerDurationMinutes = legacy.buzzerDurationMinutes;
+            plan.repeatIntervalMinutes = legacy.repeatIntervalMinutes;
+            plan.manualStopAllowed = legacy.manualStopAllowed;
+            clearTakenDates(plan.takenDateKeys);
+            if (legacy.takenScheduleIndex < legacy.scheduleCount) {
+                plan.takenDateKeys[legacy.takenScheduleIndex] = legacy.takenDateKey;
+            }
+            memcpy(plan.carePlanId, legacy.carePlanId, sizeof(plan.carePlanId));
+            memcpy(plan.patientId, legacy.patientId, sizeof(plan.patientId));
+            memcpy(plan.outerDeviceId, legacy.outerDeviceId, sizeof(plan.outerDeviceId));
+            memcpy(plan.effectiveFrom, legacy.effectiveFrom, sizeof(plan.effectiveFrom));
+            memcpy(plan.timezone, legacy.timezone, sizeof(plan.timezone));
+            memcpy(plan.schedules, legacy.schedules, sizeof(plan.schedules));
+            loaded = true;
+        }
+    }
     preferences.end();
-    return read == sizeof(plan) &&
-           plan.magic == CARE_PLAN_STORAGE_MAGIC &&
-           plan.formatVersion == CARE_PLAN_STORAGE_VERSION &&
-           plan.scheduleCount <= CARE_PLAN_MAX_SCHEDULES;
+    return loaded;
+}
+
+bool isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+}
+
+int32_t previousDateKey(const tm& localTime) {
+    int year = localTime.tm_year + 1900;
+    if (localTime.tm_yday > 0) {
+        return year * 1000 + localTime.tm_yday - 1;
+    }
+    int previousYear = year - 1;
+    return previousYear * 1000 + (isLeapYear(previousYear) ? 365 : 364);
+}
+
+int32_t scheduleDateKey(const StoredCarePlanSchedule& schedule,
+                        int nowMinute,
+                        int32_t currentDateKey,
+                        const tm& localTime) {
+    int start = minuteOfDay(schedule.windowStart);
+    int end = minuteOfDay(schedule.windowEnd);
+    if (start > end && nowMinute <= end) {
+        return previousDateKey(localTime);
+    }
+    return currentDateKey;
 }
 
 uint8_t bestScheduleIndex(const StoredCarePlan& plan,
@@ -198,11 +274,14 @@ uint8_t bestScheduleIndex(const StoredCarePlan& plan,
 CarePlanScheduleStatus scheduleStatus(const StoredCarePlan& plan,
                                       uint8_t index,
                                       int nowMinute,
-                                      int32_t dateKey) {
+                                      int32_t dateKey,
+                                      const tm& localTime) {
     if (index >= plan.scheduleCount) {
         return CARE_PLAN_STATUS_NONE;
     }
-    if (takenScheduleIndex == index && takenDateKey == dateKey) {
+    int32_t occurrenceDateKey = scheduleDateKey(
+        plan.schedules[index], nowMinute, dateKey, localTime);
+    if (plan.takenDateKeys[index] == occurrenceDateKey) {
         return CARE_PLAN_STATUS_TAKEN;
     }
 
@@ -284,8 +363,6 @@ bool setupCarePlanService() {
     hasActivePlan = true;
     selectedScheduleIndex = 0;
     lastViewStatus = CARE_PLAN_STATUS_UPCOMING;
-    takenScheduleIndex = stored.takenScheduleIndex;
-    takenDateKey = stored.takenDateKey;
     viewRevision++;
     portEXIT_CRITICAL(&carePlanMux);
 
@@ -339,8 +416,7 @@ CarePlanApplyResult applyCarePlanPayload(const uint8_t* payload, size_t length) 
     next.formatVersion = CARE_PLAN_STORAGE_VERSION;
     next.version = version;
     next.scheduleCount = (uint8_t)schedules.size();
-    next.takenScheduleIndex = 0xFF;
-    next.takenDateKey = -1;
+    clearTakenDates(next.takenDateKeys);
     copyText(next.carePlanId, carePlanId);
     copyText(next.patientId, patientId);
     copyText(next.outerDeviceId, outerDeviceId);
@@ -393,11 +469,19 @@ CarePlanApplyResult applyCarePlanPayload(const uint8_t* payload, size_t length) 
         copyText(result.message, "Care Plan version is older than stored version");
         return result;
     }
-    if (currentAvailable &&
-        current.version == version &&
-        strcmp(current.carePlanId, next.carePlanId) == 0) {
-        next.takenScheduleIndex = current.takenScheduleIndex;
-        next.takenDateKey = current.takenDateKey;
+    if (currentAvailable) {
+        for (uint8_t nextIndex = 0; nextIndex < next.scheduleCount; ++nextIndex) {
+            for (uint8_t currentIndex = 0;
+                 currentIndex < current.scheduleCount;
+                 ++currentIndex) {
+                if (strcmp(next.schedules[nextIndex].scheduleId,
+                           current.schedules[currentIndex].scheduleId) == 0) {
+                    next.takenDateKeys[nextIndex] =
+                        current.takenDateKeys[currentIndex];
+                    break;
+                }
+            }
+        }
     }
 
     if (!savePlan(next)) {
@@ -410,8 +494,6 @@ CarePlanApplyResult applyCarePlanPayload(const uint8_t* payload, size_t length) 
     hasActivePlan = true;
     selectedScheduleIndex = 0;
     lastViewStatus = CARE_PLAN_STATUS_UPCOMING;
-    takenScheduleIndex = next.takenScheduleIndex;
-    takenDateKey = next.takenDateKey;
     viewRevision++;
     portEXIT_CRITICAL(&carePlanMux);
 
@@ -444,7 +526,8 @@ CarePlanView getCarePlanViewSnapshot() {
     if (!available) {
         status = CARE_PLAN_STATUS_NONE;
     } else if (localPlanTime(plan, localTime, dateKey)) {
-        status = scheduleStatus(plan, index, localTime.tm_hour * 60 + localTime.tm_min, dateKey);
+        status = scheduleStatus(
+            plan, index, localTime.tm_hour * 60 + localTime.tm_min, dateKey, localTime);
     }
     return makeView(plan, available, index, status, revision);
 }
@@ -470,7 +553,8 @@ void carePlanTick() {
     }
     int nowMinute = localTime.tm_hour * 60 + localTime.tm_min;
     uint8_t dueIndex = bestScheduleIndex(plan, nowMinute, true);
-    CarePlanScheduleStatus dueStatus = scheduleStatus(plan, dueIndex, nowMinute, dateKey);
+    CarePlanScheduleStatus dueStatus =
+        scheduleStatus(plan, dueIndex, nowMinute, dateKey, localTime);
     bool hasDueSchedule = dueStatus == CARE_PLAN_STATUS_DUE;
 
     uint8_t nextIndex;
@@ -485,7 +569,8 @@ void carePlanTick() {
         nextIndex = bestScheduleIndex(plan, nowMinute, false);
     }
 
-    CarePlanScheduleStatus status = scheduleStatus(plan, nextIndex, nowMinute, dateKey);
+    CarePlanScheduleStatus status =
+        scheduleStatus(plan, nextIndex, nowMinute, dateKey, localTime);
     updateSelectionAndRevision(nextIndex, status);
 
     uint32_t repeatMs = (uint32_t)plan.repeatIntervalMinutes * 60UL * 1000UL;
@@ -496,7 +581,8 @@ void carePlanTick() {
     bool repeatNotification = !firstNotification &&
                               (millis() - lastNotificationMs) >= repeatMs;
     if (hasDueSchedule &&
-        !(takenScheduleIndex == dueIndex && takenDateKey == dateKey) &&
+        plan.takenDateKeys[dueIndex] != scheduleDateKey(
+            plan.schedules[dueIndex], nowMinute, dateKey, localTime) &&
         (firstNotification || repeatNotification)) {
         portENTER_CRITICAL(&carePlanMux);
         notifiedScheduleIndex = dueIndex;
@@ -552,11 +638,12 @@ void carePlanFocusCurrentSchedule() {
     if (localPlanTime(plan, localTime, dateKey)) {
         int nowMinute = localTime.tm_hour * 60 + localTime.tm_min;
         uint8_t dueIndex = bestScheduleIndex(plan, nowMinute, true);
-        CarePlanScheduleStatus dueStatus = scheduleStatus(plan, dueIndex, nowMinute, dateKey);
+        CarePlanScheduleStatus dueStatus =
+            scheduleStatus(plan, dueIndex, nowMinute, dateKey, localTime);
         index = dueStatus == CARE_PLAN_STATUS_DUE
             ? dueIndex
             : bestScheduleIndex(plan, nowMinute, false);
-        status = scheduleStatus(plan, index, nowMinute, dateKey);
+        status = scheduleStatus(plan, index, nowMinute, dateKey, localTime);
     }
     updateSelectionAndRevision(index, status);
 }
@@ -590,11 +677,10 @@ void carePlanMarkDoseTaken(float doseUnits) {
     }
 
     StoredCarePlan persisted = {};
+    int32_t occurrenceDateKey =
+        scheduleDateKey(schedule, nowMinute, dateKey, localTime);
     portENTER_CRITICAL(&carePlanMux);
-    takenScheduleIndex = index;
-    takenDateKey = dateKey;
-    activePlan.takenScheduleIndex = index;
-    activePlan.takenDateKey = dateKey;
+    activePlan.takenDateKeys[index] = occurrenceDateKey;
     persisted = activePlan;
     lastViewStatus = CARE_PLAN_STATUS_TAKEN;
     viewRevision++;

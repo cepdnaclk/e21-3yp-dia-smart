@@ -82,7 +82,11 @@ public class AuthService {
         user.setRole(request.getRole());
         user.setDisplayName(displayName);
         user.setContactNumber(normalizeNullableText(request.getContactNumber()));
-        user.setActive(true);
+        if (request.getRole() == UserRole.DOCTOR) {
+            user.setActive(false);
+        } else {
+            user.setActive(true);
+        }
 
         AppUser savedUser = appUserRepository.save(user);
 
@@ -127,12 +131,21 @@ public class AuthService {
     }
 
     private void ensurePatientSelfAccess(AppUser user) {
-        boolean hasActiveViewAccess = userPatientAccessRepository
+        java.util.Optional<UserPatientAccess> existingSelfAccess = userPatientAccessRepository
                 .findByUserIdOrderByCreatedAtDesc(user.getUserId())
                 .stream()
-                .anyMatch(access -> access.getStatus() == AccessStatus.ACTIVE && access.isCanView());
+                .filter(access -> access.getAccessRole() == AccessRole.SELF)
+                .findFirst();
 
-        if (!hasActiveViewAccess) {
+        if (existingSelfAccess.isPresent()) {
+            UserPatientAccess access = existingSelfAccess.get();
+            if (access.getStatus() != AccessStatus.ACTIVE) {
+                access.setStatus(AccessStatus.ACTIVE);
+                access.setCanView(true);
+                access.setCanAcknowledgeAlerts(true);
+                userPatientAccessRepository.save(access);
+            }
+        } else {
             Patient patient = new Patient();
 
             patient.setPatientUuid(UUID.randomUUID());

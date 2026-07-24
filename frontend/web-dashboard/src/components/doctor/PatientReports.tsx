@@ -17,7 +17,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton
+  IconButton,
+  Divider
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
@@ -264,7 +265,8 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
           </Box>
         )}
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+        {/* Desktop Table View */}
+        <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: "none", md: "block" }, borderRadius: 2 }}>
           <Table>
             <TableHead sx={{ bgcolor: "action.hover" }}>
               <TableRow>
@@ -296,6 +298,42 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Mobile Card List View */}
+        <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 2 }}>
+          {reports.map((report) => (
+            <Card key={report.id} variant="outlined" sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
+              <Box sx={{ p: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#12233b", mb: 1 }}>
+                  {report.name}
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem", mb: 2, lineHeight: 1.4 }}>
+                  {report.description}
+                </Typography>
+
+                <Divider sx={{ mb: 1.5 }} />
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Report Actions
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <IconButton size="small" color="primary" onClick={() => handleViewReport(report.id, report.name)} title="Preview Report">
+                      <VisibilityIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="secondary" onClick={() => handlePrintReport(report.id, report.name)} title="Print PDF">
+                      <PrintIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="success" onClick={() => handleDownloadCSV(report.id, report.name)} title="Download CSV">
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              </Box>
+            </Card>
+          ))}
+        </Box>
 
         <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle sx={{ fontWeight: "bold" }}>{viewTitle}</DialogTitle>

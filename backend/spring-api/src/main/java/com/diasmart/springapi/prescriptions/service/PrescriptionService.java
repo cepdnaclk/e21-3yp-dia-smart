@@ -3,6 +3,7 @@ package com.diasmart.springapi.prescriptions.service;
 import com.diasmart.springapi.prescriptions.dto.PrescriptionResponse;
 import com.diasmart.springapi.prescriptions.entity.Prescription;
 import com.diasmart.springapi.prescriptions.repository.PrescriptionRepository;
+import com.diasmart.springapi.careplan.service.CarePlanService;
 import com.diasmart.springapi.shared.enums.Permission;
 import com.diasmart.springapi.shared.security.AuthorizationService;
 
@@ -29,14 +30,18 @@ public class PrescriptionService {
 
     private final CurrentUserService currentUserService;
 
+    private final CarePlanService carePlanService;
+
     public PrescriptionService(
             PrescriptionRepository prescriptionRepository,
             AuthorizationService authorizationService,
-            CurrentUserService currentUserService
+            CurrentUserService currentUserService,
+            CarePlanService carePlanService
     ) {
         this.prescriptionRepository = prescriptionRepository;
         this.authorizationService = authorizationService;
         this.currentUserService = currentUserService;
+        this.carePlanService = carePlanService;
     }
 
     public Page<PrescriptionResponse> getPrescriptions(
@@ -160,6 +165,8 @@ public class PrescriptionService {
                     prescription
             );
 
+    carePlanService.regenerateAfterPrescriptionChange(patientId);
+
     return mapToResponse(savedPrescription);
 }
     public PrescriptionResponse updatePrescription(
@@ -230,6 +237,8 @@ public class PrescriptionService {
                     prescription
             );
 
+    carePlanService.regenerateAfterPrescriptionChange(prescription.getPatientId());
+
     return mapToResponse(updatedPrescription);
 }
     public void deactivatePrescription(
@@ -260,5 +269,7 @@ public class PrescriptionService {
     prescriptionRepository.save(
             prescription
     );
+
+    carePlanService.regenerateAfterPrescriptionChange(prescription.getPatientId());
 }
 }

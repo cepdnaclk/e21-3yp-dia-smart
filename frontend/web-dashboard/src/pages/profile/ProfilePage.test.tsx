@@ -24,19 +24,22 @@ describe("ProfilePage", () => {
       profileService.getProfile
     ).mockResolvedValue({
       userId: 1,
+      userUuid: "test-uuid-123",
       displayName: "John Doe",
       email: "john@test.com",
       role: "PATIENT",
       contactNumber: "123456789",
       active: true,
       lastLoginAt: "Today",
+      createdAt: "2026-07-15T00:00:00Z",
+      updatedAt: "2026-07-15T00:00:00Z",
     });
 
     render(<ProfilePage />);
 
     await waitFor(() => {
       expect(
-        screen.getByText("Profile")
+        screen.getByText("Profile Management")
       ).toBeTruthy();
     });
 

@@ -4,7 +4,9 @@ import java.time.Instant;
 
 public class CommandAckDTO {
 
-    private Long commandId;
+    private String commandId;
+    private String commandType;
+    private String outerDeviceId;
     private String status;
     private String message;
     private Integer configurationVersion;
@@ -13,12 +15,28 @@ public class CommandAckDTO {
     public CommandAckDTO() {
     }
 
-    public Long getCommandId() {
+    public String getCommandId() {
         return commandId;
     }
 
-    public void setCommandId(Long commandId) {
+    public void setCommandId(String commandId) {
         this.commandId = commandId;
+    }
+
+    public String getCommandType() {
+        return commandType;
+    }
+
+    public void setCommandType(String commandType) {
+        this.commandType = commandType;
+    }
+
+    public String getOuterDeviceId() {
+        return outerDeviceId;
+    }
+
+    public void setOuterDeviceId(String outerDeviceId) {
+        this.outerDeviceId = outerDeviceId;
     }
 
     public String getStatus() {

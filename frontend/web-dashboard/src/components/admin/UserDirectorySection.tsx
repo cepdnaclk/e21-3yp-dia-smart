@@ -16,7 +16,12 @@ import {
   TextField,
   InputAdornment,
   TablePagination,
-  Tooltip
+  Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
@@ -40,6 +45,7 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
   onAddClick
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
@@ -57,14 +63,31 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
     setPage(0);
   };
 
-  const filteredUsers = users.filter((user) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      user.displayName.toLowerCase().includes(searchLower) ||
-      user.email.toLowerCase().includes(searchLower) ||
-      (user.contactNumber && user.contactNumber.toLowerCase().includes(searchLower))
-    );
-  });
+  const filteredUsers = users
+    .filter((user) => {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        user.displayName.toLowerCase().includes(searchLower) ||
+        user.email.toLowerCase().includes(searchLower) ||
+        (user.contactNumber && user.contactNumber.toLowerCase().includes(searchLower));
+
+      if (!matchesSearch) return false;
+
+      if (statusFilter === "PENDING") {
+        return !user.active;
+      }
+      if (statusFilter === "ACTIVE") {
+        return user.active;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort inactive (pending approval) users to the top
+      if (a.active !== b.active) {
+        return a.active ? 1 : -1;
+      }
+      return a.displayName.localeCompare(b.displayName);
+    });
 
   const paginatedUsers = filteredUsers.slice(
     page * rowsPerPage,
@@ -113,28 +136,48 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
           </Button>
         </Box>
 
-        {/* Search Bar */}
-        <TextField
-          size="small"
-          placeholder="Search by name, email, or phone..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          fullWidth
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            }
-          }}
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            }
-          }}
-        />
+        {/* Search Bar & Status Filter */}
+        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <TextField
+            size="small"
+            placeholder="Search by name, email, or phone..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            sx={{
+              flexGrow: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+              }
+            }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }
+            }}
+          />
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="status-filter-label">Status Filter</InputLabel>
+            <Select
+              labelId="status-filter-label"
+              id="status-filter"
+              label="Status Filter"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              sx={{ borderRadius: 2 }}
+            >
+              <MenuItem value="ALL">All Statuses</MenuItem>
+              <MenuItem value="PENDING">Pending Approval (Inactive)</MenuItem>
+              <MenuItem value="ACTIVE">Active Accounts</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
 
         {/* Users Table */}
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
@@ -152,9 +195,20 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
                 <TableRow key={user.userId} hover>
                   <TableCell>
                     <Box sx={{ display: "flex", flexDirection: "column" }}>
-                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                        {user.displayName}
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                          {user.displayName}
+                        </Typography>
+                        {!user.active && (
+                          <Chip
+                            label="Pending"
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.65rem", fontWeight: 700, px: 0.5 }}
+                          />
+                        )}
+                      </Box>
                       <Typography variant="caption" color="text.secondary">
                         {user.email}
                       </Typography>

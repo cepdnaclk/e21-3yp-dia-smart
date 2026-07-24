@@ -8,7 +8,7 @@ import type {
 } from "../types/analytics";
 
 export const analyticsService = {
-  async getAnalytics(customPatientId?: number): Promise<AnalyticsData> {
+  async getAnalytics(customPatientId?: number, startDate?: string, endDate?: string): Promise<AnalyticsData> {
     const patientId = customPatientId || getPatientId();
 
     const response = await api.get(
@@ -16,8 +16,8 @@ export const analyticsService = {
       {
         params: {
           patientId: Number(patientId),
-          startDate: "2026-06-22",
-          endDate: "2026-06-27",
+          startDate: startDate || "2026-06-22",
+          endDate: endDate || "2026-06-27",
         },
       }
     );
@@ -34,21 +34,23 @@ export const analyticsService = {
     };
   },
 
-  async getGlucoseHistory(customPatientId?: number): Promise<GlucoseReading[]> {
+  async getGlucoseHistory(customPatientId?: number, size = 200): Promise<GlucoseReading[]> {
     const patientId = customPatientId || getPatientId();
 
     const response = await api.get(
-      `/patients/${patientId}/glucose-readings`
+      `/patients/${patientId}/glucose-readings`,
+      { params: { size } }
     );
 
     return response.data.data.content;
   },
 
-  async getDoseHistory(customPatientId?: number): Promise<DoseReading[]> {
+  async getDoseHistory(customPatientId?: number, size = 200): Promise<DoseReading[]> {
     const patientId = customPatientId || getPatientId();
 
     const response = await api.get(
-      `/patients/${patientId}/dose-events`
+      `/patients/${patientId}/dose-events`,
+      { params: { size } }
     );
 
     return response.data.data.content;

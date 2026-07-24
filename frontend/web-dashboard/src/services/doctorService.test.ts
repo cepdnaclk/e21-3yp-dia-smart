@@ -5,6 +5,7 @@ import { doctorService } from "./doctorService";
 vi.mock("./api", () => ({
   default: {
     get: vi.fn(),
+    post: vi.fn(),
     patch: vi.fn()
   }
 }));
@@ -101,6 +102,30 @@ describe("doctorService", () => {
     expect(api.get).toHaveBeenCalledWith("/analytics/adherence", {
       params: { patientId: 1, startDate: "2026-05-01", endDate: "2026-05-07" }
     });
+    expect(result).toEqual(mockResponse);
+  });
+
+  it("should assign patient successfully", async () => {
+    const mockRequest = {
+      userId: 5,
+      patientId: 1,
+      accessRole: "DOCTOR",
+      relationshipLabel: "Primary Physician",
+      canView: true,
+      canAcknowledgeAlerts: true,
+      canEditPrescriptions: true
+    };
+    const mockResponse = { accessId: 10, patientId: 1, userId: 5 };
+
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        data: mockResponse
+      }
+    });
+
+    const result = await doctorService.assignPatient(mockRequest);
+
+    expect(api.post).toHaveBeenCalledWith("/patient-access", mockRequest);
     expect(result).toEqual(mockResponse);
   });
 });

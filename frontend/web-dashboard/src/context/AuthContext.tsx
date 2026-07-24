@@ -9,14 +9,13 @@ import { UserRole } from "../types/roles";
 interface AuthContextType {
   isAuthenticated: boolean;
   role: UserRole;
-
   token: string | null;
-
+  userId: number | null;
   login: (
     token: string,
-    role: UserRole
+    role: UserRole,
+    userId: number
   ) => void;
-
   logout: () => void;
 }
 
@@ -35,6 +34,12 @@ export const AuthProvider = ({
       localStorage.getItem("token")
     );
 
+  const [userId, setUserId] = useState<number | null>(
+    localStorage.getItem("userId")
+      ? Number(localStorage.getItem("userId"))
+      : null
+  );
+
   // TODO: Extend role handling for Milestone 4 when doctor, caregiver, and admin sessions need role-specific capabilities.
   const [role, setRole] =
     useState<UserRole>(
@@ -49,7 +54,8 @@ export const AuthProvider = ({
 
   const login = (
     jwtToken: string,
-    userRole: UserRole
+    userRole: UserRole,
+    userNumericId: number
   ) => {
     localStorage.setItem(
       "token",
@@ -61,16 +67,24 @@ export const AuthProvider = ({
       userRole
     );
 
+    localStorage.setItem(
+      "userId",
+      userNumericId.toString()
+    );
+
     setToken(jwtToken);
     setRole(userRole);
+    setUserId(userNumericId);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    localStorage.removeItem("userId");
 
     setToken(null);
+    setUserId(null);
     setIsAuthenticated(false);
   };
 
@@ -80,6 +94,7 @@ export const AuthProvider = ({
         isAuthenticated,
         role,
         token,
+        userId,
         login,
         logout,
       }}

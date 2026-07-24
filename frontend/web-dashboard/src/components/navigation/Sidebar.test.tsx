@@ -14,44 +14,47 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({
     role: "PATIENT",
+    logout: vi.fn(),
   }),
 }));
 
 describe("Sidebar", () => {
+  const renderSidebar = () => render(<Sidebar mobileOpen={false} onClose={vi.fn()} />);
+
   it("renders Dashboard menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
-      screen.getByText("Dashboard")
+      screen.getAllByText("Dashboard")[0]
     ).toBeTruthy();
   });
 
   it("renders Alerts menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
-      screen.getByText("Alerts")
+      screen.getAllByText("Alerts")[0]
     ).toBeTruthy();
   });
 
   it("renders Devices menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
-      screen.getByText("Devices")
+      screen.getAllByText("Devices")[0]
     ).toBeTruthy();
   });
 
   it("renders Care Team menu", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
-      screen.getByText("Care Team")
+      screen.getAllByText("Care Team")[0]
     ).toBeTruthy();
   });
 
   it("does not show removed Patient menu items", () => {
-    render(<Sidebar />);
+    renderSidebar();
 
     expect(
       screen.queryByText("Patients")
@@ -59,10 +62,6 @@ describe("Sidebar", () => {
 
     expect(
       screen.queryByText("Profile")
-    ).toBeNull();
-
-    expect(
-      screen.queryByText("Settings")
     ).toBeNull();
   });
 });

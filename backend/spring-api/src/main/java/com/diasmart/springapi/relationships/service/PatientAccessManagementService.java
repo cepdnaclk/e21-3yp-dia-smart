@@ -4,7 +4,12 @@ import com.diasmart.springapi.relationships.dto.CreatePatientAccessRequest;
 import com.diasmart.springapi.relationships.dto.PatientAccessResponse;
 import com.diasmart.springapi.relationships.entity.UserPatientAccess;
 import com.diasmart.springapi.relationships.repository.UserPatientAccessRepository;
+import com.diasmart.springapi.relationships.entity.RelationshipRequest;
+import com.diasmart.springapi.relationships.repository.RelationshipRequestRepository;
 import com.diasmart.springapi.shared.enums.AccessStatus;
+import com.diasmart.springapi.shared.enums.AccessRole;
+import com.diasmart.springapi.shared.enums.RelationshipStatus;
+import com.diasmart.springapi.shared.enums.RelationshipType;
 import com.diasmart.springapi.shared.enums.UserRole;
 import com.diasmart.springapi.shared.security.CurrentUserService;
 import com.diasmart.springapi.users.entity.AppUser;
@@ -25,12 +30,15 @@ import java.util.List;
 public class PatientAccessManagementService {
 
     private final UserPatientAccessRepository userPatientAccessRepository;
+    private final RelationshipRequestRepository relationshipRequestRepository;
     private final CurrentUserService currentUserService;
 
     public PatientAccessManagementService(
             UserPatientAccessRepository userPatientAccessRepository,
+            RelationshipRequestRepository relationshipRequestRepository,
             CurrentUserService currentUserService) {
         this.userPatientAccessRepository = userPatientAccessRepository;
+        this.relationshipRequestRepository = relationshipRequestRepository;
         this.currentUserService = currentUserService;
     }
 
@@ -39,8 +47,10 @@ public class PatientAccessManagementService {
      */
     @Transactional
     public PatientAccessResponse createAccess(CreatePatientAccessRequest request) {
-        requireAdmin();
-        return createAccessInternal(request);
+        requireAdminOrSelfDoctor(request.getUserId());
+        PatientAccessResponse response = createAccessInternal(request);
+        createMatchingRelationshipRequest(request);
+        return response;
     }
 
     /**
@@ -169,6 +179,60 @@ public class PatientAccessManagementService {
         }
 
         return currentUser;
+    }
+
+    private void requireAdminOrSelfDoctor(Long targetUserId) {
+        AppUser currentUser = currentUserService.getCurrentUser();
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        if (currentUser.getRole() == UserRole.DOCTOR && currentUser.getUserId().equals(targetUserId)) {
+            return;
+        }
+
+        throw new AccessDeniedException("Only admins or doctors assigning themselves can manage patient access relationships");
+    }
+
+    private void createMatchingRelationshipRequest(CreatePatientAccessRequest request) {
+        if (request.getAccessRole() != AccessRole.CAREGIVER && request.getAccessRole() != AccessRole.DOCTOR) {
+            return;
+        }
+
+        Long patientUserId = userPatientAccessRepository
+                .findByPatientIdAndAccessRoleAndStatus(request.getPatientId(), AccessRole.SELF, AccessStatus.ACTIVE)
+                .map(UserPatientAccess::getUserId)
+                .orElse(null);
+
+        if (patientUserId == null) {
+            return;
+        }
+
+        RelationshipType relRole = (request.getAccessRole() == AccessRole.CAREGIVER)
+                ? RelationshipType.CAREGIVER
+                : RelationshipType.DOCTOR;
+
+        boolean requestExists = relationshipRequestRepository
+                .existsByRequesterUserIdAndTargetUserIdAndPatientIdAndRelationshipRoleAndStatus(
+                        request.getUserId(),
+                        patientUserId,
+                        request.getPatientId(),
+                        relRole,
+                        RelationshipStatus.ACCEPTED
+                );
+
+        if (!requestExists) {
+            RelationshipRequest relRequest = new RelationshipRequest();
+            relRequest.setRequesterUserId(request.getUserId());
+            relRequest.setTargetUserId(patientUserId);
+            relRequest.setPatientId(request.getPatientId());
+            relRequest.setRelationshipRole(relRole);
+            relRequest.setStatus(RelationshipStatus.ACCEPTED);
+            relRequest.setMessage("Self-assigned via direct access configuration");
+            relRequest.setRespondedAt(OffsetDateTime.now());
+            relationshipRequestRepository.save(relRequest);
+        }
     }
 
     private String normalizeNullableText(String value) {

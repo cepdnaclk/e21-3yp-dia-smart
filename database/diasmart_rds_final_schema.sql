@@ -352,6 +352,9 @@ CREATE TABLE IF NOT EXISTS dose_schedules (
 
     schedule_label VARCHAR(80) NOT NULL,
     scheduled_time TIME NOT NULL,
+    window_start TIME,
+    target_time TIME,
+    window_end TIME,
     dose_units NUMERIC(6,2) NOT NULL CHECK (dose_units > 0 AND dose_units <= 100),
 
     -- 1=Monday ... 7=Sunday. Backend interprets this text.
@@ -489,6 +492,12 @@ CREATE TABLE IF NOT EXISTS dose_events (
     confidence_percent NUMERIC(5,2) CHECK (confidence_percent IS NULL OR (confidence_percent >= 0 AND confidence_percent <= 100)),
 
     event_status VARCHAR(20) NOT NULL CHECK (event_status IN ('CONFIRMED', 'PENDING', 'REJECTED')) DEFAULT 'CONFIRMED',
+    dose_status VARCHAR(30) CHECK (dose_status IS NULL OR dose_status IN (
+        'TAKEN_EARLY',
+        'TAKEN_WITHIN_WINDOW',
+        'TAKEN_LATE',
+        'UNMATCHED'
+    )),
     notes TEXT,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -915,6 +924,9 @@ ALTER TABLE devices
 ADD COLUMN buyer_id BIGINT;
 
 ALTER TABLE devices
+ADD COLUMN status VARCHAR(20) DEFAULT 'UNKNOWN';
+
+ALTER TABLE devices
 ADD CONSTRAINT fk_devices_buyer
 FOREIGN KEY (buyer_id)
 REFERENCES buyers(buyer_id)
@@ -935,6 +947,10 @@ VALUES
     'Colombo',
     CURRENT_DATE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_user_patient_access_single_self
+ON user_patient_access (user_id)
+WHERE access_role = 'SELF' AND status = 'ACTIVE';
 
 CREATE TABLE IF NOT EXISTS device_configurations (
 
@@ -957,17 +973,36 @@ CREATE TABLE IF NOT EXISTS device_configurations (
 
     wifi_ssid VARCHAR(100) NOT NULL,
 
+    -- Legacy encrypted bundle kept for compatibility. Do not store plaintext here.
     wifi_password TEXT NOT NULL,
+    wifi_password_ciphertext TEXT,
+    wifi_password_nonce VARCHAR(64),
+    wifi_password_tag VARCHAR(64),
 
     configuration_status VARCHAR(20)
         DEFAULT 'PENDING'
         CHECK (configuration_status IN (
             'PENDING',
             'SENT',
+            'PUBLISHED',
             'APPLIED',
             'FAILED',
             'OUTDATED'
         )),
+
+    outer_unit_status VARCHAR(30),
+    inner_unit_status VARCHAR(30) DEFAULT 'NOT_CONFIGURED'
+        CHECK (inner_unit_status IS NULL OR inner_unit_status IN (
+            'NOT_CONFIGURED',
+            'PAIRING',
+            'CREDENTIALS_SENT',
+            'CONNECTING',
+            'CONNECTED',
+            'FAILED'
+        )),
+    inner_unit_ip_address VARCHAR(64),
+    inner_unit_message TEXT,
+    last_inner_unit_status_at TIMESTAMPTZ,
 
     configuration_version INTEGER NOT NULL DEFAULT 1,
 
@@ -989,6 +1024,7 @@ ON device_configurations(outer_device_id);
 CREATE TABLE IF NOT EXISTS device_commands (
 
     command_id BIGSERIAL PRIMARY KEY,
+    command_uid VARCHAR(80) UNIQUE,
 
     device_id BIGINT NOT NULL
         REFERENCES devices(device_id) ON DELETE CASCADE,
@@ -998,6 +1034,7 @@ CREATE TABLE IF NOT EXISTS device_commands (
 
     command_type VARCHAR(40) NOT NULL
         CHECK (command_type IN (
+            'WIFI_CONFIGURATION',
             'CONFIG_UPDATE',
             'CARE_PLAN_UPDATE',
             'REMINDER_UPDATE',
@@ -1016,6 +1053,7 @@ CREATE TABLE IF NOT EXISTS device_commands (
         CHECK (command_status IN (
             'PENDING',
             'SENT',
+            'PUBLISHED',
             'RECEIVED',
             'VALIDATED',
             'APPLIED',
@@ -1027,6 +1065,9 @@ CREATE TABLE IF NOT EXISTS device_commands (
 
     acknowledged_at TIMESTAMPTZ,
 
+    retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+    last_error TEXT,
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1036,6 +1077,10 @@ ON device_commands(device_id);
 CREATE INDEX idx_device_commands_status
 ON device_commands(command_status);
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_commands_command_uid
+ON device_commands(command_uid)
+WHERE command_uid IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
 
     acknowledgement_id BIGSERIAL PRIMARY KEY,
@@ -1043,6 +1088,7 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
     command_id BIGINT NOT NULL
         REFERENCES device_commands(command_id)
         ON DELETE CASCADE,
+    command_uid VARCHAR(80),
 
     device_id BIGINT NOT NULL
         REFERENCES devices(device_id)
@@ -1065,3 +1111,167 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
 
 CREATE INDEX idx_device_ack_command
 ON device_command_acknowledgements(command_id);
+
+CREATE TABLE IF NOT EXISTS care_plan_snapshots (
+    snapshot_id BIGSERIAL PRIMARY KEY,
+    care_plan_uid VARCHAR(80) NOT NULL UNIQUE,
+    patient_id BIGINT NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+    outer_device_id BIGINT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+    outer_device_uid VARCHAR(80) NOT NULL,
+    version INTEGER NOT NULL,
+    timezone VARCHAR(80) NOT NULL,
+    effective_from DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN (
+            'PENDING',
+            'PUBLISHED',
+            'RECEIVED',
+            'VALIDATED',
+            'APPLIED',
+            'REJECTED',
+            'FAILED'
+        )),
+    payload JSONB NOT NULL,
+    published_at TIMESTAMPTZ,
+    acknowledged_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (patient_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_care_plan_snapshots_patient_version
+ON care_plan_snapshots(patient_id, version DESC);
+
+CREATE INDEX IF NOT EXISTS idx_care_plan_snapshots_outer
+ON care_plan_snapshots(outer_device_id, status);
+
+CREATE TABLE IF NOT EXISTS care_plan_schedules (
+    care_plan_schedule_id BIGSERIAL PRIMARY KEY,
+    snapshot_id BIGINT NOT NULL REFERENCES care_plan_snapshots(snapshot_id) ON DELETE CASCADE,
+    source_schedule_id BIGINT NOT NULL REFERENCES dose_schedules(schedule_id) ON DELETE CASCADE,
+    schedule_external_id VARCHAR(80) NOT NULL,
+    period VARCHAR(30) NOT NULL CHECK (period IN ('MORNING', 'AFTERNOON', 'EVENING', 'NIGHT')),
+    insulin_type VARCHAR(120) NOT NULL,
+    dose_units NUMERIC(6,2) NOT NULL CHECK (dose_units > 0 AND dose_units <= 100),
+    window_start TIME NOT NULL,
+    target_time TIME NOT NULL,
+    window_end TIME NOT NULL,
+    UNIQUE (snapshot_id, schedule_external_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_care_plan_schedules_snapshot
+ON care_plan_schedules(snapshot_id);
+
+CREATE INDEX IF NOT EXISTS idx_care_plan_schedules_source
+ON care_plan_schedules(source_schedule_id);
+
+CREATE TABLE IF NOT EXISTS care_plan_delivery_status (
+    delivery_id BIGSERIAL PRIMARY KEY,
+    snapshot_id BIGINT NOT NULL REFERENCES care_plan_snapshots(snapshot_id) ON DELETE CASCADE,
+    outer_device_id BIGINT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN (
+            'PENDING',
+            'PUBLISHED',
+            'RECEIVED',
+            'VALIDATED',
+            'APPLIED',
+            'REJECTED',
+            'FAILED'
+        )),
+    response_message TEXT,
+    published_at TIMESTAMPTZ,
+    acknowledged_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_care_plan_delivery_snapshot
+ON care_plan_delivery_status(snapshot_id, outer_device_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS device_telemetry_events (
+    telemetry_event_id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(120) NOT NULL UNIQUE,
+    event_type VARCHAR(60) NOT NULL CHECK (event_type IN (
+        'DOSE_RECORDED',
+        'REMINDER_STARTED',
+        'REMINDER_REPEATED',
+        'REMINDER_MANUALLY_STOPPED',
+        'DOSE_MISSED',
+        'POSSIBLE_DOUBLE_DOSE',
+        'INNER_WIFI_CONFIGURATION_RESULT',
+        'DEVICE_SYNC_REQUEST'
+    )),
+    outer_device_id BIGINT REFERENCES devices(device_id) ON DELETE SET NULL,
+    outer_device_uid VARCHAR(80) NOT NULL,
+    patient_id BIGINT REFERENCES patients(patient_id) ON DELETE SET NULL,
+    care_plan_version INTEGER,
+    schedule_external_id VARCHAR(80),
+    event_timestamp TIMESTAMPTZ,
+    mqtt_topic VARCHAR(255),
+    payload JSONB NOT NULL,
+    processing_status VARCHAR(20) NOT NULL DEFAULT 'RECEIVED'
+        CHECK (processing_status IN ('RECEIVED', 'PROCESSED', 'FAILED')),
+    ack_status VARCHAR(20) NOT NULL DEFAULT 'REJECTED'
+        CHECK (ack_status IN ('ACCEPTED', 'DUPLICATE', 'REJECTED')),
+    processing_error TEXT,
+    received_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_telemetry_patient_time
+ON device_telemetry_events(patient_id, event_timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_device_telemetry_outer_time
+ON device_telemetry_events(outer_device_uid, received_at DESC);
+
+CREATE TABLE IF NOT EXISTS reminder_events (
+    reminder_event_id BIGSERIAL PRIMARY KEY,
+    telemetry_event_id BIGINT REFERENCES device_telemetry_events(telemetry_event_id) ON DELETE SET NULL,
+    patient_id BIGINT REFERENCES patients(patient_id) ON DELETE SET NULL,
+    outer_device_id BIGINT REFERENCES devices(device_id) ON DELETE SET NULL,
+    source_schedule_id BIGINT REFERENCES dose_schedules(schedule_id) ON DELETE SET NULL,
+    schedule_external_id VARCHAR(80),
+    event_type VARCHAR(60) NOT NULL CHECK (event_type IN (
+        'REMINDER_STARTED',
+        'REMINDER_REPEATED',
+        'REMINDER_MANUALLY_STOPPED',
+        'DOSE_MISSED',
+        'POSSIBLE_DOUBLE_DOSE'
+    )),
+    care_plan_version INTEGER,
+    repeat_number INTEGER,
+    window_start TIME,
+    target_time TIME,
+    window_end TIME,
+    event_timestamp TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reminder_events_patient_time
+ON reminder_events(patient_id, event_timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS device_sync_requests (
+    sync_request_id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(120),
+    outer_device_id BIGINT REFERENCES devices(device_id) ON DELETE SET NULL,
+    outer_device_uid VARCHAR(80) NOT NULL,
+    patient_id BIGINT REFERENCES patients(patient_id) ON DELETE SET NULL,
+    request_type VARCHAR(60) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_sync_requests_outer_time
+ON device_sync_requests(outer_device_uid, created_at DESC);
+
+CREATE TABLE user_settings (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL,
+    inventory_alerts BOOLEAN DEFAULT TRUE,
+    temperature_alerts BOOLEAN DEFAULT TRUE,
+    missed_dose_alerts BOOLEAN DEFAULT TRUE,
+    email_notifications BOOLEAN DEFAULT TRUE,
+    sms_notifications BOOLEAN DEFAULT FALSE,
+    two_factor_auth BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES app_users(user_id) ON DELETE CASCADE
+);

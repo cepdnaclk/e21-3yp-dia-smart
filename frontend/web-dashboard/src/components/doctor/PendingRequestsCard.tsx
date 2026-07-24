@@ -102,33 +102,39 @@ const PendingRequestsCard = ({ onRefresh }: PendingRequestsCardProps) => {
               {idx > 0 && <Divider sx={{ my: 1 }} />}
               <ListItem
                 disableGutters
-                secondaryAction={
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      size="small"
-                      disabled={actionId !== null}
-                      onClick={() => handleAccept(req.requestId)}
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      disabled={actionId !== null}
-                      onClick={() => handleReject(req.requestId)}
-                    >
-                      Reject
-                    </Button>
-                  </Box>
-                }
+                sx={{
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  gap: 1.5,
+                  py: 1,
+                }}
               >
                 <ListItemText
                   primary={req.requesterName}
                   secondary={`Patient ID: ${req.patientId} • Requested: ${new Date(req.createdAt).toLocaleDateString()}`}
+                  sx={{ m: 0, width: "100%" }}
                 />
+                <Box sx={{ display: "flex", gap: 1, mt: { xs: 1, sm: 0 }, alignSelf: { xs: "flex-end", sm: "auto" } }}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    size="small"
+                    disabled={actionId !== null}
+                    onClick={() => handleAccept(req.requestId)}
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    disabled={actionId !== null}
+                    onClick={() => handleReject(req.requestId)}
+                  >
+                    Reject
+                  </Button>
+                </Box>
               </ListItem>
             </Box>
           ))}

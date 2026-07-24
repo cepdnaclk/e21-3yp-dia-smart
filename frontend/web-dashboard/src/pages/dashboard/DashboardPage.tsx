@@ -1,55 +1,72 @@
 import { useEffect, useState } from "react";
-
-import { Grid, Typography } from "@mui/material";
+import { Grid, Typography, Box, Button, Card, CardContent } from "@mui/material";
+import { Link } from "react-router-dom";
 
 import StatCard from "../../components/common/StatCard";
 import PageTitle from "../../components/common/PageTitle";
-
-import type { DashboardData } from "../../types/dashboard";
+import GlucoseChart from "../../components/charts/GlucoseChart";
+import DoseHistoryChart from "../../components/charts/DoseHistoryChart";
 import { dashboardService } from "../../services/dashboardService";
+import { analyticsService } from "../../services/analyticsService";
+import type { DashboardData } from "../../types/dashboard";
+import type { DoseReading } from "../../types/analytics";
 
 const DashboardPage = () => {
-  const [dashboardData, setDashboardData] =
-    useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [glucoseHistory, setGlucoseHistory] = useState<{ date: string; glucose: number }[]>([]);
+  const [doseHistory, setDoseHistory] = useState<DoseReading[]>([]);
 
   useEffect(() => {
-  const loadDashboard = async () => {
-    try {
-      const data =
-        await dashboardService.getDashboardData();
+    const loadDashboard = async () => {
+      try {
+        const data = await dashboardService.getDashboardData();
+        setDashboardData(data);
+      } catch (err) {
+        console.error("Failed to refresh dashboard:", err);
+      }
+    };
 
-      setDashboardData(data);
-    } catch (err) {
-      console.error(
-        "Failed to refresh dashboard:",
-        err
-      );
-    }
-  };
+    const loadChartData = async () => {
+      try {
+        const [glucoseData, doseData] = await Promise.all([
+          analyticsService.getGlucoseHistory(),
+          analyticsService.getDoseHistory()
+        ]);
 
-  // Initial load
-  loadDashboard();
+        setGlucoseHistory(
+          (glucoseData || []).map((item) => ({
+            date: new Date(item.measuredAt).toLocaleDateString(),
+            glucose: item.glucoseValueMgDl,
+          })).reverse()
+        );
 
-  // Refresh every 2 seconds
-  const interval = setInterval(
-    loadDashboard,
-    2000
-  );
+        setDoseHistory(doseData || []);
+      } catch (err) {
+        console.error("Failed to load chart data:", err);
+      }
+    };
 
-  // Cleanup
-  return () =>
-    clearInterval(interval);
-}, []);
+    // Initial load
+    loadDashboard();
+    loadChartData();
+
+    // Refresh dashboard values every 2 seconds
+    const interval = setInterval(loadDashboard, 2000);
+
+    // Cleanup
+    return () => clearInterval(interval);
+  }, []);
 
   if (!dashboardData) {
-    return <Typography>Loading...</Typography>;
+    return <Typography sx={{ p: 4 }}>Loading...</Typography>;
   }
 
   return (
-    <>
+    <Box sx={{ flexGrow: 1 }}>
       <PageTitle>Dashboard</PageTitle>
 
-      <Grid container spacing={3}>
+      {/* Main Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, md: 6, lg: 3 }}>
           <StatCard
             title="Glucose"
@@ -78,7 +95,81 @@ const DashboardPage = () => {
           />
         </Grid>
       </Grid>
-    </>
+
+      {/* Simple Daily Telemetry Charts */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card elevation={2} sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2, color: "#12233b" }}>
+                Glucose Trends
+              </Typography>
+              {glucoseHistory.length === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+                  No glucose trend records available.
+                </Typography>
+              ) : (
+                <GlucoseChart data={glucoseHistory} />
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card elevation={2} sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2, color: "#12233b" }}>
+                Insulin Dosage History
+              </Typography>
+              {doseHistory.length === 0 ? (
+                <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+                  No insulin dose events recorded.
+                </Typography>
+              ) : (
+                <DoseHistoryChart data={doseHistory} />
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Call To Action Banner for Advanced Analytics */}
+      <Grid container>
+        <Grid size={{ xs: 12 }}>
+          <Box
+            sx={{
+              p: 3,
+              bgcolor: "#f1f5f9",
+              borderRadius: 4,
+              border: "1px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 2
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold", color: "#12233b" }}>
+                Need deeper insights?
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Configure personalized targets, calculate Time in Range (TIR), and analyze dose-glucose correlations.
+              </Typography>
+            </Box>
+            <Button
+              component={Link}
+              to="/analytics"
+              variant="contained"
+              color="primary"
+              sx={{ textTransform: "none", borderRadius: 2, fontWeight: "bold" }}
+            >
+              View Advanced Analytics
+            </Button>
+          </Box>
+        </Grid>
+      </Grid>
+    </Box>
   );
 };
 

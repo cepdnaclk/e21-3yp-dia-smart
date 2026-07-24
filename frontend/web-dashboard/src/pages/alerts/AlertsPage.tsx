@@ -233,19 +233,34 @@ const AlertsPage = () => {
       <Box sx={{ mb: 3 }}>
         <Tabs
           value={status}
-          onChange={
-            handleStatusChange
-          }
+          onChange={handleStatusChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 700,
+              minWidth: "auto",
+              px: 2,
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#3ec1fa",
+            },
+            "& .MuiTab-root.Mui-selected": {
+              color: "#3ec1fa",
+            },
+          }}
         >
-          {STATUS_FILTERS.map(
-            (filter) => (
-              <Tab
-                key={filter.value}
-                label={filter.label}
-                value={filter.value}
-              />
-            )
-          )}
+          {STATUS_FILTERS.map((filter) => (
+            <Tab
+              key={filter.value}
+              label={filter.label}
+              value={filter.value}
+            />
+          ))}
         </Tabs>
       </Box>
 

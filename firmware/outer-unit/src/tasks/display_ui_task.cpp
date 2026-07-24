@@ -133,6 +133,12 @@ bool displayNeedsRedraw(const DisplayState& current,
          current.activePage == DISPLAY_PAGE_PRESCRIPTION)) {
         return true;
     }
+    if ((current.activePage == DISPLAY_PAGE_DASHBOARD ||
+         current.activePage == DISPLAY_PAGE_PRESCRIPTION) &&
+        (carePlan.timeAvailable != previousCarePlan.timeAvailable ||
+         carePlan.minutesUntilTarget != previousCarePlan.minutesUntilTarget)) {
+        return true;
+    }
 
     if (current.dosePromptActive) {
         return current.dosePromptEditing != previous.dosePromptEditing ||
@@ -397,7 +403,8 @@ void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
     rawFillRect(0, 424, DISPLAY_WIDTH, 56, COLOR_BG);
     char footer[56];
     if (carePlan.available && carePlan.scheduleCount > 0) {
-        snprintf(footer, sizeof(footer), "1 RX | NEXT %s %.0fU | B DEV C ALERT D QUEUE",
+        snprintf(footer, sizeof(footer), "1 RX | %s %s %.0fU | B DEV C ALERT D QUEUE",
+                 carePlanStatusText(carePlan.status),
                  carePlan.targetTime,
                  carePlan.doseUnits);
     } else if (state.hasTelemetry) {
@@ -544,16 +551,47 @@ void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
              (unsigned long)carePlan.version,
              carePlan.effectiveFrom);
     drawText(22, 380, planText, COLOR_MUTED, COLOR_PANEL_ALT, 1);
-    char reminderText[48];
-    snprintf(reminderText, sizeof(reminderText), "REMIND %uM | BUZZ %uM",
-             carePlan.repeatIntervalMinutes,
-             carePlan.buzzerDurationMinutes);
-    drawText(22, 402, reminderText, COLOR_TEXT, COLOR_PANEL_ALT, 1);
-
-    if (carePlan.scheduleCount > 1) {
-        drawText(12, 438, "* PREV  # NEXT  A DASH  B/C/D PAGES", COLOR_MUTED, COLOR_BG, 1);
+    char stateText[48];
+    if (carePlan.status == CARE_PLAN_STATUS_UPCOMING &&
+        carePlan.timeAvailable) {
+        if (carePlan.minutesUntilTarget < 60) {
+            snprintf(stateText,
+                     sizeof(stateText),
+                     "DUE IN %u MIN",
+                     carePlan.minutesUntilTarget);
+        } else {
+            snprintf(stateText,
+                     sizeof(stateText),
+                     "DUE IN %uH %uM",
+                     carePlan.minutesUntilTarget / 60,
+                     carePlan.minutesUntilTarget % 60);
+        }
+    } else if (carePlan.status == CARE_PLAN_STATUS_DUE &&
+               carePlan.reminderSilenced) {
+        snprintf(stateText, sizeof(stateText), "REMINDER SILENCED");
+    } else if (carePlan.status == CARE_PLAN_STATUS_DUE) {
+        snprintf(stateText, sizeof(stateText), "REMINDER ACTIVE");
+    } else if (carePlan.status == CARE_PLAN_STATUS_TAKEN) {
+        snprintf(stateText, sizeof(stateText), "DOSE RECORDED TODAY");
+    } else if (carePlan.status == CARE_PLAN_STATUS_MISSED) {
+        snprintf(stateText, sizeof(stateText), "MISSED - CHECK CARE PLAN");
     } else {
-        drawText(12, 438, "A DASH  B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+        snprintf(stateText, sizeof(stateText), "WAITING FOR DEVICE TIME");
+    }
+    drawText(22, 402, stateText, statusColor, COLOR_PANEL_ALT, 1);
+
+    rawFillRect(0, 432, DISPLAY_WIDTH, 48, COLOR_BG);
+    if (carePlan.scheduleCount > 1) {
+        drawText(12, 438, "* PREV  # NEXT  |  A DASH", COLOR_MUTED, COLOR_BG, 1);
+    } else {
+        drawText(12, 438, "A DASH", COLOR_MUTED, COLOR_BG, 1);
+    }
+    if (carePlan.status == CARE_PLAN_STATUS_DUE &&
+        carePlan.manualStopAllowed &&
+        !carePlan.reminderSilenced) {
+        drawText(12, 458, "C SILENCE  |  B DEVICE  D QUEUE", COLOR_WARN, COLOR_BG, 1);
+    } else {
+        drawText(12, 458, "B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
     }
 }
 

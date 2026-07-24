@@ -461,7 +461,9 @@ CarePlanView makeView(const StoredCarePlan& plan,
                       uint8_t index,
                       CarePlanScheduleStatus status,
                       uint32_t revision,
-                      bool reminderSilenced) {
+                      bool reminderSilenced,
+                      bool timeAvailable,
+                      uint16_t minutesUntilTargetValue) {
     CarePlanView view = {};
     view.available = available;
     view.revision = revision;
@@ -477,6 +479,8 @@ CarePlanView makeView(const StoredCarePlan& plan,
     view.repeatIntervalMinutes = plan.repeatIntervalMinutes;
     view.manualStopAllowed = plan.manualStopAllowed;
     view.reminderSilenced = reminderSilenced;
+    view.timeAvailable = timeAvailable;
+    view.minutesUntilTarget = minutesUntilTargetValue;
     copyText(view.carePlanId, plan.carePlanId);
     copyText(view.effectiveFrom, plan.effectiveFrom);
     copyText(view.timezone, plan.timezone);
@@ -698,15 +702,30 @@ CarePlanView getCarePlanViewSnapshot() {
             plan, index, localTime.tm_hour * 60 + localTime.tm_min, dateKey, localTime);
     }
     bool reminderSilenced = false;
+    bool timeAvailable = false;
+    uint16_t minutesUntilTargetValue = 0;
     if (available && index < plan.scheduleCount && dateKey >= 0) {
         int nowMinute = localTime.tm_hour * 60 + localTime.tm_min;
         int32_t occurrenceDateKey = scheduleDateKey(
             plan.schedules[index], nowMinute, dateKey, localTime);
         reminderSilenced =
             plan.silencedDateKeys[index] == occurrenceDateKey;
+        int targetMinute = minuteOfDay(plan.schedules[index].targetTime);
+        if (targetMinute >= 0) {
+            timeAvailable = true;
+            minutesUntilTargetValue =
+                (uint16_t)minutesUntil(nowMinute, targetMinute);
+        }
     }
     return makeView(
-        plan, available, index, status, revision, reminderSilenced);
+        plan,
+        available,
+        index,
+        status,
+        revision,
+        reminderSilenced,
+        timeAvailable,
+        minutesUntilTargetValue);
 }
 
 void carePlanTick() {

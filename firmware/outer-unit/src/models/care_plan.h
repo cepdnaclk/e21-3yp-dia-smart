@@ -19,8 +19,10 @@ struct CarePlanView {
     float doseUnits;
     uint16_t buzzerDurationMinutes;
     uint16_t repeatIntervalMinutes;
+    uint16_t minutesUntilTarget;
     bool manualStopAllowed;
     bool reminderSilenced;
+    bool timeAvailable;
     CarePlanScheduleStatus status;
     char carePlanId[32];
     char effectiveFrom[12];

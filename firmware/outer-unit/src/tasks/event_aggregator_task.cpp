@@ -309,6 +309,14 @@ void eventAggregatorTask(void* parameter) {
                     pendingDose.editBuffer[0] = '\0';
                     refreshDosePrompt(pendingDose, millis());
                     Serial.println("[EventAgg] Dose edit mode started");
+                } else if (key == 'C') {
+                    lastResolvedDose = pendingDose.original;
+                    hasLastResolvedDose = true;
+                    Serial.printf(
+                        "[EventAgg] Accidental pen dose cancelled: %.1f units\n",
+                        pendingDose.original.doseUnits);
+                    pendingDose = {};
+                    clearDosePrompt();
                 }
             } else {
                 if (key >= '0' && key <= '9') {

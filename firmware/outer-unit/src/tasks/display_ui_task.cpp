@@ -656,10 +656,11 @@ void drawDosePrompt(const DisplayState& state, const CarePlanView& carePlan) {
             drawText(22, 370, "C BACK", COLOR_MUTED, COLOR_PANEL, 2);
         }
     } else {
-        drawText(28, 338, "A CONFIRM  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(28, 332, "A CONFIRM  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
         char autoBuf[24];
         snprintf(autoBuf, sizeof(autoBuf), "AUTO CONFIRM %uS", state.dosePromptRemainingSec);
-        drawText(28, 372, autoBuf, COLOR_WARN, COLOR_PANEL, 1);
+        drawText(28, 362, "C CANCEL", COLOR_BAD, COLOR_PANEL, 2);
+        drawText(166, 370, autoBuf, COLOR_WARN, COLOR_PANEL, 1);
     }
 
     rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);

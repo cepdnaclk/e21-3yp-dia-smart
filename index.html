@@ -1,0 +1,3316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/png" href="./assets/images/favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dia-Smart | IoT-Based Diabetes Management System</title>
+    <meta name="description" content="IoT-Based Diabetes Management System for Elderly Diabetes Care. A third-year project of the Department of Computer Engineering, University of Peradeniya.">
+    <style>
+        /* ==========================================================================
+           1. DESIGN SYSTEM & VARIABLE DEFINITIONS
+           ========================================================================== */
+        :root {
+            --navy: #12233b;
+            --navy-dark: #0d192a;
+            --brand: #3ec1fa;
+            --brand-dark: #1ba7e2;
+            --background: #f8f9fa;
+            --surface: #ffffff;
+            --surface-soft: #eef3f7;
+            --text: #12233b;
+            --text-muted: #66758a;
+            --border: #d9e2ea;
+            --teal: #1fb7a6;
+            --success-soft: #e4f7f1;
+            --warning: #d99422;
+            --warning-soft: #fff3df;
+            --danger: #d75b65;
+            --planned: #8492a6;
+            
+            --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius-default: 16px;
+            --radius-small: 8px;
+            --shadow-subtle: 0 4px 12px rgba(18, 35, 59, 0.03);
+            --shadow-hover: 0 8px 24px rgba(18, 35, 59, 0.06);
+            --max-width: 1240px;
+        }
+
+        /* ==========================================================================
+           2. BASE RESET & ACCESSIBILITY DEFAULTS
+           ========================================================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background-color: var(--background);
+        }
+
+        body {
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Keyboard Focus States */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        .gallery-card:focus-visible {
+            outline: 3px solid var(--brand);
+            outline-offset: 3px;
+        }
+
+        /* Accessibility Utility to hide screen reader items */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        /* Respect User Reduced Motion Preferences */
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto !important;
+            }
+            * {
+                animation-duration: 0s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0s !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* ==========================================================================
+           3. LAYOUT UTILITIES & CONTAINERS
+           ========================================================================== */
+        .container {
+            width: 100%;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 1rem;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 800px;
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        section {
+            padding: 6rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section.dark {
+            background-color: var(--navy);
+            color: var(--background);
+            border-bottom: 1px solid var(--navy-dark);
+        }
+
+        section.dark .section-title {
+            color: #ffffff;
+        }
+
+        section.dark .section-desc {
+            color: var(--border);
+        }
+
+        /* Grids & Cards */
+        .cards-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .cards-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            padding: 2rem;
+            box-shadow: var(--shadow-subtle);
+            transition: transform var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--brand);
+        }
+
+        .card-icon {
+            color: var(--brand-dark);
+            width: 32px;
+            height: 32px;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.75rem;
+        }
+
+        .card-desc {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 1.6rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all var(--transition-smooth);
+            gap: 0.5rem;
+            border: 2px solid transparent;
+        }
+
+        .btn-primary {
+            background-color: var(--brand);
+            color: var(--navy-dark);
+            border-color: var(--brand);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--brand-dark);
+            border-color: var(--brand-dark);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-secondary:hover {
+            border-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-accent {
+            background-color: transparent;
+            color: var(--brand-dark);
+            border-color: var(--brand);
+        }
+
+        .btn-accent:hover {
+            background-color: var(--brand);
+            color: var(--navy-dark);
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-4 {
+            margin-top: 2rem;
+        }
+
+        /* ==========================================================================
+           4. STICKY NAVIGATION
+           ========================================================================== */
+        header {
+            position: sticky;
+            top: 0;
+            background-color: var(--navy);
+            color: #ffffff;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 1.25rem;
+            white-space: nowrap;
+        }
+
+        .logo-tile {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            background-color: #ffffff;
+            border-radius: var(--radius-small);
+            padding: 4px;
+            box-sizing: border-box;
+        }
+
+        .logo-tile img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .nav-links-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 1rem;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.75);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: color var(--transition-smooth);
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--brand);
+        }
+
+        .nav-links a.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--brand);
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 24px;
+            height: 18px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            z-index: 1001;
+        }
+
+        .hamburger span {
+            width: 100%;
+            height: 2px;
+            background-color: #ffffff;
+            transition: all var(--transition-smooth);
+        }
+
+        /* Hamburger Open Animation */
+        .hamburger.open span:nth-child(1) {
+            transform: translateY(8px) rotate(45deg);
+        }
+
+        .hamburger.open span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.open span:nth-child(3) {
+            transform: translateY(-8px) rotate(-45deg);
+        }
+
+        /* ==========================================================================
+           5. HERO SECTION
+           ========================================================================== */
+        .hero {
+            background-color: var(--navy-dark);
+            background-image: 
+                linear-gradient(rgba(62, 193, 250, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(62, 193, 250, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+            background-position: center;
+            color: #ffffff;
+            padding: 5rem 0 4rem 0;
+            border-bottom: none;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 3.5rem;
+            align-items: center;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background-color: rgba(62, 193, 250, 0.08);
+            border: 1px solid rgba(62, 193, 250, 0.2);
+            color: var(--brand);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+        }
+
+        .hero-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-title span.highlight {
+            background: linear-gradient(135deg, var(--brand) 0%, var(--teal) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+
+        .hero-desc {
+            font-size: 1.05rem;
+            color: var(--border);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Hero Right: Care Gateway Interface Preview */
+        .gateway-preview {
+            background-color: var(--navy);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 1.5rem;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .gateway-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .gateway-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.02em;
+        }
+
+        .gateway-label {
+            font-size: 0.7rem;
+            background-color: rgba(255, 255, 255, 0.08);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: var(--border);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .gateway-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .gateway-card {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+        }
+
+        .gateway-card-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
+        .gateway-card-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.15rem;
+        }
+
+        .gateway-card-indicator {
+            font-size: 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--border);
+        }
+
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .indicator-dot.teal { background-color: var(--teal); }
+
+        .gateway-status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(31, 183, 166, 0.06);
+            border: 1px solid rgba(31, 183, 166, 0.15);
+            padding: 0.65rem 0.85rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            color: #ffffff;
+        }
+
+        .gateway-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--teal);
+            box-shadow: 0 0 6px var(--teal);
+        }
+
+        /* Hero Footer Stats */
+        .hero-stats-bar {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            margin-top: 3.5rem;
+            padding-top: 1.75rem;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .hero-stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hero-stat-icon {
+            color: var(--brand);
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-stat-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        /* ==========================================================================
+           6. PROBLEM SECTION
+           ========================================================================== */
+        /* Styled in global card system */
+
+        /* ==========================================================================
+           7. SOLUTION SECTION
+           ========================================================================== */
+        /* Styled in global card system */
+
+        /* ==========================================================================
+           8. KEY FEATURES & CALLOUT PANEL
+           ========================================================================== */
+        .callout-panel {
+            background-color: var(--surface-soft);
+            border-radius: var(--radius-default);
+            padding: 2.5rem;
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            border: 1px solid var(--border);
+        }
+
+        .callout-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .callout-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .callout-title svg {
+            color: var(--brand-dark);
+            width: 22px;
+            height: 22px;
+        }
+
+        .callout-list {
+            list-style: none;
+        }
+
+        .callout-list li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.925rem;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .callout-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--teal);
+            font-weight: 700;
+        }
+
+        /* ==========================================================================
+           9. ARCHITECTURE LAYER VISUALIZATION
+           ========================================================================== */
+        .arch-layers {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .arch-layer {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-default);
+            padding: 1.75rem;
+            transition: all var(--transition-smooth);
+        }
+
+        .arch-layer:hover {
+            border-color: var(--brand);
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .arch-layer-num {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--brand);
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.05em;
+        }
+
+        .arch-layer-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        .arch-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .arch-chip {
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .arch-arrow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem 0;
+            color: var(--brand);
+        }
+
+        .arch-arrow svg {
+            width: 24px;
+            height: 24px;
+            opacity: 0.6;
+        }
+
+        .arch-note {
+            background-color: rgba(62, 193, 250, 0.04);
+            border: 1px solid rgba(62, 193, 250, 0.15);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--border);
+            line-height: 1.6;
+        }
+
+        /* ==========================================================================
+           10. HARDWARE & FIRMWARE LAYOUTS & PLACES
+           ========================================================================== */
+        .image-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: var(--surface-soft);
+            border: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-fallback {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: var(--text-muted);
+            padding: 1.5rem;
+            text-align: center;
+            box-sizing: border-box;
+            background-color: var(--surface-soft);
+        }
+
+        .image-fallback svg {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+            color: var(--text-muted);
+        }
+
+        .image-fallback .fallback-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .tech-list {
+            list-style: none;
+            margin-bottom: 1rem;
+        }
+
+        .tech-list li {
+            position: relative;
+            padding-left: 1.25rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .tech-list li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--brand-dark);
+            font-weight: bold;
+        }
+
+        .unit-purpose {
+            font-size: 0.9rem;
+            color: var(--text);
+            background-color: var(--surface-soft);
+            padding: 1rem;
+            border-radius: 10px;
+            border-left: 3px solid var(--brand-dark);
+            margin-top: 1rem;
+        }
+
+        .evidence-heading {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-top: 3rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .evidence-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .evidence-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+
+        /* ==========================================================================
+           11. SOFTWARE LAYOUT & TECH BADGES
+           ========================================================================== */
+        .browser-frame {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: var(--surface);
+            box-shadow: var(--shadow-hover);
+            margin-bottom: 2.5rem;
+        }
+
+        .browser-header {
+            background-color: var(--surface-soft);
+            padding: 0.6rem 1rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .browser-dots {
+            display: flex;
+            gap: 6px;
+            margin-right: 1.5rem;
+        }
+
+        .browser-dots .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .browser-dots .dot.red { background-color: #ff5f56; }
+        .browser-dots .dot.yellow { background-color: #ffbd2e; }
+        .browser-dots .dot.green { background-color: #27c93f; }
+
+        .browser-address {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 0.25rem 1rem;
+            flex-grow: 1;
+            max-width: 400px;
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        .browser-body {
+            position: relative;
+            background-color: var(--background);
+        }
+
+        .browser-body .image-container {
+            border: none;
+            border-radius: 0;
+            margin-bottom: 0;
+            aspect-ratio: 16 / 9;
+        }
+
+        .badge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .tech-badge {
+            background-color: var(--surface-soft);
+            border: 1px solid var(--border);
+            color: var(--navy);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        /* ==========================================================================
+           12. TESTING STATUS STYLING
+           ========================================================================== */
+        .testing-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .test-group {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            padding: 2rem;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .test-group-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--surface-soft);
+            padding-bottom: 0.5rem;
+        }
+
+        .test-list {
+            list-style: none;
+        }
+
+        .test-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .test-status-pill {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        .test-status-pill.completed {
+            background-color: var(--success-soft);
+            color: var(--teal);
+        }
+
+        .test-status-pill.in-progress {
+            background-color: var(--warning-soft);
+            color: var(--warning);
+        }
+
+        .test-status-pill.planned {
+            background-color: var(--surface-soft);
+            color: var(--planned);
+        }
+
+        .test-name {
+            font-size: 0.95rem;
+            color: var(--text);
+            line-height: 1.4;
+        }
+
+        /* ==========================================================================
+           13. BUDGET TABLE LAYOUT
+           ========================================================================== */
+        .budget-table-container {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            overflow: hidden;
+            box-shadow: var(--shadow-subtle);
+            margin-bottom: 1.5rem;
+        }
+
+        .budget-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .budget-table th,
+        .budget-table td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        .budget-table th {
+            background-color: var(--surface-soft);
+            color: var(--navy);
+            font-weight: 700;
+        }
+
+        .budget-table td.text-right,
+        .budget-table th.text-right {
+            text-align: right;
+        }
+
+        .budget-table tr.highlight-row {
+            font-weight: 700;
+        }
+
+        .budget-table tr.subtotal {
+            background-color: rgba(62, 193, 250, 0.05);
+            color: var(--navy);
+        }
+
+        .budget-table tr.total {
+            background-color: var(--navy);
+            color: #ffffff;
+        }
+
+        .budget-table tr.total td {
+            border-bottom: none;
+        }
+
+        /* ==========================================================================
+           14. TIMELINE GANTT CHART
+           ========================================================================== */
+        .gantt-container {
+            width: 100%;
+            overflow-x: auto;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-subtle);
+            margin-bottom: 2rem;
+        }
+
+        .gantt-chart {
+            min-width: 900px;
+            display: grid;
+            grid-template-columns: minmax(240px, 1.4fr) repeat(10, 1fr);
+            gap: 0.85rem 0.5rem;
+        }
+
+        .gantt-header-cell {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 0.5rem;
+            border-bottom: 2px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .gantt-header-cell:first-child {
+            text-align: left;
+        }
+
+        .gantt-row {
+            display: contents;
+        }
+
+        .gantt-task-name {
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            color: var(--text);
+            border-bottom: 1px solid var(--surface-soft);
+            padding: 0.75rem 0;
+        }
+
+        .gantt-bar-container {
+            grid-column: span 10;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            position: relative;
+            align-items: center;
+            border-bottom: 1px solid var(--surface-soft);
+        }
+
+        .gantt-bar {
+            height: 34px;
+            border-radius: 6px;
+            background-color: var(--brand-dark);
+            opacity: 0.85;
+            display: flex;
+            align-items: center;
+            padding-left: 0.75rem;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all var(--transition-smooth);
+        }
+
+        .gantt-bar:hover {
+            opacity: 1;
+            transform: scaleY(1.03);
+        }
+
+        .gantt-bar.current-phase {
+            background: linear-gradient(90deg, var(--brand) 0%, var(--teal) 100%);
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(62, 193, 250, 0.4);
+            animation: pulse-current 2.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-current {
+            0% { opacity: 0.85; }
+            50% { opacity: 1; }
+            100% { opacity: 0.85; }
+        }
+
+        .timeline-note {
+            background-color: var(--surface);
+            border-left: 4px solid var(--brand);
+            border-radius: 0 8px 8px 0;
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-subtle);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .current-badge {
+            background-color: var(--brand);
+            color: var(--navy-dark);
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ==========================================================================
+           15. FUTURE DEVELOPMENT & COMPARISON CARDS
+           ========================================================================== */
+        /* Styled in global card system and layout utilities */
+
+        /* ==========================================================================
+           16. TEAM SECTION PLACES & FALLBACKS
+           ========================================================================== */
+        .profile-section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-top: 2rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .profile-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow-subtle);
+            transition: all var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--brand);
+        }
+
+        .profile-avatar-container {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: var(--surface-soft);
+            border: 2px solid var(--border);
+            margin-bottom: 1.25rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .profile-avatar-fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--brand-dark);
+            background-color: var(--surface-soft);
+        }
+
+        .profile-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--navy);
+            margin-bottom: 0.35rem;
+            line-height: 1.3;
+        }
+
+        .profile-designation {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-reg {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .profile-resp {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            background-color: var(--surface-soft);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+        }
+
+        .profile-dept, .profile-inst {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .profile-links {
+            margin-top: auto;
+            padding-top: 1.25rem;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: var(--surface-soft);
+            color: var(--navy);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all var(--transition-smooth);
+            border: 1px solid var(--border);
+        }
+
+        .btn-icon:hover {
+            background-color: var(--brand);
+            color: var(--navy-dark);
+            border-color: var(--brand);
+            transform: scale(1.08);
+        }
+
+        .btn-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ==========================================================================
+           17. GALLERY IMAGES & ACCESS LIGHTBOX
+           ========================================================================== */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .gallery-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-default);
+            overflow: hidden;
+            box-shadow: var(--shadow-subtle);
+            cursor: pointer;
+            transition: all var(--transition-smooth);
+        }
+
+        .gallery-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--brand);
+        }
+
+        .gallery-image-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 11;
+            overflow: hidden;
+            background-color: var(--surface-soft);
+        }
+
+        .gallery-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform var(--transition-smooth);
+        }
+
+        .gallery-card:hover .gallery-image-container img {
+            transform: scale(1.04);
+        }
+
+        .gallery-info {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .gallery-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--navy);
+        }
+
+        /* Lightbox CSS */
+        .lightbox-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(13, 25, 42, 0.95);
+            z-index: 1100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 2rem;
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lightbox-caption {
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .lightbox-close,
+        .lightbox-prev,
+        .lightbox-next {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-smooth);
+            z-index: 1102;
+        }
+
+        .lightbox-close:hover,
+        .lightbox-prev:hover,
+        .lightbox-next:hover {
+            background-color: var(--brand);
+            color: var(--navy-dark);
+            border-color: var(--brand);
+        }
+
+        .lightbox-close {
+            top: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            font-size: 2rem;
+        }
+
+        .lightbox-prev {
+            left: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            font-size: 1.5rem;
+        }
+
+        .lightbox-next {
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            font-size: 1.5rem;
+        }
+
+        /* ==========================================================================
+           18. USEFUL LINKS SECTION
+           ========================================================================== */
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .link-card {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-default);
+            padding: 1.75rem;
+            text-decoration: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all var(--transition-smooth);
+            color: #ffffff;
+        }
+
+        .link-card:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            border-color: var(--brand);
+            transform: translateY(-2px);
+        }
+
+        .link-card-content {
+            flex-grow: 1;
+            padding-right: 1rem;
+        }
+
+        .link-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.35rem;
+        }
+
+        .link-desc {
+            font-size: 0.85rem;
+            color: var(--border);
+            line-height: 1.4;
+        }
+
+        .link-arrow {
+            color: var(--brand);
+            flex-shrink: 0;
+            transition: transform var(--transition-smooth);
+        }
+
+        .link-arrow svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .link-card:hover .link-arrow {
+            transform: translate(3px, -3px);
+        }
+
+        /* ==========================================================================
+           19. FOOTER
+           ========================================================================== */
+        footer {
+            background-color: var(--navy-dark);
+            color: var(--border);
+            padding: 4rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .footer-grid {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            text-align: center;
+        }
+
+        .footer-inst {
+            font-size: 0.9rem;
+            color: var(--border);
+            max-width: 600px;
+            line-height: 1.5;
+        }
+
+        .footer-copyright {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
+            padding-top: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--brand);
+            color: var(--navy-dark);
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(62, 193, 250, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all var(--transition-smooth);
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background-color: var(--brand-dark);
+            transform: translateY(-4px);
+        }
+
+        .back-to-top svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ==========================================================================
+           20. RESPONSIVE DESIGN MEDIA QUERIES
+           ========================================================================== */
+        @media (max-width: 1100px) {
+            .hero-grid {
+                gap: 2rem;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .hamburger {
+                display: flex;
+            }
+
+            .nav-links-container {
+                position: fixed;
+                top: 70px;
+                left: 0;
+                width: 100%;
+                height: calc(100vh - 70px);
+                background-color: var(--navy-dark);
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                padding-top: 3rem;
+                z-index: 999;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .nav-links-container.active {
+                display: flex;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                gap: 2rem;
+                align-items: center;
+            }
+
+            .nav-links a {
+                font-size: 1.15rem;
+            }
+
+            .nav-links a.active::after {
+                bottom: -5px;
+            }
+
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                text-align: center;
+            }
+
+            .hero-badge {
+                margin: 0 auto 1.5rem auto;
+            }
+
+            .hero-title br {
+                display: none;
+            }
+
+            .hero-actions {
+                justify-content: center;
+            }
+
+            .gateway-preview {
+                max-width: 500px;
+                margin: 0 auto;
+                text-align: left;
+            }
+
+            .hero-stats-bar {
+                justify-content: center;
+                gap: 2.5rem;
+            }
+
+            .callout-panel {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .testing-columns {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            section {
+                padding: 4rem 0;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+            }
+
+            .gateway-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .budget-table th,
+            .budget-table td {
+                padding: 0.75rem 1rem;
+                font-size: 0.85rem;
+            }
+            
+            .lightbox-close {
+                top: 1rem;
+                right: 1rem;
+                width: 40px;
+                height: 40px;
+            }
+            
+            .lightbox-prev {
+                left: 1rem;
+                width: 40px;
+                height: 40px;
+            }
+            
+            .lightbox-next {
+                right: 1rem;
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================================================
+       HEADER & NAVIGATION
+       ========================================================================== -->
+    <header>
+        <div class="container header-container">
+            <a href="#" class="brand-lockup">
+                <div class="logo-tile">
+                    <img src="./assets/images/logo.png" alt="Dia-Smart logo">
+                </div>
+                <span>Dia-Smart</span>
+            </a>
+            
+            <button class="hamburger" id="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links-container">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            
+            <nav class="nav-links-container" id="nav-links-container">
+                <ul class="nav-links">
+                    <li><a href="#problem">Problem</a></li>
+                    <li><a href="#solution">Solution</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#architecture">Architecture</a></li>
+                    <li><a href="#hardware">Hardware</a></li>
+                    <li><a href="#firmware">Firmware</a></li>
+                    <li><a href="#software">Software</a></li>
+                    <li><a href="#testing">Testing</a></li>
+                    <li><a href="#budget">Budget</a></li>
+                    <li><a href="#timeline">Timeline</a></li>
+                    <li><a href="#team">Team</a></li>
+                    <li><a href="#gallery">Gallery</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ==========================================================================
+       HERO SECTION
+       ========================================================================== -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-grid">
+                <div class="hero-text">
+                    <div class="hero-badge">
+                        A Third-Year Project of the Department of Computer Engineering, University of Peradeniya
+                    </div>
+                    <h1 class="hero-title">
+                        Smarter and Safer<br>
+                        <span class="highlight">Diabetes Management</span><br>
+                        for Elderly Insulin Users
+                    </h1>
+                    <p class="hero-desc">
+                        Dia-Smart is an IoT-based diabetes-management ecosystem that connects insulin-dose tracking, glucose readings, storage safety, inventory monitoring, alerts, and caregiver visibility through one integrated platform.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#features" class="btn btn-primary">Explore Features</a>
+                        <a href="#architecture" class="btn btn-secondary">View Architecture</a>
+                    </div>
+                </div>
+                
+                <div class="hero-preview">
+                    <div class="gateway-preview">
+                        <div class="gateway-header">
+                            <span class="gateway-title">Dia-Smart Care Gateway</span>
+                            <span class="gateway-label">Interface Preview — Demo Data</span>
+                        </div>
+                        <div class="gateway-grid">
+                            <div class="gateway-card">
+                                <div class="gateway-card-label">Latest Glucose</div>
+                                <div class="gateway-card-value">112 mg/dL</div>
+                                <div class="gateway-card-indicator">
+                                    <span class="indicator-dot teal"></span> Connected Device
+                                </div>
+                            </div>
+                            <div class="gateway-card">
+                                <div class="gateway-card-label">Last Insulin Dose</div>
+                                <div class="gateway-card-value">6 Units</div>
+                                <div class="gateway-card-indicator">Taken 45m ago</div>
+                            </div>
+                            <div class="gateway-card">
+                                <div class="gateway-card-label">Storage Temperature</div>
+                                <div class="gateway-card-value">4.2 °C</div>
+                                <div class="gateway-card-indicator">
+                                    <span class="indicator-dot teal"></span> Safe Range
+                                </div>
+                            </div>
+                            <div class="gateway-card">
+                                <div class="gateway-card-label">Insulin Inventory</div>
+                                <div class="gateway-card-value">120 Units</div>
+                                <div class="gateway-card-indicator">~8 days remaining</div>
+                            </div>
+                        </div>
+                        <div class="gateway-status-row">
+                            <span class="gateway-status-dot"></span>
+                            <span>System status: Storage temperature within the configured safe range.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-stats-bar">
+                <div class="hero-stat-item">
+                    <span class="hero-stat-icon">➔</span>
+                    <span class="hero-stat-text">3 Connected Hardware Units</span>
+                </div>
+                <div class="hero-stat-item">
+                    <span class="hero-stat-icon">➔</span>
+                    <span class="hero-stat-text">AWS Cloud Deployment</span>
+                </div>
+                <div class="hero-stat-item">
+                    <span class="hero-stat-icon">➔</span>
+                    <span class="hero-stat-text">4 Role-Based User Views</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       PROBLEM SECTION
+       ========================================================================== -->
+    <section id="problem">
+        <div class="container">
+            <div class="text-center">
+                <span class="section-label">The Problem</span>
+                <h2 class="section-title">Diabetes management is fragmented and difficult for elderly patients</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    Elderly insulin users must coordinate glucose measurement, insulin administration, safe storage, and inventory management. Existing devices usually operate independently, creating incomplete records and increasing dependence on memory and manual tracking.
+                </p>
+            </div>
+            
+            <div class="cards-grid-4">
+                <div class="card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                    <h3 class="card-title">Dose Uncertainty</h3>
+                    <p class="card-desc">Missed, repeated, or incorrectly recorded insulin doses.</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><path d="M2 20h20M5 17V5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v12"></path><circle cx="12" cy="9" r="2"></circle></svg>
+                    </div>
+                    <h3 class="card-title">Storage Safety</h3>
+                    <p class="card-desc">Insulin may be exposed to unsuitable refrigerator temperatures.</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+                    </div>
+                    <h3 class="card-title">Inventory Gaps</h3>
+                    <p class="card-desc">Patients may not identify low insulin availability in time.</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <h3 class="card-title">Limited Visibility</h3>
+                    <p class="card-desc">Caregivers and doctors lack a single, complete patient timeline.</p>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="#solution" class="btn btn-accent">See Our Solution</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       SOLUTION SECTION
+       ========================================================================== -->
+    <section id="solution" style="background-color: var(--surface-soft);">
+        <div class="container">
+            <div class="text-center">
+                <span class="section-label">Our Solution</span>
+                <h2 class="section-title">One connected ecosystem for safer diabetes management</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    Dia-Smart combines three connected hardware units with a secure cloud platform and role-based dashboard to create a unified patient-management workflow.
+                </p>
+            </div>
+            
+            <div class="cards-grid-4">
+                <div class="card">
+                    <h3 class="card-title">Inner Unit — Smart Insulin Vault</h3>
+                    <p class="card-desc">Installed inside the refrigerator to monitor insulin-storage temperature, remaining inventory, and storage activity.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Outer Unit — Data Hub</h3>
+                    <p class="card-desc">Acts as the elderly-friendly patient interface, local processing unit, fallback confirmation device, and cloud communication gateway.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Pen Unit — Dose Detection Module</h3>
+                    <p class="card-desc">Attaches to the insulin injector pen and uses a magnetic encoder to detect dial rotation and estimate the selected insulin dose.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Secure Cloud Platform</h3>
+                    <p class="card-desc">Combines dose, glucose, storage, inventory, prescription, and alert records within one patient timeline.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       FEATURES SECTION
+       ========================================================================== -->
+    <section id="features">
+        <div class="container">
+            <div class="text-center">
+                <span class="section-label">Key Features</span>
+                <h2 class="section-title">Essential diabetes-management functions connected in one platform</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    Dia-Smart brings together physical hardware, wireless networks, and secure software applications to streamline daily clinical operations.
+                </p>
+            </div>
+            
+            <div class="cards-grid-3">
+                <div class="card">
+                    <h3 class="card-title">Automated Dose Tracking</h3>
+                    <p class="card-desc">Uses magnetic-encoder readings to monitor insulin-pen dial movement and record estimated dose events.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Glucose Integration</h3>
+                    <p class="card-desc">Retrieves readings from supported Bluetooth Low Energy glucometers.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Storage Safety Monitoring</h3>
+                    <p class="card-desc">Tracks refrigerator temperature and storage activity.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Inventory Monitoring</h3>
+                    <p class="card-desc">Uses weight measurements to estimate the remaining insulin quantity.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Alerts and Caregiver Visibility</h3>
+                    <p class="card-desc">Provides relevant system notifications and remote access to patient records.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Offline Reliability</h3>
+                    <p class="card-desc">Buffers important events locally and synchronizes them after reconnection.</p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Manual Confirmation Fallback</h3>
+                    <p class="card-desc">Allows the patient to confirm or correct uncertain dose readings using the Outer Unit display and keypad.</p>
+                </div>
+            </div>
+            
+            <div class="callout-panel">
+                <div class="callout-column">
+                    <div class="callout-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Security Architecture
+                    </div>
+                    <ul class="callout-list">
+                        <li>BLE pairing</li>
+                        <li>MQTT over TLS</li>
+                        <li>AWS IoT X.509 certificates</li>
+                        <li>HTTPS REST APIs</li>
+                        <li>JWT authentication</li>
+                        <li>Role-Based Access Control</li>
+                        <li>Backend-mediated database access</li>
+                    </ul>
+                </div>
+                
+                <div class="callout-column">
+                    <div class="callout-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        Reliability Mechanisms
+                    </div>
+                    <ul class="callout-list">
+                        <li>Offline data buffering</li>
+                        <li>Automatic synchronization</li>
+                        <li>Event persistence</li>
+                        <li>Duplicate prevention</li>
+                        <li>Timestamp synchronization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       ARCHITECTURE SECTION
+       ========================================================================== -->
+    <section id="architecture" class="dark">
+        <div class="container">
+            <span class="section-label">Architecture</span>
+            <h2 class="section-title">How Dia-Smart works end to end</h2>
+            <p class="section-desc">
+                A four-layer IoT architecture connecting sensing devices, secure communication, cloud processing, and role-based user interfaces.
+            </p>
+            
+            <div class="arch-layers">
+                <div class="arch-layer">
+                    <div class="arch-layer-num">Layer 1</div>
+                    <h3 class="arch-layer-title">Edge / Device Layer</h3>
+                    <div class="arch-chips">
+                        <span class="arch-chip">Inner Unit — Smart Insulin Vault</span>
+                        <span class="arch-chip">Outer Unit — Data Hub</span>
+                        <span class="arch-chip">Pen Unit — Dose Detection Module</span>
+                        <span class="arch-chip">Compatible BLE Glucometer</span>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                </div>
+                
+                <div class="arch-layer">
+                    <div class="arch-layer-num">Layer 2</div>
+                    <h3 class="arch-layer-title">Communication Layer</h3>
+                    <div class="arch-chips">
+                        <span class="arch-chip">ESP-NOW: Inner Unit to Outer Unit</span>
+                        <span class="arch-chip">BLE: Pen Unit and glucometer to Outer Unit</span>
+                        <span class="arch-chip">Wi-Fi</span>
+                        <span class="arch-chip">MQTT over TLS: Outer Unit to AWS IoT Core</span>
+                        <span class="arch-chip">HTTPS REST API: backend to dashboard</span>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                </div>
+                
+                <div class="arch-layer">
+                    <div class="arch-layer-num">Layer 3</div>
+                    <h3 class="arch-layer-title">Cloud Backend Layer</h3>
+                    <div class="arch-chips">
+                        <span class="arch-chip">AWS IoT Core</span>
+                        <span class="arch-chip">Spring Boot backend on Amazon EC2</span>
+                        <span class="arch-chip">Amazon RDS PostgreSQL</span>
+                        <span class="arch-chip">Alert processing</span>
+                        <span class="arch-chip">Business logic</span>
+                        <span class="arch-chip">Secure data storage</span>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                </div>
+                
+                <div class="arch-layer">
+                    <div class="arch-layer-num">Layer 4</div>
+                    <h3 class="arch-layer-title">Presentation Layer</h3>
+                    <div class="arch-chips">
+                        <span class="arch-chip">Patient View</span>
+                        <span class="arch-chip">Caregiver View</span>
+                        <span class="arch-chip">Doctor View</span>
+                        <span class="arch-chip">Administrator View</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="arch-note">
+                <strong>Data Processing & Forwarding flow:</strong> The Outer Unit receives local device data, performs validation, correlation, timestamping, JSON packaging, and temporary buffering, and securely transmits verified records to the AWS cloud platform.
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       HARDWARE SECTION
+       ========================================================================== -->
+    <section id="hardware">
+        <div class="container">
+            <span class="section-label">Hardware</span>
+            <h2 class="section-title">Three connected units built for practical home use</h2>
+            <p class="section-desc">
+                Custom microcontrollers, sensors, and structural enclosures integrated to support daily routines.
+            </p>
+            
+            <div class="cards-grid-3">
+                <div class="card">
+                    <div id="hw-inner-img-placeholder"></div>
+                    <h3 class="card-title">Inner Unit — Smart Insulin Vault</h3>
+                    <ul class="tech-list">
+                        <li>ESP32 development board</li>
+                        <li>DS18B20 temperature sensor</li>
+                        <li>Load cell with HX711 interface</li>
+                        <li>Reed sensor for storage-activity detection</li>
+                        <li>Li-ion battery and battery-management circuitry</li>
+                        <li>Custom 3D-printed enclosure</li>
+                    </ul>
+                    <div class="unit-purpose">
+                        <strong>Purpose:</strong> Monitors refrigerator temperature, insulin inventory, and storage activity and transmits readings to the Outer Unit through ESP-NOW.
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div id="hw-outer-img-placeholder"></div>
+                    <h3 class="card-title">Outer Unit — Data Hub</h3>
+                    <ul class="tech-list">
+                        <li>ESP32-S3 microcontroller</li>
+                        <li>TFT display</li>
+                        <li>Numeric keypad</li>
+                        <li>Buzzer</li>
+                        <li>BLE connectivity</li>
+                        <li>Wi-Fi connectivity</li>
+                        <li>Power-supply circuitry</li>
+                        <li>Custom enclosure</li>
+                    </ul>
+                    <div class="unit-purpose">
+                        <strong>Purpose:</strong> Receives information from the Inner Unit, Pen Unit, and compatible glucometer, provides elderly-friendly guidance and fallback confirmation, and sends verified events to the cloud.
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div id="hw-pen-img-placeholder"></div>
+                    <h3 class="card-title">Pen Unit — Dose Detection Module</h3>
+                    <ul class="tech-list">
+                        <li>Seeed Studio XIAO ESP32-C3</li>
+                        <li>Magnetic rotary encoder</li>
+                        <li>250mAh Li-Po battery</li>
+                        <li>Custom attachment enclosure</li>
+                    </ul>
+                    <div class="unit-purpose">
+                        <strong>Purpose:</strong> Mechanically attaches to the HumaPen Ergo injector pen, monitors dial rotation, estimates the selected dose, and transmits the event to the Outer Unit through BLE.
+                    </div>
+                </div>
+            </div>
+            
+            <h3 class="evidence-heading">Hardware Design &amp; Calibration Evidence</h3>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <div class="evidence-title">PCB Design</div>
+                    <div id="evidence-pcb-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">Enclosure Design</div>
+                    <div id="evidence-enclosure-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">Sensor Calibration</div>
+                    <div id="evidence-calibration-img"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       FIRMWARE SECTION
+       ========================================================================== -->
+    <section id="firmware" style="background-color: var(--surface-soft);">
+        <div class="container">
+            <span class="section-label">Firmware</span>
+            <h2 class="section-title">Coordinated sensing, communication, and reliable event handling</h2>
+            <p class="section-desc">
+                Firmware has been developed for the Inner Unit, Pen Unit, and Outer Unit using the ESP32 Arduino framework and PlatformIO. Modular services and FreeRTOS-based tasks allow sensing, communication, storage, and user-interface operations to run independently.
+            </p>
+            
+            <div class="cards-grid-3">
+                <div class="card">
+                    <h3 class="card-title">Inner Unit Firmware</h3>
+                    <ul class="tech-list">
+                        <li>DS18B20 temperature acquisition</li>
+                        <li>Load-cell and HX711 weight measurement</li>
+                        <li>Reed-sensor storage-activity detection</li>
+                        <li>Sensor validation and threshold handling</li>
+                        <li>ESP-NOW transmission</li>
+                        <li>Local buffering</li>
+                        <li>Retransmission of unsent events</li>
+                        <li>Power and sleep management</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Pen Unit Firmware</h3>
+                    <ul class="tech-list">
+                        <li>Continuous magnetic-encoder rotation tracking</li>
+                        <li>Dose-selection and injection-event detection</li>
+                        <li>Encoder movement to dose conversion</li>
+                        <li>BLE communication</li>
+                        <li>Persistent dose-event storage</li>
+                        <li>Automatic retransmission after failure</li>
+                        <li>Low-power task management</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Outer Unit Firmware</h3>
+                    <ul class="tech-list">
+                        <li>ESP-NOW reception from the Inner Unit</li>
+                        <li>BLE communication with the Pen Unit and glucometer</li>
+                        <li>Event aggregation and time synchronization</li>
+                        <li>TFT display control</li>
+                        <li>Keypad-based dose confirmation and fallback entry</li>
+                        <li>JSON event generation</li>
+                        <li>Wi-Fi and MQTT communication</li>
+                        <li>Offline message queuing</li>
+                        <li>Automatic replay after reconnection</li>
+                        <li>Acknowledgement handling</li>
+                        <li>Duplicate-event prevention</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3 class="evidence-heading">Firmware Validation Evidence</h3>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <div class="evidence-title">PlatformIO Build Output</div>
+                    <div id="evidence-firmware-build-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">Communication Logs</div>
+                    <div id="evidence-firmware-logs-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">Outer Unit Display</div>
+                    <div id="evidence-device-display-img"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       SOFTWARE SECTION
+       ========================================================================== -->
+    <section id="software">
+        <div class="container">
+            <span class="section-label">Software</span>
+            <h2 class="section-title">Secure interfaces for patients, caregivers, doctors, and administrators</h2>
+            <p class="section-desc">
+                The software tier coordinates clinical tasks, aggregates records, and manages user views securely.
+            </p>
+            
+            <div class="browser-frame">
+                <div class="browser-header">
+                    <div class="browser-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <div class="browser-address">Dia-Smart Care Gateway Dashboard</div>
+                </div>
+                <div class="browser-body">
+                    <div id="software-dashboard-img-container"></div>
+                </div>
+            </div>
+            
+            <div class="cards-grid-3">
+                <div class="card">
+                    <h3 class="card-title">Cloud Backend Capabilities</h3>
+                    <p class="card-desc" style="margin-bottom: 1rem;">
+                        The Spring Boot backend processes MQTT telemetry, applies business rules, manages users and devices, generates alerts, and provides secure REST APIs.
+                    </p>
+                    <ul class="tech-list" style="font-size: 0.85rem;">
+                        <li>Telemetry reception and processing</li>
+                        <li>JWT-based security &amp; RBAC</li>
+                        <li>Patient-caregiver relationships</li>
+                        <li>Patient-doctor relationships</li>
+                        <li>Device registration and assignment</li>
+                        <li>Glucose &amp; dose event records</li>
+                        <li>Storage &amp; inventory monitoring</li>
+                        <li>Alert evaluation and resolution</li>
+                        <li>Prescription &amp; schedule checks</li>
+                        <li>System auditing &amp; admin functions</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Web Dashboard Features</h3>
+                    <p class="card-desc" style="margin-bottom: 1rem;">
+                        A responsive React web interface accessible on desktop, tablet, and smartphone web browsers.
+                    </p>
+                    <ul class="tech-list" style="font-size: 0.85rem;">
+                        <li>Patient summary and timeline</li>
+                        <li>Glucose trend analytics</li>
+                        <li>Insulin dose history &amp; logs</li>
+                        <li>Prescriptions &amp; dose schedules</li>
+                        <li>Storage temperature alerts</li>
+                        <li>Inventory level estimation</li>
+                        <li>Alert triggers &amp; notifications</li>
+                        <li>Patient and care-team matching</li>
+                        <li>Caregiver and Doctor portals</li>
+                        <li>System configuration console</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Deployment Infrastructure</h3>
+                    <p class="card-desc" style="margin-bottom: 1rem;">
+                        Implemented on AWS cloud infrastructure for scalability and security.
+                    </p>
+                    <ul class="tech-list" style="font-size: 0.85rem;">
+                        <li>AWS IoT Core MQTT broker</li>
+                        <li>Spring Boot EC2 container</li>
+                        <li>Amazon RDS PostgreSQL database</li>
+                        <li>React dashboard on AWS Amplify</li>
+                    </ul>
+                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-top: 1.5rem; color: var(--navy);">Technology Badges</h4>
+                    <div class="badge-container" id="software-tech-badges">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       TESTING SECTION
+       ========================================================================== -->
+    <section id="testing" style="background-color: var(--surface-soft);">
+        <div class="container">
+            <span class="section-label">Testing</span>
+            <h2 class="section-title">Validation from sensor to cloud dashboard</h2>
+            <p class="section-desc">
+                Continuous integration checks run alongside hardware validation benches to confirm system functionality.
+            </p>
+            
+            <div class="testing-columns">
+                <div class="test-group">
+                    <h3 class="test-group-title">Hardware and Firmware Testing</h3>
+                    <ul class="test-list">
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Initial temperature-sensor calibration</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Initial load-cell calibration</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Basic Pen Unit dose-detection testing</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Basic hardware communication demonstration</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Sensor and dose-detection accuracy</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">BLE and ESP-NOW reliability</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Offline buffering and reconnection behaviour</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Long-duration system operation</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Enclosure and hardware refinement</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="test-group">
+                    <h3 class="test-group-title">Software and Cloud Testing</h3>
+                    <ul class="test-list">
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Backend automated tests</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Frontend automated tests</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">API validation using Postman</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill completed">Completed</span>
+                            <span class="test-name">Authentication and access-control implementation tests</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">MQTT-to-backend integration validation</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Cloud-data synchronization</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Alert-generation validation</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">End-to-end dashboard validation</span>
+                        </li>
+                        <li class="test-item">
+                            <span class="test-status-pill in-progress">In Progress</span>
+                            <span class="test-name">Continuous AWS deployment testing</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h3 class="evidence-heading">Testing &amp; Automated Verification Evidence</h3>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <div class="evidence-title">Backend Tests</div>
+                    <div id="evidence-backend-tests-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">Frontend Tests</div>
+                    <div id="evidence-frontend-tests-img"></div>
+                </div>
+                <div class="evidence-card">
+                    <div class="evidence-title">API Validation (Postman)</div>
+                    <div id="evidence-api-tests-img"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       BUDGET SECTION
+       ========================================================================= -->
+    <section id="budget">
+        <div class="container">
+            <div class="text-center">
+                <span class="section-label">Budget</span>
+                <h2 class="section-title">Prototype development cost</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    Consolidated prototype construction costs and testing expenditures.
+                </p>
+            </div>
+            
+            <div id="budget-table-placeholder">
+                <!-- Rendered dynamically by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       TIMELINE SECTION
+       ========================================================================== -->
+    <section id="timeline" style="background-color: var(--surface-soft);">
+        <div class="container">
+            <span class="section-label">Timeline</span>
+            <h2 class="section-title">From problem identification to integrated prototype validation</h2>
+            <p class="section-desc">
+                Schedule of the research, development, and validation milestones spanning November 2025 to August 2026.
+            </p>
+            
+            <div class="gantt-container">
+                <div class="gantt-chart">
+                    <!-- Gantt header row -->
+                    <div class="gantt-header-cell">Task Description</div>
+                    <div class="gantt-header-cell">Nov '25</div>
+                    <div class="gantt-header-cell">Dec '25</div>
+                    <div class="gantt-header-cell">Jan '26</div>
+                    <div class="gantt-header-cell">Feb '26</div>
+                    <div class="gantt-header-cell">Mar '26</div>
+                    <div class="gantt-header-cell">Apr '26</div>
+                    <div class="gantt-header-cell">May '26</div>
+                    <div class="gantt-header-cell">Jun '26</div>
+                    <div class="gantt-header-cell">Jul '26</div>
+                    <div class="gantt-header-cell">Aug '26</div>
+                    
+                    <!-- Task 1 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">Research and Requirement Analysis</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar" style="grid-column: 1 / 3;">Nov–Dec 2025</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task 2 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">System Architecture and Design</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar" style="grid-column: 3 / 5;">Jan–Feb 2026</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task 3 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">Hardware, PCB &amp; Enclosure</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar" style="grid-column: 4 / 7;">Feb–Apr 2026</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task 4 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">Firmware Development</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar" style="grid-column: 5 / 9;">Mar–Jun 2026</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task 5 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">Backend, Dashboard &amp; Cloud</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar" style="grid-column: 6 / 10;">Apr–Jul 2026</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task 6 -->
+                    <div class="gantt-row">
+                        <div class="gantt-task-name">Integration Testing &amp; Validation</div>
+                        <div class="gantt-bar-container">
+                            <div class="gantt-bar current-phase" style="grid-column: 9 / 11;">Jul–Aug 2026</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="timeline-note">
+                <div class="current-badge">Current Phase: Integration Testing and Validation</div>
+                <p>
+                    Dia-Smart currently has a working basic integrated prototype. Current testing focuses on sensor and dose-detection accuracy, device communication reliability, offline buffering, cloud synchronization, alert generation, dashboard usability, long-duration operation, and enclosure refinement.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       FUTURE DEVELOPMENT SECTION
+       ========================================================================== -->
+    <section id="future">
+        <div class="container">
+            <span class="section-label">Future Development</span>
+            <h2 class="section-title">From a retrofit attachment to a fully proprietary Dia-Smart insulin pen</h2>
+            <p class="section-desc">
+                The current Dia-Smart Pen Unit already supports dial-rotation sensing, dose estimation, embedded processing, and wireless transmission through a compact attachment fitted to a HumaPen Ergo injector pen. The future plan is not to add a missing feature, but to redesign the validated mechanism as a complete Dia-Smart insulin pen with an integrated smart cap. This will replace the external commercial pen body with a more compact, adaptable, manufacturable, and fully proprietary Dia-Smart design.
+            </p>
+            
+            <div class="cards-grid-4" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+                <div class="card">
+                    <h3 class="card-title">Current Prototype</h3>
+                    <p class="card-desc">
+                        Dia-Smart sensing and communication attachment fitted to a commercial HumaPen Ergo injector pen.
+                    </p>
+                </div>
+                
+                <div class="card">
+                    <h3 class="card-title">Future Product</h3>
+                    <p class="card-desc">
+                        Purpose-built Dia-Smart insulin pen and integrated smart cap retaining the validated sensing and communication functionality.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       TEAM SECTION
+       ========================================================================== -->
+    <section id="team">
+        <div class="container">
+            <span class="section-label">Our Team</span>
+            <h2 class="section-title">The people behind Dia-Smart</h2>
+            <p class="section-desc">
+                Department of Computer Engineering, Faculty of Engineering, University of Peradeniya.
+            </p>
+            
+            <h3 class="profile-section-title">Project Supervisors</h3>
+            <div class="profile-grid" id="supervisors-grid">
+                <!-- Loaded dynamically by JS -->
+            </div>
+            
+            <h3 class="profile-section-title">Team Members</h3>
+            <div class="profile-grid" id="team-grid">
+                <!-- Loaded dynamically by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       GALLERY SECTION
+       ========================================================================== -->
+    <section id="gallery" style="background-color: var(--surface-soft);">
+        <div class="container">
+            <span class="section-label">Gallery</span>
+            <h2 class="section-title">From design to working prototype</h2>
+            <p class="section-desc">
+                Visual log of hardware component manufacturing, laboratory validation tests, and interfaces.
+            </p>
+            
+            <div class="gallery-grid" id="gallery-grid">
+                <!-- Rendered dynamically by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       USEFUL LINKS SECTION
+       ========================================================================== -->
+    <section id="links" class="dark links-section">
+        <div class="container">
+            <span class="section-label">Links</span>
+            <h2 class="section-title">Useful Links</h2>
+            <p class="section-desc">
+                Reference sources, code repositories, and institutional websites.
+            </p>
+            
+            <div class="links-grid" id="links-grid">
+                <!-- Rendered dynamically by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       FOOTER
+       ========================================================================== -->
+    <footer>
+        <div class="container footer-grid">
+            <a href="#" class="brand-lockup">
+                <div class="logo-tile">
+                    <img src="./assets/images/logo.png" alt="Dia-Smart logo">
+                </div>
+                <span>Dia-Smart</span>
+            </a>
+            
+            <p class="footer-inst">
+                Department of Computer Engineering · Faculty of Engineering · University of Peradeniya
+            </p>
+            
+            <p class="footer-copyright">
+                &copy; 2026 Dia-Smart. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Back to top button -->
+    <button id="back-to-top" class="back-to-top" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+    </button>
+
+    <!-- ==========================================================================
+       ACCESSIBLE LIGHTBOX MODAL
+       ========================================================================== -->
+    <div id="lightbox" class="lightbox-modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close gallery lightbox">&times;</button>
+        <button class="lightbox-prev" onclick="prevLightboxImage()" aria-label="Previous gallery image">&#10094;</button>
+        <button class="lightbox-next" onclick="nextLightboxImage()" aria-label="Next gallery image">&#10095;</button>
+        <div class="lightbox-content">
+            <img id="lightbox-img" src="" alt="">
+            <div id="lightbox-caption" class="lightbox-caption"></div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+       JAVASCRIPT CONFIGURATION & LOGIC
+       ========================================================================== -->
+    <script>
+        // ==========================================================================
+        // 1. EDITABLE PROJECT DATA
+        // ==========================================================================
+        const PROJECT_DATA = {
+            projectName: "Dia-Smart",
+            logoPath: "./assets/images/logo.png",
+
+            institution: {
+                department: "Department of Computer Engineering",
+                faculty: "Faculty of Engineering",
+                university: "University of Peradeniya"
+            },
+
+            links: {
+                github: "",
+                projectPage: "",
+                department: "",
+                faculty: ""
+            },
+
+            supervisors: [
+                {
+                    name: "Ms. Yasodha Vimukthi",
+                    designation: "Lecturer",
+                    department: "Department of Computer Engineering",
+                    faculty: "Faculty of Engineering",
+                    university: "University of Peradeniya",
+                    image: "assets/supervisor-yasodha.jpg",
+                    linkedin: "",
+                    email: ""
+                },
+                {
+                    name: "Dr. Isuru Nawinne",
+                    designation: "Senior Lecturer",
+                    department: "Department of Computer Engineering",
+                    faculty: "Faculty of Engineering",
+                    university: "University of Peradeniya",
+                    image: "assets/supervisor-isuru.jpg",
+                    linkedin: "",
+                    email: ""
+                }
+            ],
+
+            teamMembers: [
+                {
+                    name: "Arnikan Uthayasekar",
+                    email: "arnikan1811@gmail.com",
+                    registrationNumber: "",
+                    responsibility: "",
+                    image: "",
+                    linkedin: "",
+                    github: ""
+                },
+                {
+                    name: "Ananthasagaran Narayanapillai",
+                    email: "nsagaran09@gmail.com",
+                    registrationNumber: "",
+                    responsibility: "",
+                    image: "",
+                    linkedin: "",
+                    github: ""
+                },
+                {
+                    name: "Sanjeevan Uthayachandran",
+                    email: "sanjeevan200299@gmail.com",
+                    registrationNumber: "",
+                    responsibility: "",
+                    image: "",
+                    linkedin: "",
+                    github: ""
+                },
+                {
+                    name: "Sivasuthan Jeganathan",
+                    email: "jeganathansivasuthan@gmail.com",
+                    registrationNumber: "",
+                    responsibility: "",
+                    image: "",
+                    linkedin: "",
+                    github: ""
+                }
+            ],
+
+            budget: {
+                enclosure: 10200,
+                pcbFabrication: 2000,
+                microcontrollers: 5740,
+                sensorsAndBattery: 2375,
+                displayAndKeypad: 3940,
+                productCost: 24675,
+                testingAndMiscellaneous: 21350,
+                totalSpent: 46025
+            },
+
+            images: {
+                innerUnit: "assets/inner-unit.jpg",
+                outerUnit: "assets/outer-unit.jpg",
+                penUnit: "assets/pen-unit.jpg",
+                pcbDesign: "assets/pcb-design.jpg",
+                enclosureDesign: "assets/enclosure-design.jpg",
+                calibration: "assets/calibration.jpg",
+                integratedDemo: "assets/integrated-demo.jpg",
+                dashboard: "assets/dashboard.png",
+                firmwareBuild: "assets/firmware-build.png",
+                firmwareLogs: "assets/firmware-logs.png",
+                deviceDisplay: "assets/device-display.jpg",
+                backendTests: "assets/backend-tests.png",
+                frontendTests: "assets/frontend-tests.png",
+                apiTests: "assets/api-tests.png",
+                presentation: "assets/presentation.jpg"
+            }
+        };
+
+        // ==========================================================================
+        // 2. TECH CHIPS DEFINITION
+        // ==========================================================================
+        const TECH_BADGES = [
+            "React", "Spring Boot", "PostgreSQL", "AWS IoT Core", 
+            "Amazon EC2", "Amazon RDS", "AWS Amplify", "MQTT", "JWT", "RBAC"
+        ];
+
+        // ==========================================================================
+        // 3. GALLERY ITEMS MAP
+        // ==========================================================================
+        const GALLERY_ITEMS = [
+            { key: "innerUnit", title: "Inner Unit" },
+            { key: "outerUnit", title: "Outer Unit" },
+            { key: "penUnit", title: "Pen Unit" },
+            { key: "pcbDesign", title: "PCB and Circuit Design" },
+            { key: "enclosureDesign", title: "CAD and Enclosure Design" },
+            { key: "calibration", title: "Sensor Calibration" },
+            { key: "integratedDemo", title: "Integrated Prototype Demonstration" },
+            { key: "dashboard", title: "Web Dashboard" },
+            { key: "firmwareBuild", title: "Firmware Evidence" },
+            { key: "apiTests", title: "API Testing" },
+            { key: "presentation", title: "Milestone Presentation" }
+        ];
+
+        // ==========================================================================
+        // 4. IMAGE CONTAINER & AVATAR GENERATORS
+        // ==========================================================================
+        function getInitials(name) {
+            if (name.includes("Yasodha")) return "YV";
+            if (name.includes("Isuru")) return "IN";
+            const parts = name.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            }
+            return parts[0] ? parts[0][0].toUpperCase() : "";
+        }
+
+        function renderImageContainer(imagePath, title, altClass = "") {
+            const hasImage = imagePath && imagePath.trim() !== "";
+            const imgStyle = hasImage ? "" : "style='display: none;'";
+            const fallbackStyle = hasImage ? "style='display: none;'" : "style='display: flex;'";
+            
+            return `
+                <div class="image-container ${altClass}">
+                    <div class="image-fallback" ${fallbackStyle}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <div class="fallback-title">${title}</div>
+                    </div>
+                    ${hasImage ? `<img src="${imagePath}" alt="${title}" onerror="handleImageError(this)">` : ''}
+                </div>
+            `;
+        }
+
+        function handleImageError(img) {
+            const container = img.closest('.image-container');
+            if (container) {
+                const fallback = container.querySelector('.image-fallback');
+                if (fallback) {
+                    fallback.style.display = 'flex';
+                }
+                img.style.display = 'none';
+            }
+        }
+
+        function handleProfileImageError(img, initials) {
+            const container = img.closest('.profile-avatar-container');
+            if (container) {
+                const fallback = container.querySelector('.profile-avatar-fallback');
+                if (fallback) {
+                    fallback.style.display = 'flex';
+                }
+                img.style.display = 'none';
+            }
+        }
+
+        function handleGalleryImageError(img, title) {
+            const card = img.closest('.gallery-card');
+            if (card) {
+                const fallback = card.querySelector('.image-fallback');
+                if (fallback) {
+                    fallback.style.display = 'flex';
+                }
+                img.style.display = 'none';
+            }
+        }
+
+        // ==========================================================================
+        // 5. PROFILE RENDERING FUNCTIONS
+        // ==========================================================================
+        function renderSupervisorCard(supervisor) {
+            const name = supervisor.name;
+            const initials = getInitials(name);
+            const hasImage = supervisor.image && supervisor.image.trim() !== "";
+            const hasLinkedin = supervisor.linkedin && supervisor.linkedin.trim() !== "";
+            const hasEmail = supervisor.email && supervisor.email.trim() !== "";
+            
+            let linksHtml = "";
+            if (hasLinkedin || hasEmail) {
+                linksHtml = `
+                    <div class="profile-links">
+                        ${hasEmail ? `<a href="mailto:${supervisor.email}" class="btn-icon" aria-label="Email ${name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></a>` : ""}
+                        ${hasLinkedin ? `<a href="${supervisor.linkedin}" target="_blank" rel="noopener noreferrer" class="btn-icon" aria-label="LinkedIn profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg></a>` : ""}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="profile-card">
+                    <div class="profile-avatar-container">
+                        <div class="profile-avatar-fallback" ${hasImage ? "style='display: none;'" : "style='display: flex;'"}>${initials}</div>
+                        ${hasImage ? `<img src="${supervisor.image}" alt="${name}" class="profile-avatar-img" onerror="handleProfileImageError(this, '${initials}')">` : ""}
+                    </div>
+                    <h4 class="profile-name">${name}</h4>
+                    <div class="profile-designation">${supervisor.designation}</div>
+                    <div class="profile-dept">${supervisor.department}</div>
+                    <div class="profile-inst">${supervisor.faculty}, ${supervisor.university}</div>
+                    ${linksHtml}
+                </div>
+            `;
+        }
+
+        function renderTeamMemberCard(member) {
+            const name = member.name;
+            const initials = getInitials(name);
+            const hasImage = member.image && member.image.trim() !== "";
+            const hasReg = member.registrationNumber && member.registrationNumber.trim() !== "";
+            const hasResp = member.responsibility && member.responsibility.trim() !== "";
+            const hasEmail = member.email && member.email.trim() !== "";
+            const hasLinkedin = member.linkedin && member.linkedin.trim() !== "";
+            const hasGithub = member.github && member.github.trim() !== "";
+
+            let linksHtml = "";
+            if (hasEmail || hasLinkedin || hasGithub) {
+                linksHtml = `
+                    <div class="profile-links">
+                        ${hasEmail ? `<a href="mailto:${member.email}" class="btn-icon" aria-label="Email ${name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></a>` : ""}
+                        ${hasLinkedin ? `<a href="${member.linkedin}" target="_blank" rel="noopener noreferrer" class="btn-icon" aria-label="LinkedIn profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg></a>` : ""}
+                        ${hasGithub ? `<a href="${member.github}" target="_blank" rel="noopener noreferrer" class="btn-icon" aria-label="GitHub profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a>` : ""}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="profile-card">
+                    <div class="profile-avatar-container">
+                        <div class="profile-avatar-fallback" ${hasImage ? "style='display: none;'" : "style='display: flex;'"}>${initials}</div>
+                        ${hasImage ? `<img src="${member.image}" alt="${name}" class="profile-avatar-img" onerror="handleProfileImageError(this, '${initials}')">` : ""}
+                    </div>
+                    <h4 class="profile-name">${name}</h4>
+                    ${hasReg ? `<div class="profile-reg">${member.registrationNumber}</div>` : ""}
+                    ${hasResp ? `<div class="profile-resp">${member.responsibility}</div>` : ""}
+                    ${linksHtml}
+                </div>
+            `;
+        }
+
+        // ==========================================================================
+        // 6. INITIALIZATION & DATA INJECTION
+        // ==========================================================================
+        function initPage() {
+            // Render Tech Badges
+            const badgeContainer = document.getElementById('software-tech-badges');
+            if (badgeContainer) {
+                badgeContainer.innerHTML = TECH_BADGES.map(badge => `<span class="tech-badge">${badge}</span>`).join('');
+            }
+
+            // Render Hardware unit placeholders
+            document.getElementById('hw-inner-img-placeholder').innerHTML = renderImageContainer(PROJECT_DATA.images.innerUnit, "Inner Unit — Smart Insulin Vault");
+            document.getElementById('hw-outer-img-placeholder').innerHTML = renderImageContainer(PROJECT_DATA.images.outerUnit, "Outer Unit — Data Hub");
+            document.getElementById('hw-pen-img-placeholder').innerHTML = renderImageContainer(PROJECT_DATA.images.penUnit, "Pen Unit — Dose Detection Module");
+
+            // Render Design Evidence
+            document.getElementById('evidence-pcb-img').innerHTML = renderImageContainer(PROJECT_DATA.images.pcbDesign, "PCB Design");
+            document.getElementById('evidence-enclosure-img').innerHTML = renderImageContainer(PROJECT_DATA.images.enclosureDesign, "CAD Enclosure Design");
+            document.getElementById('evidence-calibration-img').innerHTML = renderImageContainer(PROJECT_DATA.images.calibration, "Sensor Calibration Bench");
+
+            // Render Firmware Evidence
+            document.getElementById('evidence-firmware-build-img').innerHTML = renderImageContainer(PROJECT_DATA.images.firmwareBuild, "PlatformIO Compiler Build Output");
+            document.getElementById('evidence-firmware-logs-img').innerHTML = renderImageContainer(PROJECT_DATA.images.firmwareLogs, "Serial Monitor Communication Log");
+            document.getElementById('evidence-device-display-img').innerHTML = renderImageContainer(PROJECT_DATA.images.deviceDisplay, "Outer Unit TFT Confirmation Interface");
+
+            // Render Software Interface Frame
+            document.getElementById('software-dashboard-img-container').innerHTML = renderImageContainer(PROJECT_DATA.images.dashboard, "Dia-Smart React Web Portal Dashboard");
+
+            // Render Software Validation Evidence
+            document.getElementById('evidence-backend-tests-img').innerHTML = renderImageContainer(PROJECT_DATA.images.backendTests, "Spring Boot JUnit Test Output");
+            document.getElementById('evidence-frontend-tests-img').innerHTML = renderImageContainer(PROJECT_DATA.images.frontendTests, "React Jest Component Testing Logs");
+            document.getElementById('evidence-api-tests-img').innerHTML = renderImageContainer(PROJECT_DATA.images.apiTests, "Postman API Suite Assertions");
+
+            // Render Budget Table
+            renderBudget();
+
+            // Render Supervisors and Team Members
+            const supervisorsGrid = document.getElementById('supervisors-grid');
+            if (supervisorsGrid) {
+                supervisorsGrid.innerHTML = PROJECT_DATA.supervisors.map(renderSupervisorCard).join('');
+            }
+
+            const teamGrid = document.getElementById('team-grid');
+            if (teamGrid) {
+                teamGrid.innerHTML = PROJECT_DATA.teamMembers.map(renderTeamMemberCard).join('');
+            }
+
+            // Render Gallery grid
+            renderGallery();
+
+            // Render Useful Links Section
+            renderLinks();
+        }
+
+        // ==========================================================================
+        // 7. BUDGET TABLE RENDERER
+        // ==========================================================================
+        function renderBudget() {
+            const container = document.getElementById('budget-table-placeholder');
+            if (!container) return;
+
+            const formatNumber = num => num.toLocaleString();
+            const b = PROJECT_DATA.budget;
+
+            container.innerHTML = `
+                <div class="budget-table-container">
+                    <table class="budget-table">
+                        <thead>
+                            <tr>
+                                <th>Prototype Development Category</th>
+                                <th class="text-right">Expenditure (LKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>3D Enclosure / CAD Prototyping</td>
+                                <td class="text-right">${formatNumber(b.enclosure)}</td>
+                            </tr>
+                            <tr>
+                                <td>PCB Fabrication &amp; Assembly</td>
+                                <td class="text-right">${formatNumber(b.pcbFabrication)}</td>
+                            </tr>
+                            <tr>
+                                <td>Microcontrollers &amp; Wireless chips</td>
+                                <td class="text-right">${formatNumber(b.microcontrollers)}</td>
+                            </tr>
+                            <tr>
+                                <td>Sensors, Li-Ion/Li-Po Batteries &amp; Power management</td>
+                                <td class="text-right">${formatNumber(b.sensorsAndBattery)}</td>
+                            </tr>
+                            <tr>
+                                <td>TFT Interface display &amp; Keypad input assembly</td>
+                                <td class="text-right">${formatNumber(b.displayAndKeypad)}</td>
+                            </tr>
+                            <tr class="highlight-row subtotal">
+                                <td>Prototype Product Cost</td>
+                                <td class="text-right">${formatNumber(b.productCost)}</td>
+                            </tr>
+                            <tr>
+                                <td>Testing, Laboratory Validation &amp; Miscellaneous items</td>
+                                <td class="text-right">${formatNumber(b.testingAndMiscellaneous)}</td>
+                            </tr>
+                            <tr class="highlight-row total">
+                                <td>Total Spent</td>
+                                <td class="text-right">${formatNumber(b.totalSpent)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // ==========================================================================
+        // 8. GALLERY GRID RENDERER
+        // ==========================================================================
+        function renderGallery() {
+            const container = document.getElementById('gallery-grid');
+            if (!container) return;
+
+            let html = "";
+            GALLERY_ITEMS.forEach((item, index) => {
+                const imagePath = PROJECT_DATA.images[item.key] || "";
+                const hasImage = imagePath && imagePath.trim() !== "";
+                const fallbackStyle = hasImage ? "style='display: none;'" : "style='display: flex;'";
+
+                html += `
+                    <div class="gallery-card" onclick="openLightbox(${index})" tabindex="0" aria-label="View larger image: ${item.title}">
+                        <div class="gallery-image-container">
+                            <div class="image-fallback" ${fallbackStyle}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <div class="fallback-title">${item.title}</div>
+                            </div>
+                            ${hasImage ? `<img src="${imagePath}" alt="${item.title}" onerror="handleGalleryImageError(this, '${item.title}')">` : ""}
+                        </div>
+                        <div class="gallery-info">
+                            <h4 class="gallery-title">${item.title}</h4>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            
+            // Allow gallery keyboard interaction
+            container.querySelectorAll('.gallery-card').forEach(card => {
+                card.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        card.click();
+                    }
+                });
+            });
+        }
+
+        // ==========================================================================
+        // 9. USEFUL LINKS CARD GENERATOR
+        // ==========================================================================
+        function renderLinks() {
+            const container = document.getElementById('links-grid');
+            if (!container) return;
+
+            const links = PROJECT_DATA.links;
+            const cards = [
+                { key: "github", title: "GitHub Repository", desc: "Access the hardware design drawings, source code repository, and verification setup logs." },
+                { key: "projectPage", title: "Department Project Page", desc: "View the official listing page on the University of Peradeniya website." },
+                { key: "department", title: "Department of Computer Engineering", desc: "Browse other research and project developments at Peradeniya." },
+                { key: "faculty", title: "Faculty of Engineering", desc: "Visit the main Engineering Faculty page of the University." }
+            ];
+
+            let html = "";
+            cards.forEach(card => {
+                const url = links[card.key];
+                const hasUrl = url && url.trim() !== "";
+                if (hasUrl) {
+                    html += `
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card">
+                            <div class="link-card-content">
+                                <h4 class="link-title">${card.title}</h4>
+                                <p class="link-desc">${card.desc}</p>
+                            </div>
+                            <div class="link-arrow">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="7" y1="17" x2="17" y2="7"></line>
+                                    <polyline points="7 7 17 7 17 17"></polyline>
+                                </svg>
+                            </div>
+                        </a>
+                    `;
+                }
+            });
+
+            if (html === "") {
+                // Hide links-section container completely if all links are empty
+                const section = container.closest('.links-section');
+                if (section) {
+                    section.style.display = 'none';
+                }
+            } else {
+                container.innerHTML = html;
+            }
+        }
+
+        // ==========================================================================
+        // 10. ACCESSIBLE GALLERY LIGHTBOX IMPLEMENTATION
+        // ==========================================================================
+        let currentLightboxIndex = 0;
+        let lightboxItems = [];
+
+        function openLightbox(index) {
+            // Collect all gallery items that have active/configured image paths
+            lightboxItems = GALLERY_ITEMS.map((item, idx) => {
+                return {
+                    originalIndex: idx,
+                    path: PROJECT_DATA.images[item.key] || "",
+                    title: item.title
+                };
+            }).filter(item => item.path && item.path.trim() !== "");
+
+            if (lightboxItems.length === 0) return;
+
+            // Map original gallery index to current active index list
+            const activeIndex = lightboxItems.findIndex(item => item.originalIndex === index);
+            if (activeIndex === -1) return; // Selected item does not have a valid image
+
+            currentLightboxIndex = activeIndex;
+            showLightboxImage(lightboxItems[currentLightboxIndex]);
+
+            const lightbox = document.getElementById('lightbox');
+            lightbox.style.display = 'flex';
+            lightbox.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden'; // Lock background scrolling
+            
+            // Set focus inside modal close button
+            document.querySelector('.lightbox-close').focus();
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.style.display = 'none';
+            lightbox.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = ''; // Unlock scrolling
+        }
+
+        function showLightboxImage(item) {
+            const img = document.getElementById('lightbox-img');
+            const caption = document.getElementById('lightbox-caption');
+            img.src = item.path;
+            img.alt = item.title;
+            caption.textContent = item.title;
+        }
+
+        function prevLightboxImage() {
+            if (lightboxItems.length === 0) return;
+            currentLightboxIndex = (currentLightboxIndex - 1 + lightboxItems.length) % lightboxItems.length;
+            showLightboxImage(lightboxItems[currentLightboxIndex]);
+        }
+
+        // ==========================================================================
+        // 11. SCROLL EVENTS & RESPONSIVE INTERACTION
+        // ==========================================================================
+        function nextLightboxImage() {
+            if (lightboxItems.length === 0) return;
+            currentLightboxIndex = (currentLightboxIndex + 1) % lightboxItems.length;
+            showLightboxImage(lightboxItems[currentLightboxIndex]);
+        }
+
+        // Keyboard listeners for accessibility
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (lightbox && lightbox.style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                } else if (e.key === 'ArrowLeft') {
+                    prevLightboxImage();
+                } else if (e.key === 'ArrowRight') {
+                    nextLightboxImage();
+                } else if (e.key === 'Tab') {
+                    // Trap focus inside lightbox controls
+                    const focusableElements = lightbox.querySelectorAll('button');
+                    const first = focusableElements[0];
+                    const last = focusableElements[focusableElements.length - 1];
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) {
+                            last.focus();
+                            e.preventDefault();
+                        }
+                    } else {
+                        if (document.activeElement === last) {
+                            first.focus();
+                            e.preventDefault();
+                        }
+                    }
+                }
+            }
+        });
+
+        // Hamburger Menu Toggle
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const navLinksContainer = document.getElementById('nav-links-container');
+
+        hamburgerBtn.addEventListener('click', () => {
+            const expanded = hamburgerBtn.getAttribute('aria-expanded') === 'true';
+            hamburgerBtn.setAttribute('aria-expanded', !expanded);
+            navLinksContainer.classList.toggle('active');
+            hamburgerBtn.classList.toggle('open');
+        });
+
+        // Close Mobile Menu on Click Navigation link
+        navLinksContainer.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinksContainer.classList.remove('active');
+                hamburgerBtn.classList.remove('open');
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+            });
+        });
+
+        // Back To Top Scroll Logic
+        const backToTopBtn = document.getElementById('back-to-top');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Intersection Observer for sticky navigation highlights
+        const sections = document.querySelectorAll('section');
+        const navItems = document.querySelectorAll('.nav-links a');
+
+        const observerOptions = {
+            root: null,
+            threshold: 0.25,
+            rootMargin: "-70px 0px 0px 0px"
+        };
+
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    navItems.forEach(item => {
+                        if (item.getAttribute('href') === `#${id}`) {
+                            item.classList.add('active');
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach(section => {
+            if (section.getAttribute('id')) {
+                sectionObserver.observe(section);
+            }
+        });
+
+        // Fire on Load
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

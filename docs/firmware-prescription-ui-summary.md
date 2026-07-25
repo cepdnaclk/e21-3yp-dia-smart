@@ -20,6 +20,8 @@ The work covers:
 - Independent completion state for every daily schedule.
 - Reminder lifecycle and missed-dose telemetry for the backend.
 - Patient-facing upcoming, due, silenced, taken, and missed states.
+- Accidental pen-reading cancellation before any backend dose publish.
+- Patient-focused Home, Prescription, Alerts, and System navigation.
 
 No backend source files were changed.
 
@@ -76,12 +78,15 @@ The screen only shows `C SILENCE` while that action is available. After the
 reminder is silenced, `C` returns to the alerts-page action. Silencing a reminder
 does not confirm a dose.
 
-Outside an active stoppable reminder, normal navigation remains unchanged:
+Outside an active stoppable reminder, patient navigation is:
 
-- `A`: dashboard.
-- `B`: device status.
+- `A`: home.
+- `B`: prescription.
 - `C`: alerts.
-- `D`: offline queue.
+- `D`: system status.
+
+The technical offline-queue page remains available with `0` for service
+diagnostics, but it is no longer shown as a normal patient destination.
 
 ## Dose Confirmation Controls
 
@@ -93,9 +98,13 @@ that can be used in the current mode.
 
 - `A`: confirm and send the rounded pen dose.
 - `B`: enter dose editing mode.
+- `C`: cancel an accidental pen activation.
 
 The screen also shows the selected prescribed dose, insulin type, and target
 time. It displays either `MATCHES CARE PLAN` or `CHECK PRESCRIBED DOSE`.
+
+Cancellation clears the prompt, publishes no dose, does not mark a prescription
+as taken, and suppresses the same buffered pen record from reopening the prompt.
 
 ### Editing Mode
 
@@ -192,8 +201,25 @@ The following behavior was not changed:
 - BLE pen and glucometer processing.
 - ESP-NOW Inner Unit telemetry.
 - Offline JSON queue behavior.
-- Existing dashboard, device, alert, and queue pages.
+- Queue diagnostics and device-health monitoring.
 - Dose editing limits and automatic dose confirmation.
+
+## Bluetooth Connection Behavior
+
+The ESP32-S3 hardware can maintain multiple BLE client connections, but the
+current firmware deliberately uses scheduled single-device sessions:
+
+1. Keep the pen connected for dose notifications.
+2. Every 30 seconds, disconnect the pen.
+3. Connect to the glucometer and request stored measurements using RACP.
+4. Disconnect the glucometer and reconnect the pen.
+
+The pen buffers dose records and the Outer Unit acknowledges record slots, so a
+dose occurring during the short glucometer session can be recovered after pen
+reconnection. True simultaneous continuous pen and glucometer connections would
+require a multi-client BLE manager redesign and hardware testing. The
+glucometer itself is currently used as a periodic stored-record sync device, not
+as a continuously connected notification source.
 
 ## Backend Data Gaps
 
@@ -218,13 +244,13 @@ Flash: 1,544,913 / 3,342,336 bytes (46.2%)
 Static checks confirmed that each displayed keypad action has a matching code
 handler.
 
-Latest build after the reminder and display improvements:
+Latest build after cancellation and patient UI improvements:
 
 ```text
 Environment: esp32-s3-devkitc-1
 Result: SUCCESS
 RAM: 69,852 / 327,680 bytes (21.3%)
-Flash: 1,556,765 / 3,342,336 bytes (46.6%)
+Flash: 1,556,781 / 3,342,336 bytes (46.6%)
 ```
 
 ## Implementation Commits
@@ -232,6 +258,8 @@ Flash: 1,556,765 / 3,342,336 bytes (46.6%)
 - `811a68f` - `Fix per-schedule prescription completion state`
 - `20251ca` - `Add prescription reminder lifecycle telemetry`
 - `932d439` - `Refine patient prescription display states`
+- `163d173` - `Add accidental pen dose cancellation`
+- `6cb90c6` - `Simplify outer unit patient navigation`
 
 The documentation update is committed separately after these implementation
 steps.
@@ -250,10 +278,14 @@ steps.
 9. Press `C`, confirm `REMINDER SILENCED`, and verify the backend stores
    `REMINDER_MANUALLY_STOPPED`.
 10. Allow a test window to close and verify `MISSED` and `DOSE_MISSED`.
-11. Trigger a pen dose and verify `A` confirmation.
-12. Trigger another dose and verify `B`, digits, `*`, `#`, `C`, and `D`.
-13. Confirm two different schedules can both remain `TAKEN` on the same day.
-14. Confirm dashboard, device, alerts, queue, BLE, ESP-NOW, and telemetry still
+11. Trigger a pen dose, press `C CANCEL`, and verify no dose reaches the backend.
+12. Confirm the same buffered pen record does not reopen the cancelled prompt.
+13. Trigger a pen dose and verify `A` confirmation.
+14. Trigger another dose and verify `B`, digits, `*`, `#`, `C`, and `D`.
+15. Verify `A HOME`, `B RX`, `C ALERTS`, and `D SYSTEM` from each normal page.
+16. Confirm the technical queue page remains available with `0`.
+17. Confirm two different schedules can both remain `TAKEN` on the same day.
+18. Confirm Home, Prescription, Alerts, System, BLE, ESP-NOW, and telemetry still
     operate normally.
 
 ## Remaining Gaps

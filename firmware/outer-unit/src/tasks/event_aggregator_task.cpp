@@ -269,22 +269,22 @@ void eventAggregatorTask(void* parameter) {
                            key == 'C' &&
                            carePlanStopReminder()) {
                     Serial.println("[EventAgg] Prescription: reminder stopped");
-                } else if (key == '1') {
+                } else if (key == '1' || key == 'B') {
                     carePlanFocusCurrentSchedule();
                     updateDisplayPage(DISPLAY_PAGE_PRESCRIPTION);
                     Serial.println("[EventAgg] Display page: prescription");
                 } else if (key == 'A') {
                     updateDisplayPage(DISPLAY_PAGE_DASHBOARD);
-                    Serial.println("[EventAgg] Display page: dashboard");
-                } else if (key == 'B') {
-                    updateDisplayPage(DISPLAY_PAGE_DEVICE_STATUS);
-                    Serial.println("[EventAgg] Display page: device status");
+                    Serial.println("[EventAgg] Display page: home");
                 } else if (key == 'C') {
                     updateDisplayPage(DISPLAY_PAGE_ALERTS);
                     Serial.println("[EventAgg] Display page: alerts");
                 } else if (key == 'D') {
+                    updateDisplayPage(DISPLAY_PAGE_DEVICE_STATUS);
+                    Serial.println("[EventAgg] Display page: system");
+                } else if (key == '0') {
                     updateDisplayPage(DISPLAY_PAGE_QUEUE_STATUS);
-                    Serial.println("[EventAgg] Display page: queue status");
+                    Serial.println("[EventAgg] Display page: queue diagnostics");
                 }
                 continue;
             }

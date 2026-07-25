@@ -130,6 +130,7 @@ bool displayNeedsRedraw(const DisplayState& current,
     if (carePlan.revision != previousCarePlan.revision &&
         (current.dosePromptActive ||
          current.activePage == DISPLAY_PAGE_DASHBOARD ||
+         current.activePage == DISPLAY_PAGE_ALERTS ||
          current.activePage == DISPLAY_PAGE_PRESCRIPTION)) {
         return true;
     }
@@ -344,7 +345,7 @@ void drawStatusRow(int y, const char* label, const char* value, uint16_t color) 
 
 void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    drawPageTitle(state, "DASHBOARD");
+    drawPageTitle(state, "HOME");
 
     char tempBuf[24];
     if (!state.hasTelemetry || isnan(state.temperatureC)) {
@@ -393,65 +394,96 @@ void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
              true);
 
     rawFillRect(10, 336, 300, 72, COLOR_PANEL);
-    drawText(20, 346, "INJECTED AT", COLOR_MUTED, COLOR_PANEL, 2);
-    if (state.hasTelemetry && state.doseUnits > 0.0f) {
-        drawText(20, 378, state.injectedAt, COLOR_TEXT, COLOR_PANEL, 1);
+    if (carePlan.available && carePlan.scheduleCount > 0) {
+        drawText(20,
+                 346,
+                 carePlanStatusText(carePlan.status),
+                 carePlanStatusColor(carePlan.status),
+                 COLOR_PANEL,
+                 2);
+        char prescriptionSummary[44];
+        snprintf(prescriptionSummary,
+                 sizeof(prescriptionSummary),
+                 "%s  %.0fU  %.18s",
+                 carePlan.targetTime,
+                 carePlan.doseUnits,
+                 carePlan.insulinType);
+        drawText(20, 378, prescriptionSummary, COLOR_TEXT, COLOR_PANEL, 1);
     } else {
-        drawText(20, 378, "NO DOSE YET", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(20, 346, "PRESCRIPTION", COLOR_MUTED, COLOR_PANEL, 2);
+        drawText(20, 378, "WAITING FOR CARE PLAN", COLOR_TEXT, COLOR_PANEL, 2);
     }
 
     rawFillRect(0, 424, DISPLAY_WIDTH, 56, COLOR_BG);
-    char footer[56];
-    if (carePlan.available && carePlan.scheduleCount > 0) {
-        snprintf(footer, sizeof(footer), "1 RX | %s %s %.0fU | B DEV C ALERT D QUEUE",
-                 carePlanStatusText(carePlan.status),
-                 carePlan.targetTime,
-                 carePlan.doseUnits);
-    } else if (state.hasTelemetry) {
-        snprintf(footer, sizeof(footer), "1 RX | INBAT %d%% WIFI %d HEAP %luK",
-                 state.innerBatteryPercent,
-                 state.wifiRssiDbm,
-                 (unsigned long)(state.freeHeapBytes / 1024));
-    } else {
-        snprintf(footer, sizeof(footer), "1 RX | WAITING FOR TELEMETRY");
-    }
-    drawText(10, 442, footer, COLOR_MUTED, COLOR_BG, 1);
+    drawText(12, 442, "B RX  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
 }
 
-void drawDeviceStatus(const DisplayState& state) {
+void drawSystemStatus(const DisplayState& state) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    drawPageTitle(state, "DEVICE");
+    drawPageTitle(state, "SYSTEM");
 
     char value[32];
-    snprintf(value, sizeof(value), "%s %d", okBad(state.wifiConnected), state.wifiRssiDbm);
-    drawStatusRow(76, "WIFI RSSI", value, okBadColor(state.wifiConnected));
+    drawStatusRow(76,
+                  "WIFI",
+                  state.wifiConnected ? "ONLINE" : "OFFLINE",
+                  state.wifiConnected ? COLOR_OK : COLOR_BAD);
 
-    snprintf(value, sizeof(value), "%s S:%d", state.mqttRetrying ? "RETRY" : okBad(state.mqttConnected), state.mqttState);
-    drawStatusRow(122, "MQTT", value, mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
+    const char* cloudStatus = state.mqttRetrying
+        ? "RETRYING"
+        : (state.mqttConnected ? "SYNCED" : "OFFLINE");
+    drawStatusRow(122,
+                  "CLOUD",
+                  cloudStatus,
+                  mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
 
-    snprintf(value, sizeof(value), "%d DBM", state.bleRssiDbm);
-    drawStatusRow(168, "BLE RSSI", value, okBadColor(bleOk(state)));
+    drawStatusRow(168,
+                  "PEN",
+                  bleOk(state) ? "READY" : "WAITING",
+                  bleOk(state) ? COLOR_OK : COLOR_WARN);
 
-    snprintf(value, sizeof(value), "%luS", (unsigned long)ageSeconds(state.lastInnerPacketMs));
-    drawStatusRow(214, "INNER AGE", value, okBadColor(innerOk(state)));
+    drawStatusRow(214,
+                  "STORAGE",
+                  innerOk(state) ? "READY" : "WAITING",
+                  innerOk(state) ? COLOR_OK : COLOR_WARN);
 
-    snprintf(value, sizeof(value), "%luK", (unsigned long)(state.freeHeapBytes / 1024));
-    drawStatusRow(260, "FREE HEAP", value, COLOR_TEXT);
+    if (state.hasTelemetry) {
+        snprintf(value, sizeof(value), "%d%%", state.innerBatteryPercent);
+    } else {
+        snprintf(value, sizeof(value), "--");
+    }
+    drawStatusRow(260,
+                  "BATTERY",
+                  value,
+                  state.hasTelemetry &&
+                          state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT
+                      ? COLOR_BAD
+                      : COLOR_TEXT);
 
-    drawText(16, 430, "A DASH  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+    snprintf(value, sizeof(value), "%u", state.offlineQueueCount);
+    drawStatusRow(306,
+                  "PENDING SYNC",
+                  value,
+                  state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+
+    drawText(12, 442, "A HOME  |  B RX  |  C ALERTS", COLOR_MUTED, COLOR_BG, 1);
 }
 
-void drawAlerts(const DisplayState& state) {
+void drawAlerts(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "ALERTS");
 
-    bool offline = !state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0;
-    drawStatusRow(76, "OFFLINE", offline ? "YES" : "NO", offline ? COLOR_BAD : COLOR_OK);
+    const char* doseStatus = carePlan.available
+        ? carePlanStatusText(carePlan.status)
+        : "NO PLAN";
+    uint16_t doseColor = carePlan.available
+        ? carePlanStatusColor(carePlan.status)
+        : COLOR_MUTED;
+    drawStatusRow(76, "DOSE", doseStatus, doseColor);
 
     const char* tempStatus = "OK";
     uint16_t tempStatusColor = COLOR_OK;
     if (!state.hasTelemetry || isnan(state.temperatureC)) {
-        tempStatus = "UNKNOWN";
+        tempStatus = "WAITING";
         tempStatusColor = COLOR_MUTED;
     } else if (state.temperatureC < TEMP_MIN_C) {
         tempStatus = "LOW";
@@ -462,19 +494,30 @@ void drawAlerts(const DisplayState& state) {
     }
     drawStatusRow(122, "TEMP", tempStatus, tempStatusColor);
 
-    drawStatusRow(168, "DOOR", state.doorOpen ? "OPEN" : "CLOSED", state.doorOpen ? COLOR_WARN : COLOR_OK);
+    drawStatusRow(168,
+                  "DOOR",
+                  state.hasTelemetry ? (state.doorOpen ? "OPEN" : "CLOSED") : "WAITING",
+                  state.doorOpen ? COLOR_WARN : (state.hasTelemetry ? COLOR_OK : COLOR_MUTED));
 
     bool lowStock = state.hasTelemetry && state.estimatedPercent < 20.0f;
-    drawStatusRow(214, "INSULIN", lowStock ? "LOW" : "OK", lowStock ? COLOR_WARN : COLOR_OK);
+    drawStatusRow(214,
+                  "INSULIN",
+                  !state.hasTelemetry ? "WAITING" : (lowStock ? "LOW" : "OK"),
+                  !state.hasTelemetry ? COLOR_MUTED : (lowStock ? COLOR_WARN : COLOR_OK));
+
+    bool offline = !state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0;
+    drawStatusRow(260,
+                  "SYSTEM",
+                  offline ? "CHECK" : "OK",
+                  offline ? COLOR_WARN : COLOR_OK);
 
     bool lowBattery = state.hasTelemetry && state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT;
-    drawStatusRow(260, "IN BATTERY", lowBattery ? "LOW" : "OK", lowBattery ? COLOR_WARN : COLOR_OK);
+    drawStatusRow(306,
+                  "BATTERY",
+                  !state.hasTelemetry ? "WAITING" : (lowBattery ? "LOW" : "OK"),
+                  !state.hasTelemetry ? COLOR_MUTED : (lowBattery ? COLOR_WARN : COLOR_OK));
 
-    char queueBuf[24];
-    snprintf(queueBuf, sizeof(queueBuf), "%u QUEUED", state.offlineQueueCount);
-    drawStatusRow(306, "QUEUE", queueBuf, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
-
-    drawText(16, 430, "A DASH  B DEVICE  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+    drawText(12, 442, "A HOME  |  B RX  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
 }
 
 void drawQueueStatus(const DisplayState& state) {
@@ -501,7 +544,7 @@ void drawQueueStatus(const DisplayState& state) {
     }
     drawStatusRow(260, "OLDEST AGE", value, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
 
-    drawText(16, 430, "A DASH  B DEVICE  C ALERTS", COLOR_MUTED, COLOR_BG, 1);
+    drawText(12, 442, "A HOME  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
 }
 
 void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
@@ -513,7 +556,7 @@ void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
         drawText(30, 106, "NO ACTIVE CARE PLAN", COLOR_MUTED, COLOR_PANEL, 2);
         drawText(30, 148, "WAITING FOR BACKEND", COLOR_TEXT, COLOR_PANEL, 2);
         drawText(30, 180, "OR DEVICE SYNC", COLOR_TEXT, COLOR_PANEL, 2);
-        drawText(16, 438, "A DASH  B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+        drawText(12, 442, "A HOME  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
         return;
     }
 
@@ -582,16 +625,16 @@ void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
 
     rawFillRect(0, 432, DISPLAY_WIDTH, 48, COLOR_BG);
     if (carePlan.scheduleCount > 1) {
-        drawText(12, 438, "* PREV  # NEXT  |  A DASH", COLOR_MUTED, COLOR_BG, 1);
+        drawText(12, 438, "* PREV  # NEXT", COLOR_MUTED, COLOR_BG, 1);
     } else {
-        drawText(12, 438, "A DASH", COLOR_MUTED, COLOR_BG, 1);
+        drawText(12, 438, "PRESCRIPTION", COLOR_MUTED, COLOR_BG, 1);
     }
     if (carePlan.status == CARE_PLAN_STATUS_DUE &&
         carePlan.manualStopAllowed &&
         !carePlan.reminderSilenced) {
-        drawText(12, 458, "C SILENCE  |  B DEVICE  D QUEUE", COLOR_WARN, COLOR_BG, 1);
+        drawText(12, 458, "C SILENCE  |  A HOME  |  D SYSTEM", COLOR_WARN, COLOR_BG, 1);
     } else {
-        drawText(12, 458, "B DEVICE  C ALERTS  D QUEUE", COLOR_MUTED, COLOR_BG, 1);
+        drawText(12, 458, "A HOME  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
     }
 }
 
@@ -731,10 +774,10 @@ void displayUiTask(void* parameter) {
             } else {
                 switch (state.activePage) {
                     case DISPLAY_PAGE_DEVICE_STATUS:
-                        drawDeviceStatus(state);
+                        drawSystemStatus(state);
                         break;
                     case DISPLAY_PAGE_ALERTS:
-                        drawAlerts(state);
+                        drawAlerts(state, carePlan);
                         break;
                     case DISPLAY_PAGE_QUEUE_STATUS:
                         drawQueueStatus(state);

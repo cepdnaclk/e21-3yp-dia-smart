@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <link rel="icon" type="image/png" href="./assets/images/favicon.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dia-Smart | IoT-Based Diabetes Management System</title>
-    <meta name="description" content="IoT-Based Diabetes Management System for Elderly Diabetes Care. A third-year project of the Department of Computer Engineering, University of Peradeniya.">
+    <meta name="description"
+        content="IoT-Based Diabetes Management System for Elderly Diabetes Care. A third-year project of the Department of Computer Engineering, University of Peradeniya.">
     <style>
         /* ==========================================================================
            1. DESIGN SYSTEM & VARIABLE DEFINITIONS
@@ -27,7 +29,7 @@
             --warning-soft: #fff3df;
             --danger: #d75b65;
             --planned: #8492a6;
-            
+
             --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             --radius-default: 16px;
             --radius-small: 8px;
@@ -39,7 +41,9 @@
         /* ==========================================================================
            2. BASE RESET & ACCESSIBILITY DEFAULTS
            ========================================================================== */
-        *, *::before, *::after {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -83,6 +87,7 @@
             html {
                 scroll-behavior: auto !important;
             }
+
             * {
                 animation-duration: 0s !important;
                 animation-iteration-count: 1 !important;
@@ -376,7 +381,7 @@
            ========================================================================== */
         .hero {
             background-color: var(--navy-dark);
-            background-image: 
+            background-image:
                 linear-gradient(rgba(62, 193, 250, 0.04) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(62, 193, 250, 0.04) 1px, transparent 1px);
             background-size: 32px 32px;
@@ -513,7 +518,9 @@
             display: inline-block;
         }
 
-        .indicator-dot.teal { background-color: var(--teal); }
+        .indicator-dot.teal {
+            background-color: var(--teal);
+        }
 
         .gateway-status-row {
             display: flex;
@@ -856,9 +863,17 @@
             display: inline-block;
         }
 
-        .browser-dots .dot.red { background-color: #ff5f56; }
-        .browser-dots .dot.yellow { background-color: #ffbd2e; }
-        .browser-dots .dot.green { background-color: #27c93f; }
+        .browser-dots .dot.red {
+            background-color: #ff5f56;
+        }
+
+        .browser-dots .dot.yellow {
+            background-color: #ffbd2e;
+        }
+
+        .browser-dots .dot.green {
+            background-color: #27c93f;
+        }
 
         .browser-address {
             background-color: var(--surface);
@@ -1115,9 +1130,17 @@
         }
 
         @keyframes pulse-current {
-            0% { opacity: 0.85; }
-            50% { opacity: 1; }
-            100% { opacity: 0.85; }
+            0% {
+                opacity: 0.85;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.85;
+            }
         }
 
         .timeline-note {
@@ -1249,7 +1272,8 @@
             border-radius: 12px;
         }
 
-        .profile-dept, .profile-inst {
+        .profile-dept,
+        .profile-inst {
             font-size: 0.85rem;
             color: var(--text-muted);
             line-height: 1.4;
@@ -1385,7 +1409,7 @@
             font-weight: 600;
             margin-top: 1.5rem;
             text-align: center;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
         }
 
         .lightbox-close,
@@ -1687,20 +1711,20 @@
                 padding: 0.75rem 1rem;
                 font-size: 0.85rem;
             }
-            
+
             .lightbox-close {
                 top: 1rem;
                 right: 1rem;
                 width: 40px;
                 height: 40px;
             }
-            
+
             .lightbox-prev {
                 left: 1rem;
                 width: 40px;
                 height: 40px;
             }
-            
+
             .lightbox-next {
                 right: 1rem;
                 width: 40px;
@@ -1709,6 +1733,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- ==========================================================================
@@ -1722,13 +1747,14 @@
                 </div>
                 <span>Dia-Smart</span>
             </a>
-            
-            <button class="hamburger" id="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links-container">
+
+            <button class="hamburger" id="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false"
+                aria-controls="nav-links-container">
                 <span></span>
                 <span></span>
                 <span></span>
             </button>
-            
+
             <nav class="nav-links-container" id="nav-links-container">
                 <ul class="nav-links">
                     <li><a href="#problem">Problem</a></li>
@@ -1764,14 +1790,16 @@
                         for Elderly Insulin Users
                     </h1>
                     <p class="hero-desc">
-                        Dia-Smart is an IoT-based diabetes-management ecosystem that connects insulin-dose tracking, glucose readings, storage safety, inventory monitoring, alerts, and caregiver visibility through one integrated platform.
+                        Dia-Smart is an IoT-based diabetes-management ecosystem that connects insulin-dose tracking,
+                        glucose readings, storage safety, inventory monitoring, alerts, and caregiver visibility through
+                        one integrated platform.
                     </p>
                     <div class="hero-actions">
                         <a href="#features" class="btn btn-primary">Explore Features</a>
                         <a href="#architecture" class="btn btn-secondary">View Architecture</a>
                     </div>
                 </div>
-                
+
                 <div class="hero-preview">
                     <div class="gateway-preview">
                         <div class="gateway-header">
@@ -1811,7 +1839,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="hero-stats-bar">
                 <div class="hero-stat-item">
                     <span class="hero-stat-icon">➔</span>
@@ -1838,44 +1866,64 @@
                 <span class="section-label">The Problem</span>
                 <h2 class="section-title">Diabetes management is fragmented and difficult for elderly patients</h2>
                 <p class="section-desc" style="margin-left: auto; margin-right: auto;">
-                    Elderly insulin users must coordinate glucose measurement, insulin administration, safe storage, and inventory management. Existing devices usually operate independently, creating incomplete records and increasing dependence on memory and manual tracking.
+                    Elderly insulin users must coordinate glucose measurement, insulin administration, safe storage, and
+                    inventory management. Existing devices usually operate independently, creating incomplete records
+                    and increasing dependence on memory and manual tracking.
                 </p>
             </div>
-            
+
             <div class="cards-grid-4">
                 <div class="card">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
                     </div>
                     <h3 class="card-title">Dose Uncertainty</h3>
                     <p class="card-desc">Missed, repeated, or incorrectly recorded insulin doses.</p>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><path d="M2 20h20M5 17V5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v12"></path><circle cx="12" cy="9" r="2"></circle></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                            <path d="M2 20h20M5 17V5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v12"></path>
+                            <circle cx="12" cy="9" r="2"></circle>
+                        </svg>
                     </div>
                     <h3 class="card-title">Storage Safety</h3>
                     <p class="card-desc">Insulin may be exposed to unsuitable refrigerator temperatures.</p>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="12" y1="3" x2="12" y2="21"></line>
+                        </svg>
                     </div>
                     <h3 class="card-title">Inventory Gaps</h3>
                     <p class="card-desc">Patients may not identify low insulin availability in time.</p>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
                     </div>
                     <h3 class="card-title">Limited Visibility</h3>
                     <p class="card-desc">Caregivers and doctors lack a single, complete patient timeline.</p>
                 </div>
             </div>
-            
+
             <div class="text-center mt-4">
                 <a href="#solution" class="btn btn-accent">See Our Solution</a>
             </div>
@@ -1891,29 +1939,34 @@
                 <span class="section-label">Our Solution</span>
                 <h2 class="section-title">One connected ecosystem for safer diabetes management</h2>
                 <p class="section-desc" style="margin-left: auto; margin-right: auto;">
-                    Dia-Smart combines three connected hardware units with a secure cloud platform and role-based dashboard to create a unified patient-management workflow.
+                    Dia-Smart combines three connected hardware units with a secure cloud platform and role-based
+                    dashboard to create a unified patient-management workflow.
                 </p>
             </div>
-            
+
             <div class="cards-grid-4">
                 <div class="card">
                     <h3 class="card-title">Inner Unit — Smart Insulin Vault</h3>
-                    <p class="card-desc">Installed inside the refrigerator to monitor insulin-storage temperature, remaining inventory, and storage activity.</p>
+                    <p class="card-desc">Installed inside the refrigerator to monitor insulin-storage temperature,
+                        remaining inventory, and storage activity.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Outer Unit — Data Hub</h3>
-                    <p class="card-desc">Acts as the elderly-friendly patient interface, local processing unit, fallback confirmation device, and cloud communication gateway.</p>
+                    <p class="card-desc">Acts as the elderly-friendly patient interface, local processing unit, fallback
+                        confirmation device, and cloud communication gateway.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Pen Unit — Dose Detection Module</h3>
-                    <p class="card-desc">Attaches to the insulin injector pen and uses a magnetic encoder to detect dial rotation and estimate the selected insulin dose.</p>
+                    <p class="card-desc">Attaches to the insulin injector pen and uses a magnetic encoder to detect dial
+                        rotation and estimate the selected insulin dose.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Secure Cloud Platform</h3>
-                    <p class="card-desc">Combines dose, glucose, storage, inventory, prescription, and alert records within one patient timeline.</p>
+                    <p class="card-desc">Combines dose, glucose, storage, inventory, prescription, and alert records
+                        within one patient timeline.</p>
                 </div>
             </div>
         </div>
@@ -1928,51 +1981,59 @@
                 <span class="section-label">Key Features</span>
                 <h2 class="section-title">Essential diabetes-management functions connected in one platform</h2>
                 <p class="section-desc" style="margin-left: auto; margin-right: auto;">
-                    Dia-Smart brings together physical hardware, wireless networks, and secure software applications to streamline daily clinical operations.
+                    Dia-Smart brings together physical hardware, wireless networks, and secure software applications to
+                    streamline daily clinical operations.
                 </p>
             </div>
-            
+
             <div class="cards-grid-3">
                 <div class="card">
                     <h3 class="card-title">Automated Dose Tracking</h3>
-                    <p class="card-desc">Uses magnetic-encoder readings to monitor insulin-pen dial movement and record estimated dose events.</p>
+                    <p class="card-desc">Uses magnetic-encoder readings to monitor insulin-pen dial movement and record
+                        estimated dose events.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Glucose Integration</h3>
                     <p class="card-desc">Retrieves readings from supported Bluetooth Low Energy glucometers.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Storage Safety Monitoring</h3>
                     <p class="card-desc">Tracks refrigerator temperature and storage activity.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Inventory Monitoring</h3>
                     <p class="card-desc">Uses weight measurements to estimate the remaining insulin quantity.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Alerts and Caregiver Visibility</h3>
-                    <p class="card-desc">Provides relevant system notifications and remote access to patient records.</p>
+                    <p class="card-desc">Provides relevant system notifications and remote access to patient records.
+                    </p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Offline Reliability</h3>
                     <p class="card-desc">Buffers important events locally and synchronizes them after reconnection.</p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Manual Confirmation Fallback</h3>
-                    <p class="card-desc">Allows the patient to confirm or correct uncertain dose readings using the Outer Unit display and keypad.</p>
+                    <p class="card-desc">Allows the patient to confirm or correct uncertain dose readings using the
+                        Outer Unit display and keypad.</p>
                 </div>
             </div>
-            
+
             <div class="callout-panel">
                 <div class="callout-column">
                     <div class="callout-title">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
                         Security Architecture
                     </div>
                     <ul class="callout-list">
@@ -1985,10 +2046,14 @@
                         <li>Backend-mediated database access</li>
                     </ul>
                 </div>
-                
+
                 <div class="callout-column">
                     <div class="callout-title">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
                         Reliability Mechanisms
                     </div>
                     <ul class="callout-list">
@@ -2011,9 +2076,10 @@
             <span class="section-label">Architecture</span>
             <h2 class="section-title">How Dia-Smart works end to end</h2>
             <p class="section-desc">
-                A four-layer IoT architecture connecting sensing devices, secure communication, cloud processing, and role-based user interfaces.
+                A four-layer IoT architecture connecting sensing devices, secure communication, cloud processing, and
+                role-based user interfaces.
             </p>
-            
+
             <div class="arch-layers">
                 <div class="arch-layer">
                     <div class="arch-layer-num">Layer 1</div>
@@ -2025,11 +2091,14 @@
                         <span class="arch-chip">Compatible BLE Glucometer</span>
                     </div>
                 </div>
-                
+
                 <div class="arch-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
                 </div>
-                
+
                 <div class="arch-layer">
                     <div class="arch-layer-num">Layer 2</div>
                     <h3 class="arch-layer-title">Communication Layer</h3>
@@ -2041,11 +2110,14 @@
                         <span class="arch-chip">HTTPS REST API: backend to dashboard</span>
                     </div>
                 </div>
-                
+
                 <div class="arch-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
                 </div>
-                
+
                 <div class="arch-layer">
                     <div class="arch-layer-num">Layer 3</div>
                     <h3 class="arch-layer-title">Cloud Backend Layer</h3>
@@ -2058,11 +2130,14 @@
                         <span class="arch-chip">Secure data storage</span>
                     </div>
                 </div>
-                
+
                 <div class="arch-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <polyline points="19 12 12 19 5 12"></polyline>
+                    </svg>
                 </div>
-                
+
                 <div class="arch-layer">
                     <div class="arch-layer-num">Layer 4</div>
                     <h3 class="arch-layer-title">Presentation Layer</h3>
@@ -2074,9 +2149,11 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="arch-note">
-                <strong>Data Processing & Forwarding flow:</strong> The Outer Unit receives local device data, performs validation, correlation, timestamping, JSON packaging, and temporary buffering, and securely transmits verified records to the AWS cloud platform.
+                <strong>Data Processing & Forwarding flow:</strong> The Outer Unit receives local device data, performs
+                validation, correlation, timestamping, JSON packaging, and temporary buffering, and securely transmits
+                verified records to the AWS cloud platform.
             </div>
         </div>
     </section>
@@ -2091,7 +2168,7 @@
             <p class="section-desc">
                 Custom microcontrollers, sensors, and structural enclosures integrated to support daily routines.
             </p>
-            
+
             <div class="cards-grid-3">
                 <div class="card">
                     <div id="hw-inner-img-placeholder"></div>
@@ -2105,10 +2182,11 @@
                         <li>Custom 3D-printed enclosure</li>
                     </ul>
                     <div class="unit-purpose">
-                        <strong>Purpose:</strong> Monitors refrigerator temperature, insulin inventory, and storage activity and transmits readings to the Outer Unit through ESP-NOW.
+                        <strong>Purpose:</strong> Monitors refrigerator temperature, insulin inventory, and storage
+                        activity and transmits readings to the Outer Unit through ESP-NOW.
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div id="hw-outer-img-placeholder"></div>
                     <h3 class="card-title">Outer Unit — Data Hub</h3>
@@ -2123,10 +2201,12 @@
                         <li>Custom enclosure</li>
                     </ul>
                     <div class="unit-purpose">
-                        <strong>Purpose:</strong> Receives information from the Inner Unit, Pen Unit, and compatible glucometer, provides elderly-friendly guidance and fallback confirmation, and sends verified events to the cloud.
+                        <strong>Purpose:</strong> Receives information from the Inner Unit, Pen Unit, and compatible
+                        glucometer, provides elderly-friendly guidance and fallback confirmation, and sends verified
+                        events to the cloud.
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div id="hw-pen-img-placeholder"></div>
                     <h3 class="card-title">Pen Unit — Dose Detection Module</h3>
@@ -2137,11 +2217,12 @@
                         <li>Custom attachment enclosure</li>
                     </ul>
                     <div class="unit-purpose">
-                        <strong>Purpose:</strong> Mechanically attaches to the HumaPen Ergo injector pen, monitors dial rotation, estimates the selected dose, and transmits the event to the Outer Unit through BLE.
+                        <strong>Purpose:</strong> Mechanically attaches to the HumaPen Ergo injector pen, monitors dial
+                        rotation, estimates the selected dose, and transmits the event to the Outer Unit through BLE.
                     </div>
                 </div>
             </div>
-            
+
             <h3 class="evidence-heading">Hardware Design &amp; Calibration Evidence</h3>
             <div class="evidence-grid">
                 <div class="evidence-card">
@@ -2168,9 +2249,11 @@
             <span class="section-label">Firmware</span>
             <h2 class="section-title">Coordinated sensing, communication, and reliable event handling</h2>
             <p class="section-desc">
-                Firmware has been developed for the Inner Unit, Pen Unit, and Outer Unit using the ESP32 Arduino framework and PlatformIO. Modular services and FreeRTOS-based tasks allow sensing, communication, storage, and user-interface operations to run independently.
+                Firmware has been developed for the Inner Unit, Pen Unit, and Outer Unit using the ESP32 Arduino
+                framework and PlatformIO. Modular services and FreeRTOS-based tasks allow sensing, communication,
+                storage, and user-interface operations to run independently.
             </p>
-            
+
             <div class="cards-grid-3">
                 <div class="card">
                     <h3 class="card-title">Inner Unit Firmware</h3>
@@ -2185,7 +2268,7 @@
                         <li>Power and sleep management</li>
                     </ul>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Pen Unit Firmware</h3>
                     <ul class="tech-list">
@@ -2198,7 +2281,7 @@
                         <li>Low-power task management</li>
                     </ul>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Outer Unit Firmware</h3>
                     <ul class="tech-list">
@@ -2216,7 +2299,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <h3 class="evidence-heading">Firmware Validation Evidence</h3>
             <div class="evidence-grid">
                 <div class="evidence-card">
@@ -2245,7 +2328,7 @@
             <p class="section-desc">
                 The software tier coordinates clinical tasks, aggregates records, and manages user views securely.
             </p>
-            
+
             <div class="browser-frame">
                 <div class="browser-header">
                     <div class="browser-dots">
@@ -2259,12 +2342,13 @@
                     <div id="software-dashboard-img-container"></div>
                 </div>
             </div>
-            
+
             <div class="cards-grid-3">
                 <div class="card">
                     <h3 class="card-title">Cloud Backend Capabilities</h3>
                     <p class="card-desc" style="margin-bottom: 1rem;">
-                        The Spring Boot backend processes MQTT telemetry, applies business rules, manages users and devices, generates alerts, and provides secure REST APIs.
+                        The Spring Boot backend processes MQTT telemetry, applies business rules, manages users and
+                        devices, generates alerts, and provides secure REST APIs.
                     </p>
                     <ul class="tech-list" style="font-size: 0.85rem;">
                         <li>Telemetry reception and processing</li>
@@ -2279,7 +2363,7 @@
                         <li>System auditing &amp; admin functions</li>
                     </ul>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Web Dashboard Features</h3>
                     <p class="card-desc" style="margin-bottom: 1rem;">
@@ -2298,7 +2382,7 @@
                         <li>System configuration console</li>
                     </ul>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Deployment Infrastructure</h3>
                     <p class="card-desc" style="margin-bottom: 1rem;">
@@ -2310,7 +2394,8 @@
                         <li>Amazon RDS PostgreSQL database</li>
                         <li>React dashboard on AWS Amplify</li>
                     </ul>
-                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-top: 1.5rem; color: var(--navy);">Technology Badges</h4>
+                    <h4 style="font-size: 0.9rem; font-weight: 700; margin-top: 1.5rem; color: var(--navy);">Technology
+                        Badges</h4>
                     <div class="badge-container" id="software-tech-badges">
                         <!-- Rendered by JS -->
                     </div>
@@ -2329,7 +2414,7 @@
             <p class="section-desc">
                 Continuous integration checks run alongside hardware validation benches to confirm system functionality.
             </p>
-            
+
             <div class="testing-columns">
                 <div class="test-group">
                     <h3 class="test-group-title">Hardware and Firmware Testing</h3>
@@ -2372,7 +2457,7 @@
                         </li>
                     </ul>
                 </div>
-                
+
                 <div class="test-group">
                     <h3 class="test-group-title">Software and Cloud Testing</h3>
                     <ul class="test-list">
@@ -2415,7 +2500,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <h3 class="evidence-heading">Testing &amp; Automated Verification Evidence</h3>
             <div class="evidence-grid">
                 <div class="evidence-card">
@@ -2446,7 +2531,7 @@
                     Consolidated prototype construction costs and testing expenditures.
                 </p>
             </div>
-            
+
             <div id="budget-table-placeholder">
                 <!-- Rendered dynamically by JS -->
             </div>
@@ -2463,7 +2548,7 @@
             <p class="section-desc">
                 Schedule of the research, development, and validation milestones spanning November 2025 to August 2026.
             </p>
-            
+
             <div class="gantt-container">
                 <div class="gantt-chart">
                     <!-- Gantt header row -->
@@ -2478,7 +2563,7 @@
                     <div class="gantt-header-cell">Jun '26</div>
                     <div class="gantt-header-cell">Jul '26</div>
                     <div class="gantt-header-cell">Aug '26</div>
-                    
+
                     <!-- Task 1 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">Research and Requirement Analysis</div>
@@ -2486,7 +2571,7 @@
                             <div class="gantt-bar" style="grid-column: 1 / 3;">Nov–Dec 2025</div>
                         </div>
                     </div>
-                    
+
                     <!-- Task 2 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">System Architecture and Design</div>
@@ -2494,7 +2579,7 @@
                             <div class="gantt-bar" style="grid-column: 3 / 5;">Jan–Feb 2026</div>
                         </div>
                     </div>
-                    
+
                     <!-- Task 3 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">Hardware, PCB &amp; Enclosure</div>
@@ -2502,7 +2587,7 @@
                             <div class="gantt-bar" style="grid-column: 4 / 7;">Feb–Apr 2026</div>
                         </div>
                     </div>
-                    
+
                     <!-- Task 4 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">Firmware Development</div>
@@ -2510,7 +2595,7 @@
                             <div class="gantt-bar" style="grid-column: 5 / 9;">Mar–Jun 2026</div>
                         </div>
                     </div>
-                    
+
                     <!-- Task 5 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">Backend, Dashboard &amp; Cloud</div>
@@ -2518,7 +2603,7 @@
                             <div class="gantt-bar" style="grid-column: 6 / 10;">Apr–Jul 2026</div>
                         </div>
                     </div>
-                    
+
                     <!-- Task 6 -->
                     <div class="gantt-row">
                         <div class="gantt-task-name">Integration Testing &amp; Validation</div>
@@ -2528,11 +2613,13 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="timeline-note">
                 <div class="current-badge">Current Phase: Integration Testing and Validation</div>
                 <p>
-                    Dia-Smart currently has a working basic integrated prototype. Current testing focuses on sensor and dose-detection accuracy, device communication reliability, offline buffering, cloud synchronization, alert generation, dashboard usability, long-duration operation, and enclosure refinement.
+                    Dia-Smart currently has a working basic integrated prototype. Current testing focuses on sensor and
+                    dose-detection accuracy, device communication reliability, offline buffering, cloud synchronization,
+                    alert generation, dashboard usability, long-duration operation, and enclosure refinement.
                 </p>
             </div>
         </div>
@@ -2546,9 +2633,13 @@
             <span class="section-label">Future Development</span>
             <h2 class="section-title">From a retrofit attachment to a fully proprietary Dia-Smart insulin pen</h2>
             <p class="section-desc">
-                The current Dia-Smart Pen Unit already supports dial-rotation sensing, dose estimation, embedded processing, and wireless transmission through a compact attachment fitted to a HumaPen Ergo injector pen. The future plan is not to add a missing feature, but to redesign the validated mechanism as a complete Dia-Smart insulin pen with an integrated smart cap. This will replace the external commercial pen body with a more compact, adaptable, manufacturable, and fully proprietary Dia-Smart design.
+                The current Dia-Smart Pen Unit already supports dial-rotation sensing, dose estimation, embedded
+                processing, and wireless transmission through a compact attachment fitted to a HumaPen Ergo injector
+                pen. The future plan is not to add a missing feature, but to redesign the validated mechanism as a
+                complete Dia-Smart insulin pen with an integrated smart cap. This will replace the external commercial
+                pen body with a more compact, adaptable, manufacturable, and fully proprietary Dia-Smart design.
             </p>
-            
+
             <div class="cards-grid-4" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
                 <div class="card">
                     <h3 class="card-title">Current Prototype</h3>
@@ -2556,11 +2647,12 @@
                         Dia-Smart sensing and communication attachment fitted to a commercial HumaPen Ergo injector pen.
                     </p>
                 </div>
-                
+
                 <div class="card">
                     <h3 class="card-title">Future Product</h3>
                     <p class="card-desc">
-                        Purpose-built Dia-Smart insulin pen and integrated smart cap retaining the validated sensing and communication functionality.
+                        Purpose-built Dia-Smart insulin pen and integrated smart cap retaining the validated sensing and
+                        communication functionality.
                     </p>
                 </div>
             </div>
@@ -2577,12 +2669,12 @@
             <p class="section-desc">
                 Department of Computer Engineering, Faculty of Engineering, University of Peradeniya.
             </p>
-            
+
             <h3 class="profile-section-title">Project Supervisors</h3>
             <div class="profile-grid" id="supervisors-grid">
                 <!-- Loaded dynamically by JS -->
             </div>
-            
+
             <h3 class="profile-section-title">Team Members</h3>
             <div class="profile-grid" id="team-grid">
                 <!-- Loaded dynamically by JS -->
@@ -2600,7 +2692,7 @@
             <p class="section-desc">
                 Visual log of hardware component manufacturing, laboratory validation tests, and interfaces.
             </p>
-            
+
             <div class="gallery-grid" id="gallery-grid">
                 <!-- Rendered dynamically by JS -->
             </div>
@@ -2617,7 +2709,7 @@
             <p class="section-desc">
                 Reference sources, code repositories, and institutional websites.
             </p>
-            
+
             <div class="links-grid" id="links-grid">
                 <!-- Rendered dynamically by JS -->
             </div>
@@ -2635,11 +2727,11 @@
                 </div>
                 <span>Dia-Smart</span>
             </a>
-            
+
             <p class="footer-inst">
                 Department of Computer Engineering · Faculty of Engineering · University of Peradeniya
             </p>
-            
+
             <p class="footer-copyright">
                 &copy; 2026 Dia-Smart. All rights reserved.
             </p>
@@ -2648,7 +2740,11 @@
 
     <!-- Back to top button -->
     <button id="back-to-top" class="back-to-top" aria-label="Back to top">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
     </button>
 
     <!-- ==========================================================================
@@ -2656,7 +2752,8 @@
        ========================================================================== -->
     <div id="lightbox" class="lightbox-modal" role="dialog" aria-modal="true" aria-hidden="true">
         <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close gallery lightbox">&times;</button>
-        <button class="lightbox-prev" onclick="prevLightboxImage()" aria-label="Previous gallery image">&#10094;</button>
+        <button class="lightbox-prev" onclick="prevLightboxImage()"
+            aria-label="Previous gallery image">&#10094;</button>
         <button class="lightbox-next" onclick="nextLightboxImage()" aria-label="Next gallery image">&#10095;</button>
         <div class="lightbox-content">
             <img id="lightbox-img" src="" alt="">
@@ -2695,9 +2792,9 @@
                     department: "Department of Computer Engineering",
                     faculty: "Faculty of Engineering",
                     university: "University of Peradeniya",
-                    image: "assets/supervisor-yasodha.jpg",
-                    linkedin: "",
-                    email: ""
+                    image: "assets/images/supervisors/yasodha-vimukthi.jpg",
+                    linkedin: "https://www.linkedin.com/in/yashodha-vimukthi-586378137/",
+                    email: "yasodhav@eng.pdn.ac.lk"
                 },
                 {
                     name: "Dr. Isuru Nawinne",
@@ -2705,9 +2802,9 @@
                     department: "Department of Computer Engineering",
                     faculty: "Faculty of Engineering",
                     university: "University of Peradeniya",
-                    image: "assets/supervisor-isuru.jpg",
-                    linkedin: "",
-                    email: ""
+                    image: "assets/images/supervisors/isuru-nawinne.png",
+                    linkedin: "https://www.linkedin.com/in/isuru-nawinne-73302833/",
+                    email: "isurunawinne@eng.pdn.ac.lk"
                 }
             ],
 
@@ -2715,38 +2812,38 @@
                 {
                     name: "Arnikan Uthayasekar",
                     email: "arnikan1811@gmail.com",
-                    registrationNumber: "",
+                    registrationNumber: "E/21/036",
                     responsibility: "",
-                    image: "",
-                    linkedin: "",
-                    github: ""
+                    image: "assets/images/Team/arnikan-uthayasekar.jpg",
+                    linkedin: "https://www.linkedin.com/in/arnikan-uthayasekar-7b927833a/",
+                    github: "https://github.com/Arnikan18"
                 },
                 {
                     name: "Ananthasagaran Narayanapillai",
                     email: "nsagaran09@gmail.com",
-                    registrationNumber: "",
+                    registrationNumber: "E/21/031",
                     responsibility: "",
-                    image: "",
-                    linkedin: "",
-                    github: ""
+                    image: "assets/images/Team/ananthasagaran-narayanapillai.jpg",
+                    linkedin: "https://www.linkedin.com/in/narayanapillai-ananthasagaran-ab63a4278/",
+                    github: "https://github.com/ananthu65"
                 },
                 {
                     name: "Sanjeevan Uthayachandran",
                     email: "sanjeevan200299@gmail.com",
-                    registrationNumber: "",
+                    registrationNumber: "E/21/356",
                     responsibility: "",
-                    image: "",
-                    linkedin: "",
-                    github: ""
+                    image: "assets/images/Team/sanjeevan-uthayachandran.jpg",
+                    linkedin: "https://www.linkedin.com/in/sanjeevan-uthayachandran-4025b22a6/",
+                    github: "https://github.com/SanjeevanUthayachandran"
                 },
                 {
                     name: "Sivasuthan Jeganathan",
                     email: "jeganathansivasuthan@gmail.com",
-                    registrationNumber: "",
+                    registrationNumber: "E/21/386",
                     responsibility: "",
-                    image: "",
-                    linkedin: "",
-                    github: ""
+                    image: "assets/images/Team/sivasuthan-jeganathan.jpg",
+                    linkedin: "https://www.linkedin.com/in/sivasuthan-jeganathan-94778a33a/",
+                    github: "https://github.com/sivasuthanjeganathan"
                 }
             ],
 
@@ -2762,15 +2859,15 @@
             },
 
             images: {
-                innerUnit: "assets/inner-unit.jpg",
-                outerUnit: "assets/outer-unit.jpg",
-                penUnit: "assets/pen-unit.jpg",
-                pcbDesign: "assets/pcb-design.jpg",
+                innerUnit: "assets/images/Hardware/inner-unit.png",
+                outerUnit: "assets/images/Hardware/outer-unit.png",
+                penUnit: "assets/images/Hardware/pen-unit.png",
+                pcbDesign: "assets/images/pcb-design.png",
                 enclosureDesign: "assets/enclosure-design.jpg",
-                calibration: "assets/calibration.jpg",
+                calibration: "assets/images/calibration.jpeg",
                 integratedDemo: "assets/integrated-demo.jpg",
-                dashboard: "assets/dashboard.png",
-                firmwareBuild: "assets/firmware-build.png",
+                dashboard: "assets/images/dashboard.jpeg",
+                firmwareBuild: "assets/images/firmware-build.jpeg",
                 firmwareLogs: "assets/firmware-logs.png",
                 deviceDisplay: "assets/device-display.jpg",
                 backendTests: "assets/backend-tests.png",
@@ -2784,7 +2881,7 @@
         // 2. TECH CHIPS DEFINITION
         // ==========================================================================
         const TECH_BADGES = [
-            "React", "Spring Boot", "PostgreSQL", "AWS IoT Core", 
+            "React", "Spring Boot", "PostgreSQL", "AWS IoT Core",
             "Amazon EC2", "Amazon RDS", "AWS Amplify", "MQTT", "JWT", "RBAC"
         ];
 
@@ -2822,7 +2919,7 @@
             const hasImage = imagePath && imagePath.trim() !== "";
             const imgStyle = hasImage ? "" : "style='display: none;'";
             const fallbackStyle = hasImage ? "style='display: none;'" : "style='display: flex;'";
-            
+
             return `
                 <div class="image-container ${altClass}">
                     <div class="image-fallback" ${fallbackStyle}>
@@ -2880,7 +2977,7 @@
             const hasImage = supervisor.image && supervisor.image.trim() !== "";
             const hasLinkedin = supervisor.linkedin && supervisor.linkedin.trim() !== "";
             const hasEmail = supervisor.email && supervisor.email.trim() !== "";
-            
+
             let linksHtml = "";
             if (hasLinkedin || hasEmail) {
                 linksHtml = `
@@ -3087,10 +3184,10 @@
             });
 
             container.innerHTML = html;
-            
+
             // Allow gallery keyboard interaction
             container.querySelectorAll('.gallery-card').forEach(card => {
-                card.addEventListener('keydown', function(e) {
+                card.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         card.click();
@@ -3176,7 +3273,7 @@
             lightbox.style.display = 'flex';
             lightbox.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden'; // Lock background scrolling
-            
+
             // Set focus inside modal close button
             document.querySelector('.lightbox-close').focus();
         }
@@ -3212,7 +3309,7 @@
         }
 
         // Keyboard listeners for accessibility
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             const lightbox = document.getElementById('lightbox');
             if (lightbox && lightbox.style.display === 'flex') {
                 if (e.key === 'Escape') {
@@ -3313,4 +3410,5 @@
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
+
 </html>

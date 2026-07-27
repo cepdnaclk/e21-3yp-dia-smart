@@ -515,7 +515,9 @@ public class TelemetryProcessingService {
         glucose.setPatientId(normalizedPatientId);
         glucose.setDeviceId(deviceId);
         glucose.setRawEventId(rawEvent.getRawEventId());
-        glucose.setMeasuredAt(eventTime);
+        glucose.setMeasuredAt(
+                parseTimestamp(dto.getMeasuredAt(), eventTime)
+        );
         glucose.setGlucoseValueMgDl(
                 dto.getValueMgDl().doubleValue()
         );

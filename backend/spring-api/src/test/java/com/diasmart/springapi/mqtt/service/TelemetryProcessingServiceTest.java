@@ -39,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -283,6 +284,87 @@ class TelemetryProcessingServiceTest {
                                 processedEvent
                                                 .getProcessingError()
                                                 .contains("glucose: duplicate glucose sequence"));
+        }
+
+        @Test
+        void shouldUseGlucometerMeasurementTimeAndKeepRootEventTime() {
+                TelemetryPayloadDTO payload = combinedGlucoseAndDosePayload();
+                payload.getGlucose().setMeasuredAt(
+                                "2026-06-16T13:20:00+05:30");
+                stubTelemetryPersistence(102L);
+
+                service.process(payload, "{}", "diasmart/test");
+
+                ArgumentCaptor<GlucoseReading> glucoseCaptor =
+                                ArgumentCaptor.forClass(GlucoseReading.class);
+                verify(glucoseRepository).save(glucoseCaptor.capture());
+                assertEquals(
+                                OffsetDateTime.parse("2026-06-16T13:20:00+05:30"),
+                                glucoseCaptor.getValue().getMeasuredAt());
+
+                ArgumentCaptor<RawDeviceEvent> rawCaptor =
+                                ArgumentCaptor.forClass(RawDeviceEvent.class);
+                verify(rawRepository, org.mockito.Mockito.times(2))
+                                .save(rawCaptor.capture());
+                assertEquals(
+                                OffsetDateTime.parse("2026-06-16T08:00:00Z"),
+                                rawCaptor.getValue().getEventTime());
+        }
+
+        @Test
+        void shouldUseRootEventTimeForLegacyGlucosePayload() {
+                TelemetryPayloadDTO payload = combinedGlucoseAndDosePayload();
+                stubTelemetryPersistence(103L);
+
+                service.process(payload, "{}", "diasmart/test");
+
+                ArgumentCaptor<GlucoseReading> glucoseCaptor =
+                                ArgumentCaptor.forClass(GlucoseReading.class);
+                verify(glucoseRepository).save(glucoseCaptor.capture());
+                assertEquals(
+                                OffsetDateTime.parse("2026-06-16T08:00:00Z"),
+                                glucoseCaptor.getValue().getMeasuredAt());
+        }
+
+        @Test
+        void shouldUseRootEventTimeForInvalidGlucometerTime() {
+                TelemetryPayloadDTO payload = combinedGlucoseAndDosePayload();
+                payload.getGlucose().setMeasuredAt("not-a-timestamp");
+                stubTelemetryPersistence(104L);
+
+                service.process(payload, "{}", "diasmart/test");
+
+                ArgumentCaptor<GlucoseReading> glucoseCaptor =
+                                ArgumentCaptor.forClass(GlucoseReading.class);
+                verify(glucoseRepository).save(glucoseCaptor.capture());
+                assertEquals(
+                                OffsetDateTime.parse("2026-06-16T08:00:00Z"),
+                                glucoseCaptor.getValue().getMeasuredAt());
+        }
+
+        private void stubTelemetryPersistence(Long rawEventId) {
+                when(rawRepository.existsByDeviceUidAndSourceEventId(
+                                "OUTER-1",
+                                "evt-1")).thenReturn(false);
+                when(deviceRepository.findByDeviceUid(anyString()))
+                                .thenReturn(Optional.empty());
+
+                doAnswer(invocation -> {
+                        RawDeviceEvent event = invocation.getArgument(0);
+                        if (event.getRawEventId() == null) {
+                                event.setRawEventId(rawEventId);
+                        }
+                        return event;
+                }).when(rawRepository).save(any(RawDeviceEvent.class));
+
+                doAnswer(invocation -> {
+                        Device device = invocation.getArgument(0);
+                        if (device.getDeviceId() == null) {
+                                device.setDeviceId(
+                                                deviceIdFor(device.getDeviceUid()));
+                        }
+                        return device;
+                }).when(deviceRepository).save(any(Device.class));
         }
 
         private TelemetryPayloadDTO combinedGlucoseAndDosePayload() {

@@ -577,6 +577,23 @@ void bleManagerTask(void* parameter) {
             }
         }
 
+        if (glucometerConnected) {
+            if (racpRequestInFlight &&
+                (now - lastRacpRequestMs) >=
+                    GLUCOMETER_RACP_TIMEOUT_MS) {
+                racpRequestInFlight = false;
+                racpDone = false;
+                Serial.println(
+                    "[BLE] RACP request timed out; live retry scheduled");
+            }
+
+            if (!racpRequestInFlight &&
+                (now - lastRacpRequestMs) >=
+                    GLUCOMETER_LIVE_SYNC_INTERVAL_MS) {
+                requestLatestGlucometerRecord();
+            }
+        }
+
         if ((!penConnected || !glucometerConnected) &&
             !penFound &&
             !glucometerFound &&

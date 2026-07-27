@@ -53,8 +53,10 @@
 #define GLUCOMETER_SCAN_WINDOW_SEC   10
 #define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
 
-// How often the outer unit attempts to sync the glucometer
-#define GLUCOMETER_SYNC_INTERVAL_MS  30000
+// Keep requesting the Guide Me latest record while its BLE link is active.
+// Sequence-number deduplication prevents repeat backend events.
+#define GLUCOMETER_LIVE_SYNC_INTERVAL_MS 5000
+#define GLUCOMETER_RACP_TIMEOUT_MS       12000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //
 #define TEMP_MIN_C                   2.0f

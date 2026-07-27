@@ -24,6 +24,8 @@ struct TelemetryEvent {
     bool         hasGlucose;
     int          glucoseMgDl;
     int          glucometerSequenceNumber;
+    char         glucoseMeasuredAt[32];
+    bool         hasGlucoseMeasuredAt;
 
     // Dose
     bool         hasDose;

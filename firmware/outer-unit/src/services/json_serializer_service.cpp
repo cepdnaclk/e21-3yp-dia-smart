@@ -78,6 +78,9 @@ String serializeTelemetryEvent(const TelemetryEvent& event) {
         doc["glucose"]["valueMgDl"]      = event.glucoseMgDl;
         doc["glucose"]["source"]         = "BLE_GLUCOMETER";
         doc["glucose"]["sequenceNumber"] = event.glucometerSequenceNumber;
+        if (event.hasGlucoseMeasuredAt) {
+            doc["glucose"]["measuredAt"] = event.glucoseMeasuredAt;
+        }
     }
 
     // ---- dose ------------------------------------------------------------ //

@@ -424,6 +424,15 @@ void eventAggregatorTask(void* parameter) {
             event.hasGlucose             = hasGlucose && lastGlucose.valueMgDl > 0;
             event.glucoseMgDl             = lastGlucose.valueMgDl;
             event.glucometerSequenceNumber = lastGlucose.sequenceNumber;
+            event.hasGlucoseMeasuredAt =
+                event.hasGlucose && lastGlucose.hasMeasuredAt;
+            if (event.hasGlucoseMeasuredAt) {
+                strncpy(event.glucoseMeasuredAt,
+                        lastGlucose.measuredAt,
+                        sizeof(event.glucoseMeasuredAt) - 1);
+                event.glucoseMeasuredAt[
+                    sizeof(event.glucoseMeasuredAt) - 1] = '\0';
+            }
 
             // Dose
             const DoseReading& eventDose = hasDoseToPublish ? doseToPublish : lastDose;

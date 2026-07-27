@@ -44,6 +44,8 @@
 #define GLUCOMETER_SERVICE_UUID      ((uint16_t)0x1808)
 #define GLUCOMETER_MEAS_UUID         ((uint16_t)0x2A18)   // NOTIFY
 #define GLUCOMETER_RACP_UUID         ((uint16_t)0x2A52)   // INDICATE
+// Timezone attached to the meter's user-facing date/time.
+#define GLUCOMETER_UTC_OFFSET_MINUTES 330
 
 // BLE scan/session scheduling. Keep pen checks short/frequent and glucometer
 // checks longer/less frequent so one peripheral does not starve the other.

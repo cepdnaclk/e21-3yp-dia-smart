@@ -11,6 +11,7 @@
 
 #include "config/app_config.h"
 #include "include/system_queues.h"
+#include "../../../common/utils/glucose_time_utils.h"
 
 // Shared with event_aggregator_task. This remains the pen RSSI because the
 // existing display uses it as the pen-ready signal.
@@ -217,16 +218,25 @@ void onGlucoseMeasurementNotify(BLERemoteCharacteristic* characteristic,
                                 bool isNotify) {
     (void)characteristic;
     (void)isNotify;
-    if (length < 14) {
+    if (length < 10) {
         Serial.printf("[BLE] Short glucose measurement ignored: %u bytes\n",
                       (unsigned)length);
+        return;
+    }
+
+    const uint8_t flags = data[0];
+    const size_t glucoseOffset =
+        glucose_time::concentrationOffset(flags);
+    if ((flags & 0x02U) == 0 || length < glucoseOffset + 2) {
+        Serial.println("[BLE] Glucose concentration missing");
         return;
     }
 
     uint16_t sequenceNumber =
         (uint16_t)(data[1] | ((uint16_t)data[2] << 8));
     uint16_t rawGlucose =
-        (uint16_t)(data[12] | ((uint16_t)data[13] << 8));
+        (uint16_t)(data[glucoseOffset] |
+                   ((uint16_t)data[glucoseOffset + 1] << 8));
     int glucoseMgDl = (int)(rawGlucose & 0x0FFF);
 
     if (hasLastGlucoseSeq &&
@@ -240,6 +250,12 @@ void onGlucoseMeasurementNotify(BLERemoteCharacteristic* characteristic,
     reading.sequenceNumber = sequenceNumber;
     reading.valueMgDl = glucoseMgDl;
     reading.timestampMs = millis();
+    reading.hasMeasuredAt = glucose_time::formatMeasuredAt(
+        data,
+        length,
+        GLUCOMETER_UTC_OFFSET_MINUTES,
+        reading.measuredAt,
+        sizeof(reading.measuredAt));
     if (xQueueSend(glucoseQueue, &reading, 0) != pdTRUE) {
         Serial.println("[BLE] glucoseQueue full; reading dropped");
         return;
@@ -247,9 +263,10 @@ void onGlucoseMeasurementNotify(BLERemoteCharacteristic* characteristic,
 
     lastAcceptedGlucoseSeq = sequenceNumber;
     hasLastGlucoseSeq = true;
-    Serial.printf("[BLE] Glucose queued immediately: %d mg/dL seq=%u\n",
+    Serial.printf("[BLE] Glucose queued immediately: %d mg/dL seq=%u measuredAt=%s\n",
                   glucoseMgDl,
-                  sequenceNumber);
+                  sequenceNumber,
+                  reading.hasMeasuredAt ? reading.measuredAt : "event-time-fallback");
 }
 
 void onRacpIndicate(BLERemoteCharacteristic* characteristic,

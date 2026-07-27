@@ -7,13 +7,16 @@ Accu-Chek Guide Me can remain connected at the same time. It also polls the
 connected glucometer for its latest record so a new reading enters the existing
 backend telemetry path without requiring the meter to be switched off and on.
 
-No backend, database, IoT policy, web dashboard, or mobile application code was
-changed in this work.
+The measurement-time follow-up adds one backward-compatible backend DTO field
+and glucose persistence fallback. Database, IoT policy, web dashboard, and
+mobile application code remain unchanged.
 
 ## Commits
 
 - `860346b` - `Enable parallel BLE client connections`
 - `0443bb3` - `Stream live glucometer readings over BLE`
+- `f6f89d1` - `Preserve glucometer measurement timestamps`
+- `60b3b87` - `Ingest glucometer source timestamps`
 
 ## Firmware Changes
 
@@ -86,60 +89,21 @@ confirm the Accu-Chek firmware's behavior while it remains powered on.
 11. Disconnect Wi-Fi, take a glucose reading, restore Wi-Fi, and confirm the
     queued payload reaches the backend.
 
-## Current Glucose Time Behavior
+## Glucose Measurement Time
 
-The Accu-Chek Glucose Measurement packet contains a Base Time:
+Commits `f6f89d1` and `60b3b87` implement the real meter measurement time
+without replacing the existing event clock.
 
-- Year: bytes 3-4.
-- Month, day, hour, minute, and second: bytes 5-9.
-- Optional time offset: bytes 10-11 when indicated by the flags byte.
+- Root `timestamp` remains the Outer Unit NTP event time.
+- Storage, inventory, health, and other Inner Unit data still use root event
+  time.
+- `glucose.measuredAt` contains the validated Accu-Chek user-facing
+  measurement time.
+- Missing or malformed meter time falls back to root event time in the backend.
+- The MQTT topic and version-one payload compatibility remain unchanged.
+- No database migration was required.
 
-The current production parser only reads the sequence number and glucose value.
-It records `millis()` as local reception uptime, but this value is not included
-in MQTT telemetry.
-
-The event aggregator assigns the Outer Unit NTP time to the root telemetry
-`timestamp`. The backend parses that root timestamp and stores it as the
-glucose row's `measured_at`. Therefore, the web dashboard currently displays
-the time when the Outer Unit processed the record, not the time saved by the
-glucometer.
-
-The legacy glucometer sketch did parse bytes 3-9, but treated the meter Base
-Time as UTC and always added 5 hours 30 minutes. That conversion should not be
-copied without validating the meter's clock and optional offset behavior on the
-physical device.
-
-## Deferred Real Measurement Time Plan
-
-These changes are required in a later, coordinated update.
-
-### Firmware
-
-1. Extend `GlucoseReading` and `TelemetryEvent` with an ISO 8601
-   `measuredAt`, a validity flag, and optionally the meter offset in minutes.
-2. Parse and validate the Base Time fields and optional time offset from every
-   Glucose Measurement packet.
-3. Convert the meter time using an explicit offset. If the meter does not send
-   one, use a documented configured device/patient timezone rather than an
-   implicit UTC conversion.
-4. Serialize the source time as `glucose.measuredAt`, for example
-   `2026-07-27T14:35:20+05:30`.
-5. Keep the root `timestamp` as the Outer Unit event time. This preserves both
-   source measurement time and gateway processing time.
-6. On an invalid meter clock, omit `glucose.measuredAt` and let the backend
-   apply its compatibility fallback. Log the reason for diagnostics.
-
-### IoT payload
-
-1. Add optional `glucose.measuredAt` to the telemetry contract.
-2. Prefer a schema version increment for the new field and keep the backend
-   compatible with old version-one payloads.
-3. Keep the existing MQTT topic. AWS IoT routing or policy changes are not
-   needed when only an allowed JSON field changes.
-4. Preserve the complete payload in the existing offline queue so delayed
-   delivery does not change the original measurement time.
-
-Example future glucose section:
+Example glucose section:
 
 ```json
 {
@@ -153,36 +117,22 @@ Example future glucose section:
 }
 ```
 
-### Backend
+The firmware parser follows Bluetooth Glucose Service Base Time plus Time
+Offset behavior and attaches the configured `+05:30` deployment timezone.
+Host simulation covers normal records, leap dates, date rollover, invalid
+dates/offsets, missing offsets, and flags-dependent packet layout.
 
-1. Add `measuredAt` to `GlucoseDTO`.
-2. In `TelemetryProcessingService.saveGlucose`, parse
-   `glucose.measuredAt` and use the root event time only as a fallback.
-3. Reject or fall back from invalid dates and unreasonable future dates.
-4. Keep `createdAt`/raw event `receivedAt` as server receipt time.
-5. Add ingestion tests for a valid meter time, an old payload without meter
-   time, malformed time, future time, and offline replay.
+Verification:
 
-The `glucose_readings.measured_at` column, entity, response DTO, latest-reading
-query, and database indexes already exist. No database migration is required
-for the minimum change.
+- Host C++ simulation passed with warnings treated as errors.
+- Outer Unit firmware build passed.
+- Inner Unit firmware build passed.
+- Focused backend tests passed, 9 of 9.
+- Full backend suite passed, 116 of 116.
 
-### Web dashboard
-
-The web dashboard type and API response already use `measuredAt`. After backend
-ingestion is corrected, the existing displays will receive the real meter time.
-The follow-up should:
-
-1. Request glucose history sorted by `measuredAt` descending explicitly.
-2. Sort chart data chronologically instead of relying on response order.
-3. Format timestamps with the intended patient timezone.
-4. Change date-range filtering to timezone-aware date conversion instead of
-   splitting the raw ISO string at `T`.
-5. Add tests for offset timestamps and readings delivered later from the
-   offline queue.
-
-The mobile application currently uses mock glucose data and needs separate API
-integration before this field affects its UI.
+Physical Accu-Chek and pen testing is still required. Full implementation and
+hardware validation details are in
+`docs/glucometer-measurement-time-handoff.md`.
 
 ## Optional Reliability Follow-up
 

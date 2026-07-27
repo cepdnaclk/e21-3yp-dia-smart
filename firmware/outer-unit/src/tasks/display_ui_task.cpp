@@ -22,6 +22,7 @@ constexpr uint16_t COLOR_OK = 0x07E0;
 constexpr uint16_t COLOR_WARN = 0xB145;
 constexpr uint16_t COLOR_BAD = 0xF800;
 constexpr uint16_t COLOR_COLD = 0x041F;
+constexpr uint16_t COLOR_HOME_PURPLE = 0xA81F;
 
 bool forceFullRedraw = true;
 
@@ -356,7 +357,8 @@ void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
     drawCard(10, 72, 145, 76, "TEMP", tempBuf, tempColor(state.temperatureC));
 
     const char* doorValue = state.hasTelemetry ? (state.doorOpen ? "OPEN" : "CLOSED") : "--";
-    drawCard(165, 72, 145, 76, "DOOR", doorValue, state.doorOpen ? COLOR_WARN : COLOR_OK, true);
+    drawCard(165, 72, 145, 76, "DOOR", doorValue,
+             state.doorOpen ? COLOR_HOME_PURPLE : COLOR_OK, true);
 
     char stockBuf[24];
     if (state.hasTelemetry) {
@@ -365,7 +367,7 @@ void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
         snprintf(stockBuf, sizeof(stockBuf), "--%%");
     }
     drawCard(10, 160, 145, 76, "STOCK", stockBuf,
-             state.estimatedPercent < 20.0f ? COLOR_WARN : COLOR_TEXT, true);
+             state.estimatedPercent < 20.0f ? COLOR_HOME_PURPLE : COLOR_TEXT, true);
 
     char glucoseBuf[24];
     if (state.hasTelemetry && state.glucoseMgDl > 0) {
@@ -395,10 +397,13 @@ void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
 
     rawFillRect(10, 336, 300, 72, COLOR_PANEL);
     if (carePlan.available && carePlan.scheduleCount > 0) {
+        uint16_t statusColor = carePlan.status == CARE_PLAN_STATUS_DUE
+            ? COLOR_HOME_PURPLE
+            : carePlanStatusColor(carePlan.status);
         drawText(20,
                  346,
                  carePlanStatusText(carePlan.status),
-                 carePlanStatusColor(carePlan.status),
+                 statusColor,
                  COLOR_PANEL,
                  2);
         char prescriptionSummary[44];

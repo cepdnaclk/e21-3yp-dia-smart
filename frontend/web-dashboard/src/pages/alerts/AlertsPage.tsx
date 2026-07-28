@@ -26,6 +26,8 @@ import {
 } from "../../services/alertsService";
 import type { Alert } from "../../types/alert";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const PAGE_SIZE = 20;
 
 const STATUS_FILTERS: Array<{
@@ -92,10 +94,12 @@ const AlertsPage = () => {
   const [actionAlertId, setActionAlertId] =
     useState<number | null>(null);
 
-  const loadAlerts = useCallback(async () => {
+  const loadAlerts = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
-      setError("");
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
 
       const data =
         await alertsService.getAlerts(
@@ -111,16 +115,21 @@ const AlertsPage = () => {
       );
     } catch (err) {
       console.error(err);
-
-      setError("Failed to load alerts");
+      if (!silent) {
+        setError("Failed to load alerts");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [page, status]);
 
   useEffect(() => {
-    loadAlerts();
+    loadAlerts(false);
   }, [loadAlerts]);
+
+  useAutoRefresh(() => loadAlerts(true), 5000);
 
   const handleStatusChange = (
     _event: unknown,

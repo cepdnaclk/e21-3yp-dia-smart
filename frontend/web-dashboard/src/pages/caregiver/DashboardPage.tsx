@@ -12,6 +12,8 @@ import RecentActivity from "../../components/caregiver/RecentActivity";
 import { caregiverService } from "../../services/caregiverService";
 import type { Alert as VitalsAlert } from "../../types/alert";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 export interface MissedDoseRecord {
   patientId: number;
   patientName: string;
@@ -26,9 +28,11 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
+  const loadData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [patientsList, alertsList] = await Promise.all([
         caregiverService.getAssignedPatients(),
@@ -61,15 +65,21 @@ const DashboardPage = () => {
       setMissedDoses(resolvedMissed);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to load caregiver dashboard metrics.");
+      if (!silent) {
+        setError("Failed to load caregiver dashboard metrics.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, []);
+
+  useAutoRefresh(() => loadData(true), 5000);
 
   if (loading) {
     return (

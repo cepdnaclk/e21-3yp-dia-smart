@@ -22,6 +22,8 @@ import { doctorService } from "../../services/doctorService";
 import type { DoctorAssignedPatient } from "../../types/doctor";
 import type { AdherenceAnalyticsResponse } from "../../types/analytics";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const ReportsPage = () => {
   const [patients, setPatients] = useState<DoctorAssignedPatient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<number | "">("");
@@ -57,28 +59,36 @@ const ReportsPage = () => {
     loadPatients();
   }, []);
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      if (!selectedPatientId) return;
+  const fetchAnalytics = async (silent = false) => {
+    if (!selectedPatientId) return;
+    if (!silent) {
       setLoadingData(true);
       setError(null);
-      try {
-        const data = await doctorService.getAdherenceAnalytics(
-          Number(selectedPatientId),
-          startDate,
-          endDate
-        );
-        setAdherenceData(data);
-      } catch (err: any) {
-        console.error(err);
+    }
+    try {
+      const data = await doctorService.getAdherenceAnalytics(
+        Number(selectedPatientId),
+        startDate,
+        endDate
+      );
+      setAdherenceData(data);
+    } catch (err: any) {
+      console.error(err);
+      if (!silent) {
         setError("Failed to load compliance records for selected patient.");
-      } finally {
+      }
+    } finally {
+      if (!silent) {
         setLoadingData(false);
       }
-    };
+    }
+  };
 
-    fetchAnalytics();
+  useEffect(() => {
+    fetchAnalytics(false);
   }, [selectedPatientId, startDate, endDate]);
+
+  useAutoRefresh(() => fetchAnalytics(true), 5000);
 
   if (loadingList) {
     return (

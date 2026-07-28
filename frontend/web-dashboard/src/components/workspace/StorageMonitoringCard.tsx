@@ -7,26 +7,30 @@ import { caregiverService } from "../../services/caregiverService";
 
 interface StorageMonitoringCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const StorageMonitoringCard = ({ patientId }: StorageMonitoringCardProps) => {
+const StorageMonitoringCard = ({ patientId, refreshTrigger }: StorageMonitoringCardProps) => {
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<any>(null);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchStorage = async () => {
+    const fetchStorage = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const data = await caregiverService.getLatestStorageReading(patientId);
         setReading(data);
       } catch (err) {
         console.error("Failed to load storage readings", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchStorage();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchStorage(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const isSafe = reading ? reading.temperatureC >= 2.0 && reading.temperatureC <= 8.0 : true;
 

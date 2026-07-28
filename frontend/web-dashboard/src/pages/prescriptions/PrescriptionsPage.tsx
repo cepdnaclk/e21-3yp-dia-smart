@@ -23,32 +23,44 @@ import { doseScheduleService } from "../../services/doseScheduleService";
 import type { Prescription } from "../../types/prescription";
 import type { DoseSchedule } from "../../types/doseSchedule";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const PrescriptionsPage = () => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [schedules, setSchedules] = useState<DoseSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const loadPrescriptionsAndSchedules = async () => {
-      try {
-        const [presData, schedData] = await Promise.all([
-          prescriptionsService.getPrescriptions(),
-          doseScheduleService.getDoseSchedules()
-        ]);
+  const loadPrescriptionsAndSchedules = async (silent = false) => {
+    try {
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
+      const [presData, schedData] = await Promise.all([
+        prescriptionsService.getPrescriptions(),
+        doseScheduleService.getDoseSchedules()
+      ]);
 
-        setPrescriptions(presData);
-        setSchedules(schedData?.content ?? []);
-      } catch (err) {
-        console.error(err);
+      setPrescriptions(presData);
+      setSchedules(schedData?.content ?? []);
+    } catch (err) {
+      console.error(err);
+      if (!silent) {
         setError("Failed to load prescriptions and schedules");
-      } finally {
+      }
+    } finally {
+      if (!silent) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    loadPrescriptionsAndSchedules();
+  useEffect(() => {
+    loadPrescriptionsAndSchedules(false);
   }, []);
+
+  useAutoRefresh(() => loadPrescriptionsAndSchedules(true), 5000);
 
   if (loading) {
     return <PageLoading />;

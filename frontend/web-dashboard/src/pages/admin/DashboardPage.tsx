@@ -12,6 +12,8 @@ import RecentActivityCard from "../../components/admin/RecentActivityCard";
 import { adminService } from "../../services/adminService";
 import type { AuditLogRecord } from "../../types/admin";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DashboardPage = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [activePatients, setActivePatients] = useState(0);
@@ -20,34 +22,42 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardMetrics = async () => {
+  const fetchDashboardMetrics = async (silent = false) => {
+    if (!silent) {
       setLoading(true);
       setError(null);
-      try {
-        const [users, logsResponse] = await Promise.all([
-          adminService.getAllUsers(),
-          adminService.getAuditLogs(0, 5)
-        ]);
+    }
+    try {
+      const [users, logsResponse] = await Promise.all([
+        adminService.getAllUsers(),
+        adminService.getAuditLogs(0, 5)
+      ]);
 
-        setTotalUsers(users.length);
-        const patients = users.filter((u) => u.role === "PATIENT");
-        setActivePatients(patients.filter((p) => p.active).length);
-        
-        // Since backend has devices linked to patient users:
-        setDevicesCount(patients.length);
+      setTotalUsers(users.length);
+      const patients = users.filter((u) => u.role === "PATIENT");
+      setActivePatients(patients.filter((p) => p.active).length);
+      
+      // Since backend has devices linked to patient users:
+      setDevicesCount(patients.length);
 
-        setAuditLogs(logsResponse?.content ?? []);
-      } catch (err: any) {
-        console.error(err);
+      setAuditLogs(logsResponse?.content ?? []);
+    } catch (err: any) {
+      console.error(err);
+      if (!silent) {
         setError("Failed to load administration dashboard statistics.");
-      } finally {
+      }
+    } finally {
+      if (!silent) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchDashboardMetrics();
+  useEffect(() => {
+    fetchDashboardMetrics(false);
   }, []);
+
+  useAutoRefresh(() => fetchDashboardMetrics(true), 5000);
 
   if (loading) {
     return (

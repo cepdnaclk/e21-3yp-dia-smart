@@ -9,6 +9,8 @@ import SystemHealthSection from "../../components/admin/SystemHealthSection";
 import { adminService } from "../../services/adminService";
 import type { AuditLogRecord } from "../../types/admin";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const SystemPage = () => {
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [page, setPage] = useState(0);
@@ -17,24 +19,32 @@ const SystemPage = () => {
   const [error, setError] = useState<string | null>(null);
   const rowsPerPage = 10;
 
-  const fetchLogs = async (currentPage: number) => {
-    setLoading(true);
-    setError(null);
+  const fetchLogs = async (currentPage: number, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const response = await adminService.getAuditLogs(currentPage, rowsPerPage);
       setLogs(response?.content ?? []);
       setTotalElements(response?.totalElements ?? 0);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to fetch administrative audit logs.");
+      if (!silent) {
+        setError("Failed to fetch administrative audit logs.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchLogs(page);
+    fetchLogs(page, false);
   }, [page]);
+
+  useAutoRefresh(() => fetchLogs(page, true), 5000);
 
   const handlePageChange = (_: any, newPage: number) => {
     setPage(newPage);

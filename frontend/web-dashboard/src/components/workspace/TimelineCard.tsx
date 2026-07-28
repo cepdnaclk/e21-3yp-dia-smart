@@ -9,16 +9,18 @@ import type { Alert } from "../../types/alert";
 
 interface TimelineCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const TimelineCard = ({ patientId }: TimelineCardProps) => {
+const TimelineCard = ({ patientId, refreshTrigger }: TimelineCardProps) => {
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchActivities = async () => {
+    const fetchActivities = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const alerts = await caregiverService.getAlerts();
         const patientAlerts = alerts
           .filter((a) => a.patientId === patientId)
@@ -47,11 +49,13 @@ const TimelineCard = ({ patientId }: TimelineCardProps) => {
       } catch (err) {
         console.error("Failed to load timeline feed", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchActivities();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchActivities(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>

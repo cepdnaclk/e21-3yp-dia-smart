@@ -16,16 +16,18 @@ import type { ScheduleAdherenceResponse } from "../../types/analytics";
 
 interface TodayDoseCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const TodayDoseCard = ({ patientId }: TodayDoseCardProps) => {
+const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
   const [loading, setLoading] = useState(true);
   const [doses, setDoses] = useState<ScheduleAdherenceResponse[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchDoses = async () => {
+    const fetchDoses = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const data = await caregiverService.getPatientTodayAdherence(patientId);
         // Sort doses by scheduled time
         const sortedData = [...data].sort((a, b) =>
@@ -35,11 +37,13 @@ const TodayDoseCard = ({ patientId }: TodayDoseCardProps) => {
       } catch (err) {
         console.error("Failed to load today's doses", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchDoses();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchDoses(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const getStatusStyles = (status: string) => {
     switch (status) {

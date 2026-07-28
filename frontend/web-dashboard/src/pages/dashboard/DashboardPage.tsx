@@ -11,21 +11,23 @@ import { analyticsService } from "../../services/analyticsService";
 import type { DashboardData } from "../../types/dashboard";
 import type { DoseReading } from "../../types/analytics";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [glucoseHistory, setGlucoseHistory] = useState<{ date: string; glucose: number }[]>([]);
   const [doseHistory, setDoseHistory] = useState<DoseReading[]>([]);
 
-  useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const data = await dashboardService.getDashboardData();
-        setDashboardData(data);
-      } catch (err) {
-        console.error("Failed to refresh dashboard:", err);
-      }
-    };
+  const loadDashboard = async () => {
+    try {
+      const data = await dashboardService.getDashboardData();
+      setDashboardData(data);
+    } catch (err) {
+      console.error("Failed to refresh dashboard:", err);
+    }
+  };
 
+  useEffect(() => {
     const loadChartData = async () => {
       try {
         const [glucoseData, doseData] = await Promise.all([
@@ -49,13 +51,10 @@ const DashboardPage = () => {
     // Initial load
     loadDashboard();
     loadChartData();
-
-    // Refresh dashboard values every 2 seconds
-    const interval = setInterval(loadDashboard, 2000);
-
-    // Cleanup
-    return () => clearInterval(interval);
   }, []);
+
+  // Auto-refresh stats every 2 seconds
+  useAutoRefresh(loadDashboard, 2000);
 
   if (!dashboardData) {
     return <Typography sx={{ p: 4 }}>Loading...</Typography>;

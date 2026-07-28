@@ -5,27 +5,31 @@ import type { Alert } from "../../types/alert";
 
 interface AlertsCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const AlertsCard = ({ patientId }: AlertsCardProps) => {
+const AlertsCard = ({ patientId, refreshTrigger }: AlertsCardProps) => {
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchAlerts = async () => {
+    const fetchAlerts = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const response = await alertsService.getAlerts(0, 100);
         const filtered = (response?.content || []).filter((a) => a.patientId === patientId);
         setAlerts(filtered);
       } catch (err) {
         console.error("Failed to load alerts", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchAlerts();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchAlerts(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>

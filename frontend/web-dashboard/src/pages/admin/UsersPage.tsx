@@ -12,6 +12,8 @@ import { adminService } from "../../services/adminService";
 import { UserRole } from "../../types/roles";
 import type { AdminUserRecord } from "../../types/admin";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const UsersPage = () => {
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,23 +22,31 @@ const UsersPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalDefaultRole, setModalDefaultRole] = useState<UserRole>(UserRole.PATIENT);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchUsers = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await adminService.getAllUsers();
       setUsers(data);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to retrieve user accounts from the database.");
+      if (!silent) {
+        setError("Failed to retrieve user accounts from the database.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(false);
   }, []);
+
+  useAutoRefresh(() => fetchUsers(true), 5000);
 
   const handleToggleStatus = async (userId: number, currentActive: boolean) => {
     try {

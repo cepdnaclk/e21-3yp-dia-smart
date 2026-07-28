@@ -6,26 +6,30 @@ import type { GlucoseReading } from "../../types/analytics";
 
 interface GlucoseTrendsCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const GlucoseTrendsCard = ({ patientId }: GlucoseTrendsCardProps) => {
+const GlucoseTrendsCard = ({ patientId, refreshTrigger }: GlucoseTrendsCardProps) => {
   const [loading, setLoading] = useState(true);
   const [readings, setReadings] = useState<GlucoseReading[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchHistory = async () => {
+    const fetchHistory = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const history = await analyticsService.getGlucoseHistory(patientId);
         setReadings(history || []);
       } catch (err) {
         console.error("Failed to load glucose history", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchHistory();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchHistory(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const chartData = readings.map((r) => ({
     date: new Date(r.measuredAt).toLocaleDateString(),

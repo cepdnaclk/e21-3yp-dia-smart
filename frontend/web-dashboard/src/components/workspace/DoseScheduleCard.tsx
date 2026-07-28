@@ -36,9 +36,10 @@ import type { Prescription } from "../../types/prescription";
 
 interface DoseScheduleCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
+const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) => {
   const { role } = useAuth();
   const isDoctor = role === "DOCTOR";
 
@@ -63,8 +64,9 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
   const [active, setActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchSchedules = async () => {
+  const fetchSchedules = async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
       const [schedResponse, presResponse] = await Promise.all([
         doseScheduleService.getDoseSchedules(patientId),
         isDoctor ? prescriptionsService.getPrescriptions(patientId) : Promise.resolve([])
@@ -74,14 +76,15 @@ const DoseScheduleCard = ({ patientId }: DoseScheduleCardProps) => {
     } catch (err) {
       console.error("Failed to load dose schedules or prescriptions", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (!patientId) return;
-    fetchSchedules();
-  }, [patientId]);
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchSchedules(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const handleOpenCreate = () => {
     setPrescriptionId(prescriptions.length > 0 ? prescriptions[0].prescriptionId : "");

@@ -30,9 +30,10 @@ import type { Prescription } from "../../types/prescription";
 
 interface PrescriptionsCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const PrescriptionsCard = ({ patientId }: PrescriptionsCardProps) => {
+const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps) => {
   const { role } = useAuth();
   const isDoctor = role === "DOCTOR";
 
@@ -53,21 +54,23 @@ const PrescriptionsCard = ({ patientId }: PrescriptionsCardProps) => {
   const [active, setActive] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchPrescriptions = async () => {
+  const fetchPrescriptions = async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
       const response = await prescriptionsService.getPrescriptions(patientId);
       setPrescriptions(response || []);
     } catch (err) {
       console.error("Failed to load prescriptions", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (!patientId) return;
-    fetchPrescriptions();
-  }, [patientId]);
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchPrescriptions(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const handleOpenCreate = () => {
     setPrescriptionName("");

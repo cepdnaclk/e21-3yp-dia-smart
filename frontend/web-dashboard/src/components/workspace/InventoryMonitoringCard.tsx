@@ -7,26 +7,30 @@ import { caregiverService } from "../../services/caregiverService";
 
 interface InventoryMonitoringCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const InventoryMonitoringCard = ({ patientId }: InventoryMonitoringCardProps) => {
+const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitoringCardProps) => {
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<any>(null);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchInventory = async () => {
+    const fetchInventory = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const data = await caregiverService.getLatestInventoryReading(patientId);
         setReading(data);
       } catch (err) {
         console.error("Failed to load inventory readings", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchInventory();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchInventory(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const percent = reading ? reading.estimatedRemainingPercent || 0 : 0;
   const isLow = reading ? reading.inventoryStatus === "LOW_INVENTORY" || reading.inventoryStatus === "CRITICAL_INVENTORY" : false;

@@ -11,26 +11,38 @@ import PendingRequestsCard from "../../components/doctor/PendingRequestsCard";
 import { caregiverService } from "../../services/caregiverService";
 import type { CaregiverAssignedPatient } from "../../types/caregiver";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const AssignedPatientsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [patients, setPatients] = useState<CaregiverAssignedPatient[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (silent = false) => {
     try {
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
       const data = await caregiverService.getAssignedPatients();
       setPatients(data);
     } catch (err: any) {
-      setError("Failed to load assigned patients. Please try again.");
+      if (!silent) {
+        setError("Failed to load assigned patients. Please try again.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchPatients();
+    fetchPatients(false);
   }, []);
+
+  useAutoRefresh(() => fetchPatients(true), 5000);
 
   if (loading) {
     return <PageLoading />;

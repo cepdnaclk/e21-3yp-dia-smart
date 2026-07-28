@@ -8,6 +8,8 @@ import PatientCaregiverSection from "../../components/admin/PatientCaregiverSect
 import { adminService } from "../../services/adminService";
 import type { AdminUserRecord } from "../../types/admin";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const AssignmentsPage = () => {
   const [doctors, setDoctors] = useState<AdminUserRecord[]>([]);
   const [caregivers, setCaregivers] = useState<AdminUserRecord[]>([]);
@@ -16,9 +18,11 @@ const AssignmentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
+  const loadData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const allUsers = await adminService.getAllUsers();
       
@@ -49,15 +53,21 @@ const AssignmentsPage = () => {
       setPatientIdMap(resolvedMappings);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to retrieve user directory or mapping logs.");
+      if (!silent) {
+        setError("Failed to retrieve user directory or mapping logs.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, []);
+
+  useAutoRefresh(() => loadData(true), 5000);
 
   if (loading) {
     return (

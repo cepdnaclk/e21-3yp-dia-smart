@@ -12,6 +12,8 @@ import { doctorService } from "../../services/doctorService";
 import type { Alert as VitalsAlert } from "../../types/alert";
 import type { DoctorAssignedPatient } from "../../types/doctor";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DashboardPage = () => {
   const [patientsCount, setPatientsCount] = useState<number>(0);
   const [patients, setPatients] = useState<DoctorAssignedPatient[]>([]);
@@ -19,9 +21,11 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
+  const loadData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [patientsList, alertsList] = await Promise.all([
         doctorService.getAssignedPatients(),
@@ -32,15 +36,21 @@ const DashboardPage = () => {
       setAlerts(alertsList);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to retrieve clinician dashboard overview stats.");
+      if (!silent) {
+        setError("Failed to retrieve clinician dashboard overview stats.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, []);
+
+  useAutoRefresh(() => loadData(true), 5000);
 
   if (loading) {
     return (

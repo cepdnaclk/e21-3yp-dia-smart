@@ -44,26 +44,34 @@ interface Device {
   patientDisplayName: string | null;
 }
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DeviceAssignmentSection = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchDevices = async () => {
-    setLoading(true);
+  const fetchDevices = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const response = await api.get("/admin/devices");
       setDevices(response.data.data || []);
     } catch (error) {
       console.error("Failed to fetch devices", error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchDevices();
+    fetchDevices(false);
   }, []);
+
+  useAutoRefresh(() => fetchDevices(true), 5000);
 
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>

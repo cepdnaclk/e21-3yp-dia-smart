@@ -44,11 +44,16 @@ const RegisterPage = () => {
 
       await authService.register(form);
 
-      setSuccess("Account created successfully");
+      if (form.role === "DOCTOR") {
+        setSuccess("Registered successfully and sent to admin review.");
+      } else {
+        setSuccess("Account created successfully");
+      }
 
+      const redirectDelay = form.role === "DOCTOR" ? 3000 : 1500;
       setTimeout(() => {
         navigate("/login");
-      }, 1500);
+      }, redirectDelay);
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message ?? "Registration failed");

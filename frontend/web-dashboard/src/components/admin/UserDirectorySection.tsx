@@ -180,8 +180,8 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
         </Box>
 
         {/* Users Table */}
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
-          <Table size="small" aria-label={`${title} table`}>
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: "auto", border: "1px solid", borderColor: "divider" }}>
+          <Table size="small" aria-label={`${title} table`} sx={{ minWidth: 500 }}>
             <TableHead sx={{ backgroundColor: "action.hover" }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>

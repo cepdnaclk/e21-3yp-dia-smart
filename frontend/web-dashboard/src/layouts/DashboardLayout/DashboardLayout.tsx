@@ -38,14 +38,14 @@ const DashboardLayout = () => {
           p: { xs: 2, sm: 3 },
           width: { xs: "100%", md: `calc(100% - 260px)` }, // accounts for sidebar width on desktop
           minWidth: 0,
-          pb: isMobile ? "calc(80px + env(safe-area-inset-bottom, 0px))" : "24px", // adds buffer at the bottom for bottom navigation on mobile with safe area support
+          pb: isMobile ? "calc(120px + env(safe-area-inset-bottom, 0px))" : "24px", // adds buffer at the bottom for bottom navigation on mobile with safe area support
           transition: theme.transitions.create(["margin", "width"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
         }}
       >
-        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)" }} />
+        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)", mb: { xs: 1, sm: 0 } }} />
 
         <Outlet />
       </Box>

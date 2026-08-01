@@ -36,6 +36,7 @@ const titleStyles = {
   flexGrow: 1,
   fontWeight: 700,
   letterSpacing: "0.5px",
+  whiteSpace: "nowrap",
 };
 
 const homeButtonStyles = {
@@ -162,7 +163,9 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
             onClick={handleLogout}
             sx={logoutButtonStyles}
           >
-            Logout
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Logout
+            </Box>
           </Button>
         </Tooltip>
 

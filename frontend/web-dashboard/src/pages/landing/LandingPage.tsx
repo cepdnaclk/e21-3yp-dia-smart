@@ -225,6 +225,7 @@ const LandingPage = () => {
           bgcolor: "#12233b",
           borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           backdropFilter: "blur(10px)",
+          paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
         <Container maxWidth="lg">
@@ -365,7 +366,8 @@ const LandingPage = () => {
               bgcolor: "#12233b",
               color: "#ffffff",
               px: 2,
-              py: 3,
+              pt: "calc(24px + env(safe-area-inset-top, 0px))",
+              pb: "calc(24px + env(safe-area-inset-bottom, 0px))",
             },
           },
         }}

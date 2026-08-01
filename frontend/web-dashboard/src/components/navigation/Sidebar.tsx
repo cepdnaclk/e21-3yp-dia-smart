@@ -78,6 +78,7 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
           alignItems: "center",
           gap: 1.5,
           px: 2,
+          pt: "env(safe-area-inset-top, 0px)",
           cursor: "pointer",
           "&:hover": {
             opacity: 0.95

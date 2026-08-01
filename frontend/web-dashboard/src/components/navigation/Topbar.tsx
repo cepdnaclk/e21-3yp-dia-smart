@@ -23,6 +23,7 @@ import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 const appBarStyles = {
   backgroundColor: "#12233b",
   zIndex: (theme: any) => theme.zIndex.drawer + 1,
+  paddingTop: "env(safe-area-inset-top, 0px)",
 };
 
 const logoStyles = {

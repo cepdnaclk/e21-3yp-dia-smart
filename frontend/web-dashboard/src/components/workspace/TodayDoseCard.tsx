@@ -29,10 +29,12 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
       try {
         if (!silent) setLoading(true);
         const data = await caregiverService.getPatientTodayAdherence(patientId);
-        // Sort doses by scheduled time
-        const sortedData = [...data].sort((a, b) =>
-          a.scheduledTime.localeCompare(b.scheduledTime)
-        );
+        // Sort doses by scheduled time safely
+        const sortedData = [...data].sort((a, b) => {
+          const timeA = a.scheduledTime || "";
+          const timeB = b.scheduledTime || "";
+          return timeA.localeCompare(timeB);
+        });
         setDoses(sortedData);
       } catch (err) {
         console.error("Failed to load today's doses", err);
@@ -167,7 +169,7 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
                         {dose.scheduleLabel}
                       </Typography>
                       <Typography variant="caption" sx={{ color: "text.secondary", display: "block" }}>
-                        Scheduled: <strong>{dose.scheduledTime.substring(0, 5)}</strong> • Dosage: <strong>{dose.doseUnits} Units</strong>
+                        Scheduled: <strong>{(dose.scheduledTime || "").substring(0, 5)}</strong> • Dosage: <strong>{dose.doseUnits} Units</strong>
                       </Typography>
                       {dose.injectedAt && (
                         <Typography variant="caption" sx={{ color: "success.main", display: "block", mt: 0.5, fontWeight: 600 }}>

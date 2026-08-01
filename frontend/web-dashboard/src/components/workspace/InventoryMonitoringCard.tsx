@@ -57,7 +57,7 @@ const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitor
                 <MedicationIcon color={isLow ? "error" : "primary"} fontSize="large" />
                 <Box>
                   <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                    {reading.estimatedUnitsRemaining.toFixed(0)} Units
+                    {reading.estimatedUnitsRemaining !== null && reading.estimatedUnitsRemaining !== undefined ? reading.estimatedUnitsRemaining.toFixed(0) : "—"} Units
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Remaining Stock ({percent.toFixed(0)}%)
@@ -97,7 +97,7 @@ const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitor
               <Box sx={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: 0.5, borderTop: "1px solid", borderColor: "divider", pt: 1 }}>
                 <ScaleIcon fontSize="inherit" color="action" />
                 <Typography variant="caption" color="text.secondary">
-                  Current Cartridge Weight: <strong>{reading.weightG.toFixed(1)} g</strong>
+                  Current Cartridge Weight: <strong>{reading.weightG !== null && reading.weightG !== undefined ? reading.weightG.toFixed(1) : "—"} g</strong>
                 </Typography>
               </Box>
             </Box>

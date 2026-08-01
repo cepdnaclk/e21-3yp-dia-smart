@@ -25,6 +25,8 @@ import { doctorService } from "../../services/doctorService";
 import { useAuth } from "../../context/AuthContext";
 import type { DoctorAssignedPatient } from "../../types/doctor";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const AssignedPatientsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,20 +45,30 @@ const AssignedPatientsPage = () => {
 
   const { userId } = useAuth();
 
-  const fetchPatients = async () => {
+  const fetchPatients = async (silent = false) => {
     try {
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
       const data = await doctorService.getAssignedPatients();
       setPatients(data);
     } catch (err: any) {
-      setError("Failed to load assigned patients. Please try again.");
+      if (!silent) {
+        setError("Failed to load assigned patients. Please try again.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchPatients();
+    fetchPatients(false);
   }, []);
+
+  useAutoRefresh(() => fetchPatients(true), 5000);
 
   const handleAssignPatientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

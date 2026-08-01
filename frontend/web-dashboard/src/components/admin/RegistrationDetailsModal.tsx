@@ -20,6 +20,8 @@ import {
 import api from "../../services/api";
 import RegistrationDetailsViewDialog, { type FlattenedKit } from "./RegistrationDetailsViewDialog";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 interface RegistrationDetailsModalProps {
   open: boolean;
   onClose: () => void;
@@ -34,13 +36,15 @@ const RegistrationDetailsModal: React.FC<RegistrationDetailsModalProps> = ({ ope
 
   useEffect(() => {
     if (open) {
-      fetchKits();
+      fetchKits(false);
     }
   }, [open]);
 
-  const fetchKits = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchKits = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const response = await api.get("/admin/devices/device-kits");
       const rawData = response.data.data || [];
@@ -96,12 +100,22 @@ const RegistrationDetailsModal: React.FC<RegistrationDetailsModalProps> = ({ ope
       
       setKits(flattened);
     } catch (err: any) {
-      setError("Failed to load device kits. Please try again.");
+      if (!silent) {
+        setError("Failed to load device kits. Please try again.");
+      }
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
+
+  useAutoRefresh(() => {
+    if (open) {
+      fetchKits(true);
+    }
+  }, 5000);
 
   const handleViewDetails = (kit: FlattenedKit) => {
     setSelectedKit(kit);

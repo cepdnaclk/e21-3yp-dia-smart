@@ -27,6 +27,8 @@ import InventoryMonitoringCard from "../../components/workspace/InventoryMonitor
 import TimelineCard from "../../components/workspace/TimelineCard";
 import { patientsService } from "../../services/patientsService";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 // Register all available workspace components by their section ID
 const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   "patient-details": PatientDetailsCard,
@@ -51,6 +53,7 @@ const PatientWorkspacePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [patientProfile, setPatientProfile] = useState<any>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!parsedPatientId) {
@@ -71,6 +74,11 @@ const PatientWorkspacePage = () => {
     };
     fetchProfile();
   }, [parsedPatientId]);
+
+  // Centralised auto-refresh incrementing refreshTrigger every 5 seconds
+  useAutoRefresh(() => {
+    setRefreshTrigger((prev) => prev + 1);
+  }, 5000);
 
   // Resolve layout sections configuration for the active user role
   const sections = workspaceSections[role] || [];
@@ -97,7 +105,11 @@ const PatientWorkspacePage = () => {
           if (!Component) return null;
           return (
             <Grid key={section.id} size={section.gridSize}>
-              <Component patientId={parsedPatientId} patientProfile={patientProfile} />
+              <Component 
+                patientId={parsedPatientId} 
+                patientProfile={patientProfile} 
+                refreshTrigger={refreshTrigger}
+              />
             </Grid>
           );
         })}

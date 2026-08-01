@@ -14,6 +14,8 @@ import type {
   RelationshipSummaryDto,
 } from "../../types/careTeam";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const CareTeamPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,25 +23,34 @@ const CareTeamPage = () => {
   const [sentRequests, setSentRequests] = useState<RelationshipRequestDto[]>([]);
   const [alert, setAlert] = useState<{ message: string; severity: "success" | "error" } | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
       const [rels, reqs] = await Promise.all([
         careTeamService.getMyRelationships(),
         careTeamService.getSentRequests(),
       ]);
       setRelationships(rels);
       setSentRequests(reqs);
-      setError("");
     } catch (err: any) {
-      setError("Failed to load care team information. Please try again.");
+      if (!silent) {
+        setError("Failed to load care team information. Please try again.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
   }, []);
+
+  useAutoRefresh(() => fetchData(true), 5000);
 
   const handleRevoke = async (requestId: number) => {
     try {

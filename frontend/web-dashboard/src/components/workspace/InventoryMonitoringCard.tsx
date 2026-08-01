@@ -7,26 +7,30 @@ import { caregiverService } from "../../services/caregiverService";
 
 interface InventoryMonitoringCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const InventoryMonitoringCard = ({ patientId }: InventoryMonitoringCardProps) => {
+const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitoringCardProps) => {
   const [loading, setLoading] = useState(true);
   const [reading, setReading] = useState<any>(null);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchInventory = async () => {
+    const fetchInventory = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const data = await caregiverService.getLatestInventoryReading(patientId);
         setReading(data);
       } catch (err) {
         console.error("Failed to load inventory readings", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchInventory();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchInventory(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   const percent = reading ? reading.estimatedRemainingPercent || 0 : 0;
   const isLow = reading ? reading.inventoryStatus === "LOW_INVENTORY" || reading.inventoryStatus === "CRITICAL_INVENTORY" : false;
@@ -53,7 +57,7 @@ const InventoryMonitoringCard = ({ patientId }: InventoryMonitoringCardProps) =>
                 <MedicationIcon color={isLow ? "error" : "primary"} fontSize="large" />
                 <Box>
                   <Typography variant="h5" sx={{ fontWeight: "bold" }}>
-                    {reading.estimatedUnitsRemaining.toFixed(0)} Units
+                    {reading.estimatedUnitsRemaining !== null && reading.estimatedUnitsRemaining !== undefined ? reading.estimatedUnitsRemaining.toFixed(0) : "—"} Units
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Remaining Stock ({percent.toFixed(0)}%)
@@ -93,7 +97,7 @@ const InventoryMonitoringCard = ({ patientId }: InventoryMonitoringCardProps) =>
               <Box sx={{ gridColumn: "span 2", display: "flex", alignItems: "center", gap: 0.5, borderTop: "1px solid", borderColor: "divider", pt: 1 }}>
                 <ScaleIcon fontSize="inherit" color="action" />
                 <Typography variant="caption" color="text.secondary">
-                  Current Cartridge Weight: <strong>{reading.weightG.toFixed(1)} g</strong>
+                  Current Cartridge Weight: <strong>{reading.weightG !== null && reading.weightG !== undefined ? reading.weightG.toFixed(1) : "—"} g</strong>
                 </Typography>
               </Box>
             </Box>

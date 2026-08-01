@@ -22,6 +22,8 @@ import GlucoseDoseCorrelationChart from "../charts/GlucoseDoseCorrelationChart";
 import { analyticsService } from "../../services/analyticsService";
 import type { AnalyticsData, GlucoseReading, DoseReading } from "../../types/analytics";
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 interface AdvancedAnalyticsViewProps {
   patientId: number;
 }
@@ -82,9 +84,11 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
     }
   };
 
-  const loadTelemetryData = async () => {
-    setLoading(true);
-    setError(null);
+  const loadTelemetryData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [adherence, glucose, doses] = await Promise.all([
         analyticsService.getAnalytics(patientId, startDate, endDate),
@@ -97,17 +101,24 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
       setDoseHistory(doses || []);
     } catch (err) {
       console.error("Failed to load advanced analytics", err);
-      setError("Failed to load patient telemetry data.");
+      if (!silent) {
+        setError("Failed to load patient telemetry data.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   // Reload statistics when date bounds shift
   useEffect(() => {
     if (!patientId) return;
-    loadTelemetryData();
+    loadTelemetryData(false);
   }, [patientId, startDate, endDate]);
+
+  // Auto-refresh telemetry data every 5 seconds
+  useAutoRefresh(() => loadTelemetryData(true), 5000);
 
   const handleApplyThresholds = () => {
     const min = Number(targetMinInput);

@@ -19,6 +19,7 @@ public class CorsConfig {
                 configuration.setAllowedOrigins(
                                 List.of(
                                                 "http://localhost:5173",
+                                                "https://localhost",
                                                 "https://diasmart.xyz",
                                                 "https://www.diasmart.xyz",
                                                 "https://develop.d3mytahem6dnq5.amplifyapp.com"));

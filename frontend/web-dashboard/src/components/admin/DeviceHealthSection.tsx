@@ -48,6 +48,8 @@ interface Diagnostics {
   lastMqttReceivedAt: string | null;
 }
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DeviceHealthSection = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
@@ -55,12 +57,10 @@ const DeviceHealthSection = () => {
   const [loading, setLoading] = useState(true);
   const [diagLoading, setDiagLoading] = useState(false);
 
-  useEffect(() => {
-    fetchDevices();
-  }, []);
-
-  const fetchDevices = async () => {
-    setLoading(true);
+  const fetchDevices = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const response = await api.get("/admin/devices");
       if (response.data && response.data.data) {
@@ -71,9 +71,17 @@ const DeviceHealthSection = () => {
     } catch (error) {
       console.error("Failed to fetch devices", error);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    fetchDevices(false);
+  }, []);
+
+  useAutoRefresh(() => fetchDevices(true), 5000);
 
   const handleViewDetails = async (device: Device) => {
     setSelectedDevice(device);

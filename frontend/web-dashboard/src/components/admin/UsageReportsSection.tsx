@@ -26,7 +26,7 @@ const UsageReportsSection = () => {
 
         <Box sx={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="date" />
               <YAxis />

@@ -77,6 +77,8 @@ const BottomNav = ({ onDrawerToggle }: BottomNavProps) => {
         zIndex: 1000,
         borderRadius: 0,
         borderTop: "1px solid #e2e8f0",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        backgroundColor: "#12233b",
       }}
       elevation={3}
     >

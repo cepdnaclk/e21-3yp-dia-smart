@@ -204,6 +204,8 @@ const DeviceDetailsContent = ({
   </Stack>
 );
 
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
 const DevicesPage = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] =
@@ -271,6 +273,8 @@ const DevicesPage = () => {
   useEffect(() => {
     void loadDevices();
   }, []);
+
+  useAutoRefresh(() => loadDevices(true), 5000);
 
   const connectedTypes = useMemo(() => {
     return new Set(

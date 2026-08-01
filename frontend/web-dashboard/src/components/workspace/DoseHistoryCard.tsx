@@ -6,26 +6,30 @@ import type { DoseReading } from "../../types/analytics";
 
 interface DoseHistoryCardProps {
   patientId: number;
+  refreshTrigger?: number;
 }
 
-const DoseHistoryCard = ({ patientId }: DoseHistoryCardProps) => {
+const DoseHistoryCard = ({ patientId, refreshTrigger }: DoseHistoryCardProps) => {
   const [loading, setLoading] = useState(true);
   const [readings, setReadings] = useState<DoseReading[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
-    const fetchHistory = async () => {
+    const fetchHistory = async (silent = false) => {
       try {
+        if (!silent) setLoading(true);
         const history = await analyticsService.getDoseHistory(patientId);
         setReadings(history || []);
       } catch (err) {
         console.error("Failed to load dose history", err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     };
-    fetchHistory();
-  }, [patientId]);
+
+    const isInitial = !refreshTrigger || refreshTrigger === 0;
+    fetchHistory(!isInitial);
+  }, [patientId, refreshTrigger]);
 
   return (
     <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>

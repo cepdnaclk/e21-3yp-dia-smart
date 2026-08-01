@@ -25,7 +25,7 @@ const DoseHistoryChart = ({ data }: Props) => {
       width="100%"
       height={300}
     >
-      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
         <defs>
           <linearGradient id="colorDose" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#3ec1fa" stopOpacity={0.2} />

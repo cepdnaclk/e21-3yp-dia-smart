@@ -45,7 +45,7 @@ const DashboardLayout = () => {
           }),
         }}
       >
-        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)" }} />
+        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)", mb: { xs: 1, sm: 0 } }} />
 
         <Outlet />
       </Box>

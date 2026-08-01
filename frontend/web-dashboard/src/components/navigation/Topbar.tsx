@@ -140,7 +140,7 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
         </Box>
 
         <Tooltip title="View notifications">
-          <IconButton color="inherit" sx={{ mr: 1 }}>
+          <IconButton color="inherit" sx={{ ml: 3, mr: 0.25 }}>
             <NotificationsIcon />
           </IconButton>
         </Tooltip>
@@ -161,7 +161,7 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
             color="inherit"
             startIcon={<LogoutIcon />}
             onClick={handleLogout}
-            sx={logoutButtonStyles}
+            sx={{ ...logoutButtonStyles, ml: 0.5, mr: 0.25 }}
           >
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
               Logout
@@ -185,7 +185,7 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
             color="inherit"
             aria-label="Profile"
             onClick={handleProfile}
-            sx={{ ml: 1 }}
+            sx={{ ml: 0.25 }}
           >
             <Avatar sx={{ bgcolor: "#3ec1fa", color: "#12233b", fontWeight: "bold", width: 32, height: 32, fontSize: "0.9rem" }}>
               {getRoleInitial(role)}

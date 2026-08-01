@@ -67,7 +67,7 @@ const StorageMonitoringCard = ({ patientId, refreshTrigger }: StorageMonitoringC
               </Box>
               <Box>
                 <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-                  {reading.temperatureC.toFixed(1)} °C
+                  {reading.temperatureC !== null && reading.temperatureC !== undefined ? reading.temperatureC.toFixed(1) : "—"} °C
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Last updated: {new Date(reading.measuredAt || Date.now()).toLocaleTimeString()}

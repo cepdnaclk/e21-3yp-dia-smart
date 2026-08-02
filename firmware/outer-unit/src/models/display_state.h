@@ -7,7 +7,8 @@ enum DisplayPage : uint8_t {
     DISPLAY_PAGE_DEVICE_STATUS = 1,
     DISPLAY_PAGE_ALERTS = 2,
     DISPLAY_PAGE_QUEUE_STATUS = 3,
-    DISPLAY_PAGE_PRESCRIPTION = 4
+    DISPLAY_PAGE_PRESCRIPTION = 4,
+    DISPLAY_PAGE_DEVICE_SETUP = 5
 };
 
 enum DisplayNoticeType : uint8_t {

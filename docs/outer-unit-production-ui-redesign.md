@@ -23,6 +23,10 @@ Normal navigation uses four stable physical-key shortcuts:
 The service diagnostics page remains available through `0`, but it is not
 advertised as a normal patient destination.
 
+From the Device page:
+
+- `#`: Device Setup details and kit IDs
+
 On a Medication page with multiple schedules:
 
 - `*`: previous schedule
@@ -82,6 +86,23 @@ Patient-facing device status uses:
 
 MQTT and queue filesystem details remain on the service diagnostics page.
 
+### Device Setup
+
+The Device page offers `# SETUP` without changing the four primary navigation
+keys. The current frontend registration wizard uses manual fields, so Device
+Setup shows the exact text needed by that flow:
+
+- Outer Unit ID
+- Inner Unit ID
+- Pen Unit ID
+- Glucometer ID
+- Outer Unit setup Wi-Fi network
+- Case-sensitive setup Wi-Fi password
+
+The setup network and password use a case-sensitive font so the TFT does not
+accidentally convert credentials to uppercase. A QR can be added later together
+with the matching frontend scanner/parser.
+
 ## Dose confirmation
 
 The required 40-second automatic dose recording behavior is preserved.
@@ -134,13 +155,13 @@ missed-dose states.
 
 ## Build verification
 
-PlatformIO Outer Unit build:
+PlatformIO Outer Unit build with the Device Setup text page:
 
 ```text
 Environment: esp32-s3-devkitc-1
 Result: SUCCESS
 RAM: 70,484 / 327,680 bytes (21.5%)
-Flash: 1,621,905 / 3,342,336 bytes (48.5%)
+Flash: 1,622,981 / 3,342,336 bytes (48.6%)
 ```
 
 ## Hardware validation checklist
@@ -152,14 +173,17 @@ Flash: 1,621,905 / 3,342,336 bytes (48.5%)
 5. Verify online, reconnecting, and offline banners.
 6. Verify Home, Medication, Alerts, and Device mappings from every normal page.
 7. Verify `0` opens diagnostics and `A` returns Home.
-8. Verify single- and multi-schedule Medication layouts.
-9. Verify due, upcoming, recorded, missed, and paused reminder states.
-10. Trigger matching and mismatching pen doses.
-11. Verify the full 40-second countdown in confirmation and editing modes.
-12. Verify manual record, edited record, automatic record, and cancellation
+8. Open Device, press `#`, and confirm all four IDs match the configured kit.
+9. Confirm the setup network and password preserve uppercase and lowercase.
+10. Use the displayed text in the frontend's manual registration flow.
+11. Verify single- and multi-schedule Medication layouts.
+12. Verify due, upcoming, recorded, missed, and paused reminder states.
+13. Trigger matching and mismatching pen doses.
+14. Verify the full 40-second countdown in confirmation and editing modes.
+15. Verify manual record, edited record, automatic record, and cancellation
     outcome screens.
-13. Confirm backend dose data and offline retry behavior are unchanged.
-14. Inspect all text and colors on the physical TFT under expected lighting.
+16. Confirm backend dose data and offline retry behavior are unchanged.
+17. Inspect all text and colors on the physical TFT under expected lighting.
 
 The firmware was compiled successfully but this redesign has not yet been
 flashed to or visually validated on physical hardware.

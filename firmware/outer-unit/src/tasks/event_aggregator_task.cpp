@@ -259,7 +259,11 @@ void eventAggregatorTask(void* parameter) {
             char key = keyEvent.key;
             if (!pendingDose.active) {
                 DisplayState displayState = getDisplayStateSnapshot();
-                if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '*') {
+                if (displayState.activePage == DISPLAY_PAGE_DEVICE_STATUS &&
+                    key == '#') {
+                    updateDisplayPage(DISPLAY_PAGE_DEVICE_SETUP);
+                    Serial.println("[EventAgg] Display page: device setup");
+                } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '*') {
                     carePlanSelectPreviousSchedule();
                     Serial.println("[EventAgg] Prescription: previous schedule");
                 } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '#') {

@@ -10,6 +10,7 @@
 #if DISPLAY_ENABLED
 
 #include "soc/gpio_struct.h"
+#include "../../../common/config/wifi_provisioning_security.h"
 
 namespace {
 // Calm, high-contrast patient palette. Red and amber are reserved for states
@@ -271,6 +272,42 @@ void drawText(int x, int y, const char* text, uint16_t color, uint16_t bg, uint8
     int cursorX = x;
     while (*text != '\0') {
         drawChar(cursorX, y, *text, color, bg, scale);
+        cursorX += 6 * scale;
+        ++text;
+    }
+}
+
+uint8_t caseSensitiveGlyphRow(char c, uint8_t row) {
+    switch (c) {
+        case 'a': { static const uint8_t g[7] = {0x00,0x0E,0x01,0x0F,0x11,0x13,0x0D}; return g[row]; }
+        case 'e': { static const uint8_t g[7] = {0x00,0x0E,0x11,0x1F,0x10,0x11,0x0E}; return g[row]; }
+        case 'i': { static const uint8_t g[7] = {0x04,0x00,0x0C,0x04,0x04,0x04,0x0E}; return g[row]; }
+        case 'm': { static const uint8_t g[7] = {0x00,0x00,0x1A,0x15,0x15,0x15,0x15}; return g[row]; }
+        case 'p': { static const uint8_t g[7] = {0x00,0x00,0x1E,0x11,0x1E,0x10,0x10}; return g[row]; }
+        case 'r': { static const uint8_t g[7] = {0x00,0x00,0x16,0x19,0x10,0x10,0x10}; return g[row]; }
+        case 't': { static const uint8_t g[7] = {0x08,0x08,0x1E,0x08,0x08,0x09,0x06}; return g[row]; }
+        case 'u': { static const uint8_t g[7] = {0x00,0x00,0x11,0x11,0x11,0x13,0x0D}; return g[row]; }
+        default: return glyphRow(c, row);
+    }
+}
+
+void drawCaseSensitiveText(int x, int y, const char* text,
+                           uint16_t color, uint16_t bg, uint8_t scale) {
+    int cursorX = x;
+    while (*text != '\0') {
+        for (uint8_t row = 0; row < 7; ++row) {
+            uint8_t bits = caseSensitiveGlyphRow(*text, row);
+            for (uint8_t col = 0; col < 5; ++col) {
+                uint16_t pixelColor =
+                    (bits & (1 << (4 - col))) ? color : bg;
+                rawFillRect(
+                    cursorX + col * scale,
+                    y + row * scale,
+                    scale,
+                    scale,
+                    pixelColor);
+            }
+        }
         cursorX += 6 * scale;
         ++text;
     }
@@ -595,8 +632,49 @@ void drawSystemStatus(const DisplayState& state) {
                   value,
                   state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
 
+    drawPanel(10, 370, 300, 46, COLOR_ACCENT_DARK);
+    drawText(20, 383, "# SETUP AND DEVICE IDS",
+             COLOR_ACCENT, COLOR_ACCENT_DARK, 1);
+
     drawNavigation("A HOME    B MEDICATION",
-                   "C ALERTS  D DEVICE");
+                   "C ALERTS  # SETUP");
+}
+
+void drawDeviceSetup(const DisplayState& state) {
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "DEVICE SETUP");
+
+    drawPanel(10, 72, 300, 170, COLOR_PANEL_ALT);
+    drawText(20, 84, "ENTER THESE IDS IN THE APP",
+             COLOR_ACCENT, COLOR_PANEL_ALT, 1);
+    char idLine[40];
+    snprintf(idLine, sizeof(idLine), "OUTER   %s", DEVICE_UID_OUTER);
+    drawText(20, 112, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "INNER   %s", DEVICE_UID_INNER);
+    drawText(20, 144, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "PEN     %s", DEVICE_UID_PEN);
+    drawText(20, 176, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "METER   %s", DEVICE_UID_GLUCOMETER);
+    drawText(20, 208, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+
+    drawPanel(10, 254, 300, 158, COLOR_PANEL);
+    drawText(20, 266, "CONNECT PHONE TO SETUP WIFI",
+             COLOR_ACCENT, COLOR_PANEL, 1);
+
+    drawText(20, 292, "NETWORK", COLOR_MUTED, COLOR_PANEL, 1);
+    char setupSsid[40];
+    snprintf(setupSsid, sizeof(setupSsid), "DiaSmart-%s", DEVICE_UID_OUTER);
+    drawCaseSensitiveText(20, 310, setupSsid,
+                          COLOR_TEXT, COLOR_PANEL, 2);
+
+    drawText(20, 344, "PASSWORD", COLOR_MUTED, COLOR_PANEL, 1);
+    drawCaseSensitiveText(20, 364, DIASMART_SETUP_AP_PASSWORD,
+                          COLOR_WARN, COLOR_PANEL, 2);
+    drawText(20, 394, "THEN RETURN TO THE DIASMART APP",
+             COLOR_MUTED, COLOR_PANEL, 1);
+
+    drawNavigation("A HOME    D DEVICE",
+                   "USE THESE DETAILS IN SETUP");
 }
 
 void drawAlertItem(int y, const char* title, const char* action,
@@ -1070,6 +1148,9 @@ void displayUiTask(void* parameter) {
                 drawDoseNotice(state);
             } else {
                 switch (state.activePage) {
+                    case DISPLAY_PAGE_DEVICE_SETUP:
+                        drawDeviceSetup(state);
+                        break;
                     case DISPLAY_PAGE_DEVICE_STATUS:
                         drawSystemStatus(state);
                         break;

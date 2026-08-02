@@ -6,6 +6,7 @@ public class DeviceSummaryDTO {
 
     private Long deviceId;
     private Long patientId;
+    private String patientDisplayName;
     private String deviceUid;
     private String deviceType;
     private String deviceName;
@@ -14,6 +15,8 @@ public class DeviceSummaryDTO {
     private Double batteryPercent;
     private OffsetDateTime lastSeenAt;
     private Boolean active;
+
+    private com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO buyer;
 
     public Long getDeviceId() {
         return deviceId;
@@ -29,6 +32,14 @@ public class DeviceSummaryDTO {
 
     public void setPatientId(Long patientId) {
         this.patientId = patientId;
+    }
+
+    public String getPatientDisplayName() {
+        return patientDisplayName;
+    }
+
+    public void setPatientDisplayName(String patientDisplayName) {
+        this.patientDisplayName = patientDisplayName;
     }
 
     public String getDeviceUid() {
@@ -93,5 +104,13 @@ public class DeviceSummaryDTO {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO getBuyer() {
+        return buyer;
+    }
+
+    public void setBuyer(com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO buyer) {
+        this.buyer = buyer;
     }
 }

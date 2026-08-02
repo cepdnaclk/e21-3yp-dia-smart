@@ -6,7 +6,7 @@ package com.diasmart.springapi.shared.enums;
  */
 public enum RelationshipStatus {
     PENDING,
-    ACTIVE,
+    ACCEPTED,
     REJECTED,
     REVOKED
 }

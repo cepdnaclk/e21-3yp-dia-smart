@@ -13,21 +13,21 @@ export const dashboardService = {
     const data = response.data.data;
 
     return {
-      glucose:
-        data.latestGlucoseReading
-          ?.glucoseValueMgDl ?? 0,
+  glucose:
+    data.latestGlucoseReading
+      ?.glucoseValueMgDl ?? 0,
 
-      temperature:
-        data.latestStorageReading
-          ?.temperatureCelsius ?? 0,
+    temperature:
+      data.latestStorageReading
+        ?.temperatureC ?? 0,
 
-      inventory:
-        data.latestInventoryReading
-          ?.remainingUnits ?? 0,
+    inventory:
+      data.latestInventoryReading
+        ?.weightG ?? 0,
 
-      lastDose:
-        data.latestDoseEvent
-          ?.doseUnits ?? 0,
-    };
+    lastDose:
+      data.latestDoseEvent
+        ?.doseUnits ?? 0,
+  };
   },
 };

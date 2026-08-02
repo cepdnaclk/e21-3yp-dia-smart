@@ -11,6 +11,8 @@ public interface DeviceRepository
 
     Optional<Device> findByDeviceUid(String deviceUid);
 
+    boolean existsByDeviceUid(String deviceUid);
+
     List<Device> findAllByOrderByDeviceIdAsc();
 
     Optional<Device> findByAwsThingName(String awsThingName);
@@ -20,4 +22,8 @@ public interface DeviceRepository
     Optional<Device> findByMacAddress(String macAddress);
 
     Optional<Device> findBySerialNumber(String serialNumber);
+
+    Optional<Device> findFirstByPatientIdAndDeviceTypeAndActiveTrue(Long patientId, String deviceType);
+
+    List<Device> findByPatientIdAndDeviceTypeAndActiveTrue(Long patientId, String deviceType);
 }

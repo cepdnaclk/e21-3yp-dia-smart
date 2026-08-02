@@ -10,8 +10,8 @@
 #define SERIAL_BAUD              115200
 
 // ---- WiFi (needed only to lock ESP-NOW channel; not used for data) ----------
-#define WIFI_SSID                "SLT-4G-74699C"
-#define WIFI_PASSWORD            "Arnikan1811"
+#define WIFI_SSID                "ananthu73"
+#define WIFI_PASSWORD            "123123123@@"
 // How long to wait for WiFi before falling back to manual channel set (ms).
 #define WIFI_CONNECT_TIMEOUT_MS  10000
 
@@ -49,12 +49,13 @@
 #define HX711_CLK_PIN            18
 // Calibration factor from HX711 calibration. Tune until scale.get_units()
 // reports the known calibration weight in grams.
-#define LOAD_CELL_CALIBRATION    245.0f
+#define LOAD_CELL_CALIBRATION    -1589.0f
 // Number of readings to average per sample. Increase to reduce noise; this also
 // makes each sample slower.
-#define HX711_AVERAGES           3
-// Measured weight of the full bottle/package in grams. This drives inventory %.
-#define FULL_BOTTLE_WEIGHT_G     300.0f
+#define HX711_AVERAGES           20
+// Two full cartridges at ~9.2g each. This drives inventory %.
+#define FULL_BOTTLE_WEIGHT_G     18.4f
+#define EMPTY_WEIGHT_DEADBAND_G  2.0f
 
 // ---- Sensor sampling / event trigger tuning --------------------------------
 // Raw sensors are sampled every SAMPLE_INTERVAL_MS. Event-triggered sending

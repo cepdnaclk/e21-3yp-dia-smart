@@ -1,5 +1,7 @@
 package com.diasmart.springapi.devices.dto;
 
+import com.diasmart.springapi.devices.entity.Buyer;
+
 import java.time.OffsetDateTime;
 
 public class DeviceResponseDTO {
@@ -7,6 +9,8 @@ public class DeviceResponseDTO {
     private Long deviceId;
 
     private Long patientId;
+
+    private String patientDisplayName;
 
     private String deviceUid;
 
@@ -44,6 +48,56 @@ public class DeviceResponseDTO {
 
     private OffsetDateTime updatedAt;
 
+    private BuyerDTO buyer;
+
+    public static class BuyerDTO {
+        private String fullName;
+        private String nic;
+        private String contactNumber;
+        private String address;
+        private java.time.LocalDate purchaseDate;
+
+        public String getFullName() {
+            return fullName;
+        }
+
+        public void setFullName(String fullName) {
+            this.fullName = fullName;
+        }
+
+        public String getNic() {
+            return nic;
+        }
+
+        public void setNic(String nic) {
+            this.nic = nic;
+        }
+
+        public String getContactNumber() {
+            return contactNumber;
+        }
+
+        public void setContactNumber(String contactNumber) {
+            this.contactNumber = contactNumber;
+        }
+
+        public String getAddress() {
+            return address;
+        }
+
+        public void setAddress(String address) {
+            this.address = address;
+        }
+
+        public java.time.LocalDate getPurchaseDate() {
+            return purchaseDate;
+        }
+
+        public void setPurchaseDate(java.time.LocalDate purchaseDate) {
+            this.purchaseDate = purchaseDate;
+        }
+    }
+
     public Long getDeviceId() {
         return deviceId;
     }
@@ -58,6 +112,14 @@ public class DeviceResponseDTO {
 
     public void setPatientId(Long patientId) {
         this.patientId = patientId;
+    }
+
+    public String getPatientDisplayName() {
+        return patientDisplayName;
+    }
+
+    public void setPatientDisplayName(String patientDisplayName) {
+        this.patientDisplayName = patientDisplayName;
     }
 
     public String getDeviceUid() {
@@ -202,5 +264,13 @@ public class DeviceResponseDTO {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public BuyerDTO getBuyer() {
+        return buyer;
+    }
+
+    public void setBuyer(BuyerDTO buyer) {
+        this.buyer = buyer;
     }
 }

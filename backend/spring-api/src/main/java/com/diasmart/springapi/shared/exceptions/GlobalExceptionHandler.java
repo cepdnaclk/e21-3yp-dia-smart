@@ -11,12 +11,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * GlobalExceptionHandler converts backend exceptions into standard API error
  * responses.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+        private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
         /**
          * Handles business validation errors such as duplicate email
@@ -80,9 +86,23 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleGenericException(
                         Exception exception) {
+
+                log.error("Unhandled exception occurred", exception);
+
                 return ResponseEntity
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body(ErrorResponse.of("Internal server error", "INTERNAL_ERROR"));
+                                .body(
+                                                ErrorResponse.of(
+                                                                "Internal server error",
+                                                                "INTERNAL_ERROR"));
+        }
+
+        @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+        public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupported(
+                        HttpRequestMethodNotSupportedException exception) {
+                return ResponseEntity
+                                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                                .body(ErrorResponse.of(exception.getMessage(), "METHOD_NOT_ALLOWED"));
         }
 
         @ExceptionHandler(AccessDeniedException.class)
@@ -110,63 +130,47 @@ public class GlobalExceptionHandler {
         }
 
         @ExceptionHandler(ResourceNotFoundException.class)
-        public ResponseEntity<ErrorResponse>
-        handleResourceNotFoundException(
-                ResourceNotFoundException exception
-        ) {
+        public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+                        ResourceNotFoundException exception) {
 
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(
-                        ErrorResponse.of(
-                                exception.getMessage(),
-                                "NOT_FOUND"
-                        )
-                );
+                return ResponseEntity
+                                .status(HttpStatus.NOT_FOUND)
+                                .body(
+                                                ErrorResponse.of(
+                                                                exception.getMessage(),
+                                                                "NOT_FOUND"));
         }
 
         @ExceptionHandler(DataIntegrityViolationException.class)
-        public ResponseEntity<ErrorResponse>
-        handleDataIntegrityViolationException(
-                DataIntegrityViolationException exception
-        ) {
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+                        DataIntegrityViolationException exception) {
 
-        String message =
-                "Database constraint violation";
+                String message = exception.getMostSpecificCause().getMessage();
 
-        String exceptionMessage =
-                exception.getMostSpecificCause()
-                        .getMessage();
+                String exceptionMessage = exception.getMostSpecificCause()
+                                .getMessage();
 
-        if (exceptionMessage.contains(
-                "dose_schedules_prescription_id_schedule_label_key"
-        )) {
+                if (exceptionMessage.contains(
+                                "dose_schedules_prescription_id_schedule_label_key")) {
 
-                message =
-                        "Schedule label already exists for this prescription";
+                        message = "Schedule label already exists for this prescription";
 
-        } else if (exceptionMessage.contains(
-                "prescriptions_insulin_product_id_fkey"
-        )) {
+                } else if (exceptionMessage.contains(
+                                "prescriptions_insulin_product_id_fkey")) {
 
-                message =
-                        "Referenced insulin product does not exist";
+                        message = "Referenced insulin product does not exist";
 
-        } else if (exceptionMessage.contains(
-                "dose_schedules_prescription_id_fkey"
-        )) {
+                } else if (exceptionMessage.contains(
+                                "dose_schedules_prescription_id_fkey")) {
 
-                message =
-                        "Referenced prescription does not exist";
-        }
+                        message = "Referenced prescription does not exist";
+                }
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(
-                        ErrorResponse.of(
-                                message,
-                                "BAD_REQUEST"
-                        )
-                );
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(
+                                                ErrorResponse.of(
+                                                                message,
+                                                                "BAD_REQUEST"));
         }
 }

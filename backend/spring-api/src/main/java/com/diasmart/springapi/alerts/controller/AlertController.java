@@ -27,12 +27,15 @@ public class AlertController {
     public ResponseEntity<ApiResponse<Page<AlertResponse>>>
     getAlerts(
 
+            @RequestParam(required = false)
+            String status,
+
             @PageableDefault(size = 20)
             Pageable pageable
     ) {
 
         Page<AlertResponse> response =
-                alertService.getAlerts(pageable);
+                alertService.getAlerts(pageable, status);
 
         return ResponseEntity.ok(
                 ApiResponse.success(

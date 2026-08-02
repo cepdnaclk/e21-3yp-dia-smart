@@ -6,7 +6,9 @@
 struct GlucoseReading {
     int      valueMgDl;
     int      sequenceNumber;
+    char     measuredAt[32];
     uint32_t timestampMs;
+    bool     hasMeasuredAt;
 };
 
 // One dose event received from the pen unit over BLE.

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import {
-  Typography,
   Paper,
   Table,
   TableBody,
@@ -12,10 +11,12 @@ import {
   Chip,
 } from "@mui/material";
 
+import PageTitle from "../../components/common/PageTitle";
 import { patientsService } from "../../services/patientsService";
 import type { Patient } from "../../types/patient";
 
 const PatientsPage = () => {
+  // TODO: Scope patient list behavior by doctor, caregiver, and admin permissions in Milestone 4.
   const [patients, setPatients] = useState<
     Patient[]
   >([]);
@@ -33,9 +34,7 @@ const PatientsPage = () => {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 3 }}>
-        Patients
-      </Typography>
+      <PageTitle>Patients</PageTitle>
 
       <TableContainer component={Paper}>
         <Table>

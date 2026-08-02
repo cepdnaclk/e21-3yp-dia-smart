@@ -37,15 +37,15 @@ public class AuthService {
     private final JwtService jwtService;
 
     private final PatientRepository patientRepository;
-private final UserPatientAccessRepository userPatientAccessRepository;
+    private final UserPatientAccessRepository userPatientAccessRepository;
 
-public AuthService(
-        AppUserRepository appUserRepository,
-        PasswordEncoder passwordEncoder,
-        AuthenticationManager authenticationManager,
-        JwtService jwtService,
-        PatientRepository patientRepository,
-        UserPatientAccessRepository userPatientAccessRepository) {
+    public AuthService(
+            AppUserRepository appUserRepository,
+            PasswordEncoder passwordEncoder,
+            AuthenticationManager authenticationManager,
+            JwtService jwtService,
+            PatientRepository patientRepository,
+            UserPatientAccessRepository userPatientAccessRepository) {
 
         this.appUserRepository = appUserRepository;
         this.passwordEncoder = passwordEncoder;
@@ -82,41 +82,17 @@ public AuthService(
         user.setRole(request.getRole());
         user.setDisplayName(displayName);
         user.setContactNumber(normalizeNullableText(request.getContactNumber()));
-        user.setActive(true);
+        if (request.getRole() == UserRole.DOCTOR) {
+            user.setActive(false);
+        } else {
+            user.setActive(true);
+        }
 
         AppUser savedUser = appUserRepository.save(user);
 
         if (savedUser.getRole() == UserRole.PATIENT) {
-
-        Patient patient = new Patient();
-
-        patient.setPatientUuid(UUID.randomUUID());
-        patient.setFullName(savedUser.getDisplayName());
-        patient.setGender("UNKNOWN");
-        patient.setDiabetesType("UNKNOWN");
-        patient.setTargetGlucoseMinMgDl(BigDecimal.valueOf(70));
-        patient.setTargetGlucoseMaxMgDl(BigDecimal.valueOf(140));
-        patient.setActive(true);
-        patient.setCreatedAt(OffsetDateTime.now());
-        patient.setUpdatedAt(OffsetDateTime.now());
-
-        Patient savedPatient = patientRepository.save(patient);
-
-        UserPatientAccess access = new UserPatientAccess();
-
-        access.setUserId(savedUser.getUserId());
-        access.setPatientId(savedPatient.getPatientId());
-
-        access.setAccessRole(AccessRole.SELF);
-
-        access.setCanView(true);
-        access.setCanAcknowledgeAlerts(true);
-        access.setCanEditPrescriptions(false);
-
-        access.setStatus(AccessStatus.ACTIVE);
-
-        userPatientAccessRepository.save(access);
-    }
+            ensurePatientSelfAccess(savedUser);
+        }
 
         return UserResponse.fromEntity(savedUser);
     }
@@ -142,12 +118,64 @@ public AuthService(
         user.setLastLoginAt(OffsetDateTime.now());
         AppUser savedUser = appUserRepository.save(user);
 
+        if (savedUser.getRole() == UserRole.PATIENT) {
+            ensurePatientSelfAccess(savedUser);
+        }
+
         String token = jwtService.generateAccessToken(savedUser);
 
         return new LoginResponse(
                 token,
                 jwtService.getJwtExpirationMs(),
                 UserResponse.fromEntity(savedUser));
+    }
+
+    private void ensurePatientSelfAccess(AppUser user) {
+        java.util.Optional<UserPatientAccess> existingSelfAccess = userPatientAccessRepository
+                .findByUserIdOrderByCreatedAtDesc(user.getUserId())
+                .stream()
+                .filter(access -> access.getAccessRole() == AccessRole.SELF)
+                .findFirst();
+
+        if (existingSelfAccess.isPresent()) {
+            UserPatientAccess access = existingSelfAccess.get();
+            if (access.getStatus() != AccessStatus.ACTIVE) {
+                access.setStatus(AccessStatus.ACTIVE);
+                access.setCanView(true);
+                access.setCanAcknowledgeAlerts(true);
+                userPatientAccessRepository.save(access);
+            }
+        } else {
+            Patient patient = new Patient();
+
+            patient.setPatientUuid(UUID.randomUUID());
+            patient.setFullName(user.getDisplayName());
+            patient.setGender("UNKNOWN");
+            patient.setDiabetesType("UNKNOWN");
+            patient.setTargetGlucoseMinMgDl(BigDecimal.valueOf(70));
+            patient.setTargetGlucoseMaxMgDl(BigDecimal.valueOf(140));
+            patient.setActive(true);
+            patient.setCreatedAt(OffsetDateTime.now());
+            patient.setUpdatedAt(OffsetDateTime.now());
+
+            Patient savedPatient = patientRepository.save(patient);
+
+            if (savedPatient == null || savedPatient.getPatientId() == null) {
+                throw new IllegalStateException("Failed to create a patient profile for the current user");
+            }
+
+            UserPatientAccess access = new UserPatientAccess();
+
+            access.setUserId(user.getUserId());
+            access.setPatientId(savedPatient.getPatientId());
+            access.setAccessRole(AccessRole.SELF);
+            access.setCanView(true);
+            access.setCanAcknowledgeAlerts(true);
+            access.setCanEditPrescriptions(false);
+            access.setStatus(AccessStatus.ACTIVE);
+
+            userPatientAccessRepository.save(access);
+        }
     }
 
     private String normalizeNullableText(String value) {

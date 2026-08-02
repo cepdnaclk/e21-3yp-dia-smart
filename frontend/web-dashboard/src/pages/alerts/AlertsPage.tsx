@@ -1,17 +1,47 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Typography,
   Stack,
   Alert as MuiAlert,
-  CircularProgress,
   Box,
+  Button,
+  Pagination,
+  Tab,
+  Tabs,
 } from "@mui/material";
 
 import AlertCard from "../../components/alerts/AlertCard";
+import PageError from "../../components/common/PageError";
+import PageLoading from "../../components/common/PageLoading";
+import PageTitle from "../../components/common/PageTitle";
 
-import { alertsService } from "../../services/alertsService";
+import {
+  alertsService,
+  type AlertStatusFilter,
+} from "../../services/alertsService";
 import type { Alert } from "../../types/alert";
+
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
+const PAGE_SIZE = 20;
+
+const STATUS_FILTERS: Array<{
+  label: string;
+  value: AlertStatusFilter;
+}> = [
+  { label: "All", value: "ALL" },
+  { label: "Open", value: "OPEN" },
+  {
+    label: "Acknowledged",
+    value: "ACKNOWLEDGED",
+  },
+  { label: "Resolved", value: "RESOLVED" },
+];
 
 const mapSeverity = (
   severity: string
@@ -27,6 +57,7 @@ const mapSeverity = (
     case "HIGH":
       return "error";
 
+    case "WARNING":
     case "MEDIUM":
       return "warning";
 
@@ -42,62 +73,205 @@ const AlertsPage = () => {
   const [alerts, setAlerts] =
     useState<Alert[]>([]);
 
+  const [status, setStatus] =
+    useState<AlertStatusFilter>("ALL");
+
+  const [page, setPage] =
+    useState(0);
+
+  const [totalPages, setTotalPages] =
+    useState(0);
+
+  const [totalElements, setTotalElements] =
+    useState(0);
+
   const [loading, setLoading] =
     useState(true);
 
   const [error, setError] =
     useState("");
 
-  useEffect(() => {
-    const loadAlerts = async () => {
-      try {
-        const data =
-          await alertsService.getAlerts();
+  const [actionAlertId, setActionAlertId] =
+    useState<number | null>(null);
 
-        setAlerts(data);
-      } catch (err) {
-        console.error(err);
+  const loadAlerts = useCallback(async (silent = false) => {
+    try {
+      if (!silent) {
+        setLoading(true);
+        setError("");
+      }
 
-        setError(
-          "Failed to load alerts"
+      const data =
+        await alertsService.getAlerts(
+          page,
+          PAGE_SIZE,
+          status
         );
-      } finally {
+
+      setAlerts(data.content);
+      setTotalPages(data.totalPages);
+      setTotalElements(
+        data.totalElements
+      );
+    } catch (err) {
+      console.error(err);
+      if (!silent) {
+        setError("Failed to load alerts");
+      }
+    } finally {
+      if (!silent) {
         setLoading(false);
       }
-    };
+    }
+  }, [page, status]);
 
-    loadAlerts();
-  }, []);
+  useEffect(() => {
+    loadAlerts(false);
+  }, [loadAlerts]);
+
+  useAutoRefresh(() => loadAlerts(true), 5000);
+
+  const handleStatusChange = (
+    _event: unknown,
+    value: AlertStatusFilter
+  ) => {
+    setStatus(value);
+    setPage(0);
+  };
+
+  const handleAcknowledge = async (
+    alertId: number
+  ) => {
+    try {
+      setActionAlertId(alertId);
+      await alertsService
+        .acknowledgeAlert(alertId);
+      await loadAlerts();
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Failed to update alert"
+      );
+    } finally {
+      setActionAlertId(null);
+    }
+  };
+
+  const handleResolve = async (
+    alertId: number
+  ) => {
+    try {
+      setActionAlertId(alertId);
+      await alertsService
+        .resolveAlert(alertId);
+      await loadAlerts();
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Failed to update alert"
+      );
+    } finally {
+      setActionAlertId(null);
+    }
+  };
+
+  const renderActions = (alert: Alert) => {
+    const normalizedStatus =
+      alert.status?.toUpperCase();
+
+    if (
+      normalizedStatus !== "OPEN" &&
+      normalizedStatus !== "ACKNOWLEDGED"
+    ) {
+      return null;
+    }
+
+    return (
+      <Stack
+        direction="row"
+        spacing={1}
+      >
+        {normalizedStatus === "OPEN" && (
+          <Button
+            size="small"
+            onClick={() =>
+              handleAcknowledge(
+                alert.alertId
+              )
+            }
+            disabled={
+              actionAlertId ===
+              alert.alertId
+            }
+          >
+            Acknowledge
+          </Button>
+        )}
+
+        <Button
+          size="small"
+          color="success"
+          onClick={() =>
+            handleResolve(
+              alert.alertId
+            )
+          }
+          disabled={
+            actionAlertId ===
+            alert.alertId
+          }
+        >
+          Resolve
+        </Button>
+      </Stack>
+    );
+  };
 
   if (loading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="300px"
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <PageLoading minHeight="50vh" />;
   }
 
   if (error) {
-    return (
-      <MuiAlert severity="error">
-        {error}
-      </MuiAlert>
-    );
+    return <PageError message={error} />;
   }
 
   return (
     <>
-      <Typography
-        variant="h4"
-        sx={{ mb: 3 }}
-      >
-        Alerts
-      </Typography>
+      <PageTitle mb={2}>Alerts</PageTitle>
+
+      <Box sx={{ mb: 3 }}>
+        <Tabs
+          value={status}
+          onChange={handleStatusChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 700,
+              minWidth: "auto",
+              px: 2,
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#3ec1fa",
+            },
+            "& .MuiTab-root.Mui-selected": {
+              color: "#3ec1fa",
+            },
+          }}
+        >
+          {STATUS_FILTERS.map((filter) => (
+            <Tab
+              key={filter.value}
+              label={filter.label}
+              value={filter.value}
+            />
+          ))}
+        </Tabs>
+      </Box>
 
       <Stack spacing={2}>
         {alerts.length === 0 ? (
@@ -115,10 +289,48 @@ const AlertsPage = () => {
               description={
                 alert.message
               }
+              status={alert.status}
+              createdAt={
+                alert.createdAt
+              }
+              action={renderActions(
+                alert
+              )}
             />
           ))
         )}
       </Stack>
+
+      {totalPages > 1 && (
+        <Box
+          sx={{
+            mt: 3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent:
+              "space-between",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography
+            variant="body2"
+            color="text.secondary"
+          >
+            {totalElements} alerts
+          </Typography>
+
+          <Pagination
+            count={totalPages}
+            page={page + 1}
+            onChange={(
+              _event,
+              value
+            ) => setPage(value - 1)}
+            color="primary"
+          />
+        </Box>
+      )}
     </>
   );
 };

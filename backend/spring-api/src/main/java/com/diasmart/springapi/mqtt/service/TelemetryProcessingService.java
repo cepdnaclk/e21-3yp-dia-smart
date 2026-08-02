@@ -27,6 +27,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -281,47 +283,70 @@ public class TelemetryProcessingService {
 
         try {
             int savedRows = 0;
+            List<String> sectionErrors = new ArrayList<>();
 
-            savedRows += saveGlucose(
-                    payload,
-                    rawEvent,
-                    patientId,
-                    eventTime,
-                    receivedAt
+            savedRows += saveTelemetrySection(
+                    "glucose",
+                    sectionErrors,
+                    () -> saveGlucose(
+                            payload,
+                            rawEvent,
+                            patientId,
+                            eventTime,
+                            receivedAt
+                    )
             );
-            savedRows += saveStorage(
-                    payload,
-                    rawEvent,
-                    patientId,
-                    eventTime,
-                    receivedAt
+            savedRows += saveTelemetrySection(
+                    "storage",
+                    sectionErrors,
+                    () -> saveStorage(
+                            payload,
+                            rawEvent,
+                            patientId,
+                            eventTime,
+                            receivedAt
+                    )
             );
-            savedRows += saveInventory(
-                    payload,
-                    rawEvent,
-                    patientId,
-                    eventTime,
-                    receivedAt
+            savedRows += saveTelemetrySection(
+                    "inventory",
+                    sectionErrors,
+                    () -> saveInventory(
+                            payload,
+                            rawEvent,
+                            patientId,
+                            eventTime,
+                            receivedAt
+                    )
             );
-            savedRows += saveDose(
-                    payload,
-                    rawEvent,
-                    patientId,
-                    eventTime,
-                    receivedAt
+            savedRows += saveTelemetrySection(
+                    "dose",
+                    sectionErrors,
+                    () -> saveDose(
+                            payload,
+                            rawEvent,
+                            patientId,
+                            eventTime,
+                            receivedAt
+                    )
             );
-            savedRows += saveBatteryHealth(
-                    payload,
-                    rawEvent,
-                    patientId,
-                    eventTime,
-                    receivedAt
+            savedRows += saveTelemetrySection(
+                    "battery",
+                    sectionErrors,
+                    () -> saveBatteryHealth(
+                            payload,
+                            rawEvent,
+                            patientId,
+                            eventTime,
+                            receivedAt
+                    )
             );
 
             rawEvent.setProcessingStatus(
-                    savedRows > 0 ? "PROCESSED" : "IGNORED"
+                    processingStatus(savedRows, sectionErrors)
             );
-            rawEvent.setProcessingError(null);
+            rawEvent.setProcessingError(
+                    processingError(sectionErrors)
+            );
             rawRepository.save(rawEvent);
 
             System.out.println(
@@ -354,6 +379,60 @@ public class TelemetryProcessingService {
             );
             throw ex;
         }
+    }
+
+    private int saveTelemetrySection(
+            String sectionName,
+            List<String> sectionErrors,
+            TelemetrySectionSave saveOperation
+    ) {
+        try {
+            return saveOperation.save();
+        } catch (RuntimeException ex) {
+            String message =
+                    sectionName
+                            + ": "
+                            + firstNonBlank(
+                                    ex.getMessage(),
+                                    ex.getClass().getSimpleName()
+                            );
+
+            sectionErrors.add(message);
+            System.out.println(
+                    "Telemetry section failed: " + message
+            );
+            return 0;
+        }
+    }
+
+    private String processingStatus(
+            int savedRows,
+            List<String> sectionErrors
+    ) {
+        if (savedRows > 0) {
+            return "PROCESSED";
+        }
+
+        return sectionErrors.isEmpty() ? "IGNORED" : "FAILED";
+    }
+
+    private String processingError(
+            List<String> sectionErrors
+    ) {
+        if (sectionErrors.isEmpty()) {
+            return null;
+        }
+
+        return truncate(
+                "Telemetry section failures: "
+                        + String.join("; ", sectionErrors),
+                1000
+        );
+    }
+
+    @FunctionalInterface
+    private interface TelemetrySectionSave {
+        int save();
     }
 
     private RawDeviceEvent saveRawEvent(
@@ -415,12 +494,30 @@ public class TelemetryProcessingService {
                         createdAt
                 );
 
+        Long deviceId = getDeviceId(device);
+
+        if (deviceId != null
+                && dto.getSequenceNumber() != null
+                && glucoseRepository
+                        .existsByDeviceIdAndGlucometerSequenceNumber(
+                                deviceId,
+                                dto.getSequenceNumber()
+                        )) {
+            System.out.println(
+                    "Duplicate glucose sequence skipped: "
+                            + dto.getSequenceNumber()
+            );
+            return 0;
+        }
+
         GlucoseReading glucose = new GlucoseReading();
 
         glucose.setPatientId(normalizedPatientId);
-        glucose.setDeviceId(getDeviceId(device));
+        glucose.setDeviceId(deviceId);
         glucose.setRawEventId(rawEvent.getRawEventId());
-        glucose.setMeasuredAt(eventTime);
+        glucose.setMeasuredAt(
+                parseTimestamp(dto.getMeasuredAt(), eventTime)
+        );
         glucose.setGlucoseValueMgDl(
                 dto.getValueMgDl().doubleValue()
         );
@@ -899,10 +996,11 @@ public class TelemetryProcessingService {
                 );
 
         DeviceHealthLog lastLog =
-                healthLogRepository
-                        .findTopByDeviceIdOrderByMeasuredAtDesc(
-                                device.getDeviceId()
-                        );
+        healthLogRepository
+                .findTopByDeviceIdOrderByMeasuredAtDesc(
+                        device.getDeviceId()
+                )
+                .orElse(null);
 
         if (lastLog != null
                 && sameDouble(

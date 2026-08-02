@@ -8,13 +8,5 @@ import java.util.Optional;
 public interface DeviceHealthLogRepository
         extends JpaRepository<DeviceHealthLog, Long> {
 
-    DeviceHealthLog
-    findTopByDeviceIdOrderByMeasuredAtDesc(
-            Long deviceId
-    );
-
-    Optional<DeviceHealthLog>
-    findOptionalTopByDeviceIdOrderByMeasuredAtDesc(
-            Long deviceId
-    );
+    Optional<DeviceHealthLog> findTopByDeviceIdOrderByMeasuredAtDesc(Long deviceId);
 }

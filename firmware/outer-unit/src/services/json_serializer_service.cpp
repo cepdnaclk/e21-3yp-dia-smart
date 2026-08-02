@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <esp_system.h>
 #include "config/app_config.h"
+#include "models/care_plan.h"
 
 // ---- Helpers -------------------------------------------------------------- //
 
@@ -12,6 +13,7 @@ static const char* triggerToString(EventTrigger trigger) {
         case TEMPERATURE_ALERT: return "TEMPERATURE_ALERT";
         case INVENTORY_LOW:     return "INVENTORY_LOW";
         case BATTERY_LOW:       return "BATTERY_LOW";
+        case DEVICE_HEALTH:     return "DEVICE_HEALTH";
         default:                return "DEVICE_EVENT";
     }
 }
@@ -71,18 +73,24 @@ String serializeTelemetryEvent(const TelemetryEvent& event) {
     doc["inventory"]["inventoryStatus"]            = inventoryStatus(event.estimatedPercent);
 
     // ---- glucose --------------------------------------------------------- //
-    doc["glucose"]["deviceUid"]      = DEVICE_UID_GLUCOMETER;
-    doc["glucose"]["valueMgDl"]      = event.glucoseMgDl;
-    doc["glucose"]["source"]         = "BLE_GLUCOMETER";
-    doc["glucose"]["sequenceNumber"] = event.glucometerSequenceNumber;
+    if (event.hasGlucose) {
+        doc["glucose"]["deviceUid"]      = DEVICE_UID_GLUCOMETER;
+        doc["glucose"]["valueMgDl"]      = event.glucoseMgDl;
+        doc["glucose"]["source"]         = "BLE_GLUCOMETER";
+        doc["glucose"]["sequenceNumber"] = event.glucometerSequenceNumber;
+        if (event.hasGlucoseMeasuredAt) {
+            doc["glucose"]["measuredAt"] = event.glucoseMeasuredAt;
+        }
+    }
 
     // ---- dose ------------------------------------------------------------ //
-    // doseUnits is Double in the backend DTO — use float here, JSON encodes identically
-    doc["dose"]["deviceUid"]       = DEVICE_UID_PEN;
-    doc["dose"]["doseUnits"]       = event.doseUnits;
-    doc["dose"]["detectionMethod"] = "AS5600";
-    doc["dose"]["injectedAt"]      = event.injectedAt;
-    doc["dose"]["eventStatus"]     = "CONFIRMED";
+    if (event.hasDose) {
+        doc["dose"]["deviceUid"]       = DEVICE_UID_PEN;
+        doc["dose"]["doseUnits"]       = event.doseUnits;
+        doc["dose"]["detectionMethod"] = "AS5600";
+        doc["dose"]["injectedAt"]      = event.injectedAt;
+        doc["dose"]["eventStatus"]     = "CONFIRMED";
+    }
 
     // ---- battery --------------------------------------------------------- //
     doc["battery"]["innerUnitDeviceUid"]  = DEVICE_UID_INNER;
@@ -100,6 +108,26 @@ String serializeTelemetryEvent(const TelemetryEvent& event) {
     // ---- Serialise ------------------------------------------------------- //
     // Use serializeJson (compact) — NOT serializeJsonPretty.
     // serializeJsonPretty is ~3x larger and will overflow the 1024-byte MQTT buffer.
+    String output;
+    serializeJson(doc, output);
+    return output;
+}
+
+String serializeCarePlanTelemetryEvent(const CarePlanTelemetryEvent& event) {
+    JsonDocument doc;
+    doc["eventId"] = event.eventId;
+    doc["eventType"] = event.eventType;
+    doc["outerDeviceId"] = DEVICE_UID_OUTER;
+    doc["scheduleId"] = event.scheduleId;
+    doc["carePlanVersion"] = event.carePlanVersion;
+    if (event.repeatNumber > 0) {
+        doc["repeatNumber"] = event.repeatNumber;
+    }
+    doc["windowStart"] = event.windowStart;
+    doc["targetTime"] = event.targetTime;
+    doc["windowEnd"] = event.windowEnd;
+    doc["timestamp"] = event.timestamp;
+
     String output;
     serializeJson(doc, output);
     return output;

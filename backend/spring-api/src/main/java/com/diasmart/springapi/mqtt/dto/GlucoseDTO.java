@@ -15,6 +15,8 @@ public class GlucoseDTO {
 
     private Integer sequenceNumber;
 
+    private String measuredAt;
+
     private String notes;
 
     // =========================
@@ -39,6 +41,10 @@ public class GlucoseDTO {
 
     public Integer getSequenceNumber() {
         return sequenceNumber;
+    }
+
+    public String getMeasuredAt() {
+        return measuredAt;
     }
 
     public String getNotes() {
@@ -69,6 +75,10 @@ public class GlucoseDTO {
 
     public void setSequenceNumber(Integer sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
+    }
+
+    public void setMeasuredAt(String measuredAt) {
+        this.measuredAt = measuredAt;
     }
 
     public void setNotes(String notes) {

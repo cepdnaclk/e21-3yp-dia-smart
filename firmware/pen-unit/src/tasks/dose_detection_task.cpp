@@ -85,9 +85,13 @@ void doseDetectionTask(void* pvParams) {
     // Wait briefly for AS5600 to power up
     vTaskDelay(pdMS_TO_TICKS(200));
 
-    // Read initial reference angle
+    // Read initial angle. Dose is tracked cumulatively so multi-turn pens
+    // are not limited by the AS5600's 0-360 degree wraparound.
     int16_t rawRef = readRawAngle();
-    float   refDeg = (rawRef >= 0) ? rawToDegrees(rawRef) : 0.0f;
+    float   lastDeg = (rawRef >= 0) ? rawToDegrees(rawRef) : 0.0f;
+    float   accumulatedAngleDeg = 0.0f;
+    float   frozenDoseAngleDeg = 0.0f;
+    bool    doseFrozen = false;
 
     // Button state tracking for debounce
     bool    lastButtonState = HIGH;
@@ -102,18 +106,27 @@ void doseDetectionTask(void* pvParams) {
     for (;;) {
         // ---- Read current angle ------------------------------------------ //
         int16_t rawNow = readRawAngle();
-        float   curDeg = (rawNow >= 0) ? rawToDegrees(rawNow) : refDeg;
-        float   delta = angleDelta(refDeg, curDeg);
-        float   absDelta = fabsf(delta);
-        float   doseUnits = absDelta / DEGREES_PER_UNIT;
+        float   curDeg = lastDeg;
 
         // ---- Button debounce --------------------------------------------- //
         bool currentButton = (bool)digitalRead(BUTTON_PIN);
+
+        if (rawNow >= 0) {
+            curDeg = rawToDegrees(rawNow);
+            if (!doseFrozen && currentButton == HIGH) {
+                accumulatedAngleDeg += angleDelta(lastDeg, curDeg);
+            }
+            lastDeg = curDeg;
+        }
+
+        float absDelta = doseFrozen ? frozenDoseAngleDeg : fabsf(accumulatedAngleDeg);
+        float doseUnits = absDelta / DEGREES_PER_UNIT;
 
         if (lastButtonState == HIGH && currentButton == LOW) {
             // Falling edge — button just pressed
             buttonPressedAt = millis();
             pressDebounced = false;
+            doseFrozen = false;
         }
 
         // While held LOW, mark as a valid debounced press once stable.
@@ -121,10 +134,17 @@ void doseDetectionTask(void* pvParams) {
             && !pressDebounced
             && ((millis() - buttonPressedAt) >= BUTTON_DEBOUNCE_MS)) {
             pressDebounced = true;
+            frozenDoseAngleDeg = fabsf(accumulatedAngleDeg);
+            doseFrozen = true;
+            Serial.printf("[DoseDetect] Dose frozen while injecting: %.1f units\n",
+                          frozenDoseAngleDeg / DEGREES_PER_UNIT);
         }
 
         if (lastButtonState == LOW && currentButton == HIGH && pressDebounced) {
             // Rising edge after debounce — button released: process dose
+
+            absDelta = frozenDoseAngleDeg;
+            doseUnits = absDelta / DEGREES_PER_UNIT;
 
             // Validate dose is within sane range
             if (doseUnits >= DOSE_MIN_UNITS && doseUnits <= DOSE_MAX_UNITS) {
@@ -157,9 +177,7 @@ void doseDetectionTask(void* pvParams) {
                         Serial.println("[DoseDetect] ERROR: dose storage full, dose not queued");
                     }
 
-                    // Reset reference angle after a confirmed dose
-                    refDeg = curDeg;
-                    Serial.println("[DoseDetect] Reference reset after confirmed dose");
+                    Serial.println("[DoseDetect] Dose confirmed; zero reset at release position");
                 } else {
                     Serial.printf("[DoseDetect] Low confidence (%.0f%%), dose ignored\n", confidence);
                 }
@@ -167,7 +185,11 @@ void doseDetectionTask(void* pvParams) {
                 Serial.printf("[DoseDetect] Dose out of range (%.1f units), ignored\n", doseUnits);
             }
 
-            // Release handled; wait for next press cycle.
+            // Button release becomes the new zero point for the next dose.
+            accumulatedAngleDeg = 0.0f;
+            frozenDoseAngleDeg = 0.0f;
+            doseFrozen = false;
+            lastDeg = curDeg;
             pressDebounced = false;
         }
 

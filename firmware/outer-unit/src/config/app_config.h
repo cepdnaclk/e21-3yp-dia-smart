@@ -2,8 +2,8 @@
 #define APP_CONFIG_H
 
 // ---- Wi-Fi ---------------------------------------------------------------- //
-#define WIFI_SSID                    "SLT-4G-74699C"
-#define WIFI_PASSWORD                "Arnikan1811"
+#define WIFI_SSID                    "ananthu73"
+#define WIFI_PASSWORD                "123123123@@"
 
 // ---- Device UIDs (must match backend DB exactly) ------------------------- //
 #define DEVICE_UID                   "DS-OUTER-0001"   // MQTT client ID (keep alias)
@@ -21,6 +21,10 @@
 #define AWS_IOT_PORT                 8883
 // Must match backend MQTT_TOPIC subscription.
 #define AWS_IOT_PUBLISH_TOPIC        "diasmart/device/telemetry"
+#define AWS_IOT_CARE_PLAN_TOPIC      "diasmart/devices/" DEVICE_UID_OUTER "/care-plan"
+#define AWS_IOT_COMMAND_ACK_TOPIC    "diasmart/devices/" DEVICE_UID_OUTER "/command-ack"
+#define AWS_IOT_DEVICE_TELEMETRY_TOPIC "diasmart/devices/" DEVICE_UID_OUTER "/telemetry"
+#define MQTT_BUFFER_BYTES            8192
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200
@@ -40,6 +44,8 @@
 #define GLUCOMETER_SERVICE_UUID      ((uint16_t)0x1808)
 #define GLUCOMETER_MEAS_UUID         ((uint16_t)0x2A18)   // NOTIFY
 #define GLUCOMETER_RACP_UUID         ((uint16_t)0x2A52)   // INDICATE
+// Timezone attached to the meter's user-facing date/time.
+#define GLUCOMETER_UTC_OFFSET_MINUTES 330
 
 // BLE scan/session scheduling. Keep pen checks short/frequent and glucometer
 // checks longer/less frequent so one peripheral does not starve the other.
@@ -49,8 +55,10 @@
 #define GLUCOMETER_SCAN_WINDOW_SEC   10
 #define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
 
-// How often the outer unit attempts to sync the glucometer
-#define GLUCOMETER_SYNC_INTERVAL_MS  30000
+// Keep requesting the Guide Me latest record while its BLE link is active.
+// Sequence-number deduplication prevents repeat backend events.
+#define GLUCOMETER_LIVE_SYNC_INTERVAL_MS 5000
+#define GLUCOMETER_RACP_TIMEOUT_MS       12000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //
 #define TEMP_MIN_C                   2.0f
@@ -82,16 +90,45 @@
 #define DISPLAY_PIN_LCD_RST          6
 // LCD_RD is pulled up to 3.3V through 10k on the PCB; firmware uses write-only mode.
 
+// ---- 4x4 Keypad ---------------------------------------------------------- //
+#define KEYPAD_ROW1_PIN              1
+#define KEYPAD_ROW2_PIN              2
+#define KEYPAD_ROW3_PIN              3
+#define KEYPAD_ROW4_PIN              4
+#define KEYPAD_COL1_PIN              35
+#define KEYPAD_COL2_PIN              36
+#define KEYPAD_COL3_PIN              37
+#define KEYPAD_COL4_PIN              38
+#define KEYPAD_SCAN_INTERVAL_MS      25
+#define KEYPAD_DEBOUNCE_MS           80
+
+// Dose confirmation: auto-send rounded pen dose if patient does not respond.
+#define DOSE_CONFIRM_TIMEOUT_MS      40000
+#define DOSE_EDIT_MAX_DIGITS         3
+#define DOSE_CONFIRM_MAX_UNITS       100
+
+// ---- Care Plan / prescription display ----------------------------------- //
+// Reject oversized plans instead of silently hiding prescribed schedules.
+#define CARE_PLAN_MAX_SCHEDULES      8
+
+// ---- Offline telemetry queue -------------------------------------------- //
+// Stores exact compact backend JSON payloads in LittleFS and retries later.
+#define OFFLINE_JSON_QUEUE_MAX_RECORDS 50
+#define OFFLINE_JSON_MAX_BYTES         2048
+#define OFFLINE_QUEUE_RETRY_INTERVAL_MS 5000
+
 // ---- FreeRTOS Queue lengths ---------------------------------------------- //
 #define QUEUE_TELEMETRY_LEN          10
 #define QUEUE_INNER_PACKET_LEN       5
 #define QUEUE_GLUCOSE_LEN            5
 #define QUEUE_DOSE_LEN               10
+#define QUEUE_KEYPAD_LEN             8
 
 // ---- FreeRTOS Stack sizes (bytes) ---------------------------------------- //
 #define STACK_EVENT_AGG              8192
 #define STACK_MQTT_PUBLISH           8192
 #define STACK_BLE_MANAGER            16384   // BLE client stack is large
 #define STACK_DISPLAY_UI             8192
+#define STACK_KEYPAD                 3072
 
 #endif

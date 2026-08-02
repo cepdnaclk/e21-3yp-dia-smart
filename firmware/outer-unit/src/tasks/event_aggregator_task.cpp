@@ -299,6 +299,7 @@ void eventAggregatorTask(void* parameter) {
                     hasLastResolvedDose = true;
                     confirmedDose = true;
                     carePlanMarkDoseTaken(lastDose.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_RECORDED, lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
                                   pendingDose.roundedUnits);
                     pendingDose = {};
@@ -315,6 +316,7 @@ void eventAggregatorTask(void* parameter) {
                     Serial.printf(
                         "[EventAgg] Accidental pen dose cancelled: %.1f units\n",
                         pendingDose.original.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_CANCELLED, 0.0f);
                     pendingDose = {};
                     clearDosePrompt();
                 }
@@ -350,6 +352,7 @@ void eventAggregatorTask(void* parameter) {
                     hasLastResolvedDose = true;
                     confirmedDose = true;
                     carePlanMarkDoseTaken(lastDose.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_RECORDED, lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
                                   pendingDose.original.doseUnits,
                                   editedUnits);
@@ -370,6 +373,7 @@ void eventAggregatorTask(void* parameter) {
                 hasLastResolvedDose = true;
                 confirmedDose = true;
                 carePlanMarkDoseTaken(lastDose.doseUnits);
+                showDisplayNotice(DISPLAY_NOTICE_DOSE_AUTO_RECORDED, lastDose.doseUnits);
                 Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
                               pendingDose.roundedUnits);
                 pendingDose = {};

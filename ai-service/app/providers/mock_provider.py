@@ -5,7 +5,7 @@ from app.models.responses import ClinicalSummaryResponse, Correlation, Observati
 
 class MockProvider:
     """
-    Deterministic provider producing consistent mock summaries using request context.
+    Deterministic provider producing context-grounded mock summaries using request context.
     Does not use network, external APIs, or keys.
     """
 
@@ -17,18 +17,8 @@ class MockProvider:
 
         observations = []
         correlations = []
+        uncertainties = []
         discussion_points = []
-
-        # Check for insufficient context data (total counts)
-        total_records = 0
-        if request.glucose_summary:
-            total_records += request.glucose_summary.reading_count
-        if request.storage_summary:
-            total_records += request.storage_summary.reading_count
-        if request.adherence_summary:
-            total_records += request.adherence_summary.scheduled_administrations
-        total_records += len(request.relevant_alerts)
-        total_records += len(request.selected_events)
 
         # Define fallback evidence ref to satisfy schema validations
         fallback_ref = "glucose-event:ref-default"
@@ -45,7 +35,23 @@ class MockProvider:
         elif request.selected_events:
             fallback_ref = request.selected_events[0].evidence_reference
 
-        if total_records < 5:
+        # Determine if overall context is limited
+        has_dense_context = (
+            request.inventory_summary is not None
+            or len(request.relevant_alerts) > 0
+            or len(request.selected_events) > 0
+        )
+        total_numeric_records = 0
+        if request.glucose_summary:
+            total_numeric_records += request.glucose_summary.reading_count
+        if request.storage_summary:
+            total_numeric_records += request.storage_summary.reading_count
+        if request.adherence_summary:
+            total_numeric_records += request.adherence_summary.scheduled_administrations
+
+        is_limited_overall = (total_numeric_records < 5) and (not has_dense_context)
+
+        if is_limited_overall:
             summary = "The supplied records are limited and do not support a detailed clinical summary."
             observations.append(
                 Observation(
@@ -53,71 +59,145 @@ class MockProvider:
                     evidence_references=[fallback_ref],
                 )
             )
-            uncertainties = ["The records provided are insufficient to form a clinically meaningful observation."]
+            uncertainties.append("The records provided are insufficient to form a clinically meaningful observation.")
             discussion_points.append("Consider collecting more frequent readings over a longer duration.")
         else:
-            summary = "The selected period contains glucose, administration, storage, inventory, and alert information suitable for review."
+            # 1. Build dynamic summary text matching present sections
+            present_sections = []
+            if request.glucose_summary:
+                present_sections.append("glucose")
+            if request.adherence_summary:
+                present_sections.append("recorded-adherence")
+            if request.storage_summary:
+                present_sections.append("storage-temperature")
+            if request.inventory_summary:
+                present_sections.append("inventory")
+            if request.relevant_alerts:
+                present_sections.append("alert")
+            if request.selected_events:
+                present_sections.append("telemetry-event")
 
-            # 1. Glucose
+            if not present_sections:
+                summary = "The selected period contains information suitable for review."
+            elif len(present_sections) == 1:
+                summary = f"The selected period contains {present_sections[0]} information suitable for review."
+            elif len(present_sections) == 2:
+                summary = f"The selected period contains {present_sections[0]} and {present_sections[1]} information suitable for review."
+            else:
+                summary = f"The selected period contains {', '.join(present_sections[:-1])}, and {present_sections[-1]} information suitable for review."
+
+            # 2. Process Glucose Summary
             if request.glucose_summary:
                 gs = request.glucose_summary
-                observations.append(
-                    Observation(
-                        statement=f"A total of {gs.reading_count} glucose readings were processed with an average value of {gs.average} {gs.unit}.",
-                        evidence_references=[gs.evidence_reference],
-                    )
-                )
-                if gs.high_reading_count > 0:
+                if gs.reading_count >= 5:
                     observations.append(
                         Observation(
-                            statement=f"{gs.high_reading_count} glucose readings were recorded above the configured high threshold.",
+                            statement=f"A total of {gs.reading_count} glucose readings were processed with an average value of {gs.average} {gs.unit}.",
                             evidence_references=[gs.evidence_reference],
                         )
                     )
-                if gs.low_reading_count > 0:
+                    if gs.high_reading_count > 0:
+                        observations.append(
+                            Observation(
+                                statement=f"{gs.high_reading_count} glucose readings were recorded above the configured high threshold.",
+                                evidence_references=[gs.evidence_reference],
+                            )
+                        )
+                    if gs.low_reading_count > 0:
+                        observations.append(
+                            Observation(
+                                statement=f"{gs.low_reading_count} glucose readings were recorded below the configured low threshold.",
+                                evidence_references=[gs.evidence_reference],
+                            )
+                        )
+                elif gs.reading_count > 0:
                     observations.append(
                         Observation(
-                            statement=f"{gs.low_reading_count} glucose readings were recorded below the configured low threshold.",
+                            statement=f"A limited number of glucose readings ({gs.reading_count}) were provided with an average of {gs.average} {gs.unit}.",
                             evidence_references=[gs.evidence_reference],
                         )
                     )
+                    uncertainties.append("Glucose readings are too sparse to establish clinical trends.")
+                else:
+                    observations.append(
+                        Observation(
+                            statement="Glucose summary section was supplied but contains zero readings.",
+                            evidence_references=[gs.evidence_reference],
+                        )
+                    )
+                    uncertainties.append("No glucose readings are available for the selected period.")
 
-            # 2. Adherence
+            # 3. Process Adherence Summary
             if request.adherence_summary:
                 as_ = request.adherence_summary
-                observations.append(
-                    Observation(
-                        statement=f"Out of {as_.scheduled_administrations} scheduled insulin administrations, {as_.recorded_administrations} were recorded.",
-                        evidence_references=[as_.evidence_reference],
-                    )
-                )
-                if as_.delayed_administrations > 0:
+                if as_.scheduled_administrations >= 5:
                     observations.append(
                         Observation(
-                            statement=f"{as_.delayed_administrations} insulin administrations were recorded as delayed relative to the schedule.",
+                            statement=f"Out of {as_.scheduled_administrations} scheduled insulin administrations, {as_.recorded_administrations} were recorded.",
                             evidence_references=[as_.evidence_reference],
                         )
                     )
-                if as_.missed_administrations > 0:
+                    if as_.delayed_administrations > 0:
+                        observations.append(
+                            Observation(
+                                statement=f"{as_.delayed_administrations} insulin administrations were recorded as delayed relative to the schedule.",
+                                evidence_references=[as_.evidence_reference],
+                            )
+                        )
+                    if as_.missed_administrations > 0:
+                        observations.append(
+                            Observation(
+                                statement=f"{as_.missed_administrations} insulin administrations were missed during the selected period.",
+                                evidence_references=[as_.evidence_reference],
+                            )
+                        )
+                elif as_.scheduled_administrations > 0 or as_.recorded_administrations > 0:
                     observations.append(
                         Observation(
-                            statement=f"{as_.missed_administrations} insulin administrations were missed during the selected period.",
+                            statement=f"A limited number of insulin administrations ({as_.recorded_administrations} recorded out of {as_.scheduled_administrations} scheduled) were provided.",
                             evidence_references=[as_.evidence_reference],
                         )
                     )
+                    uncertainties.append("Scheduled insulin administration records are sparse, limiting adherence analysis.")
+                else:
+                    observations.append(
+                        Observation(
+                            statement="Adherence summary section was supplied but contains zero scheduled or recorded administrations.",
+                            evidence_references=[as_.evidence_reference],
+                        )
+                    )
+                    uncertainties.append("No scheduled or recorded insulin administrations are available for the selected period.")
 
-            # 3. Storage
+            # 4. Process Storage Summary
             if request.storage_summary:
                 ss = request.storage_summary
-                excursion_text = "No temperature excursions were recorded." if ss.excursion_count == 0 else f"{ss.excursion_count} temperature excursions were recorded."
-                observations.append(
-                    Observation(
-                        statement=f"Cold storage sensor recorded an average temperature of {ss.average_temperature} {ss.unit}. {excursion_text}",
-                        evidence_references=[ss.evidence_reference],
+                if ss.reading_count >= 5:
+                    excursion_text = "No temperature excursions were recorded." if ss.excursion_count == 0 else f"{ss.excursion_count} temperature excursions were recorded."
+                    observations.append(
+                        Observation(
+                            statement=f"Cold storage sensor recorded an average temperature of {ss.average_temperature} {ss.unit}. {excursion_text}",
+                            evidence_references=[ss.evidence_reference],
+                        )
                     )
-                )
+                elif ss.reading_count > 0:
+                    excursion_text = "No temperature excursions were recorded." if ss.excursion_count == 0 else f"{ss.excursion_count} temperature excursions were recorded."
+                    observations.append(
+                        Observation(
+                            statement=f"A limited number of storage temperature readings ({ss.reading_count}) were provided with an average of {ss.average_temperature} {ss.unit}. {excursion_text}",
+                            evidence_references=[ss.evidence_reference],
+                        )
+                    )
+                    uncertainties.append("Storage readings are too sparse to evaluate temperature stability.")
+                else:
+                    observations.append(
+                        Observation(
+                            statement="Storage summary section was supplied but contains zero readings.",
+                            evidence_references=[ss.evidence_reference],
+                        )
+                    )
+                    uncertainties.append("No storage readings are available for the selected period.")
 
-            # 4. Inventory
+            # 5. Process Inventory Summary
             if request.inventory_summary:
                 inv = request.inventory_summary
                 observations.append(
@@ -127,7 +207,7 @@ class MockProvider:
                     )
                 )
 
-            # 5. Alerts
+            # 6. Process Alerts
             if request.relevant_alerts:
                 alert_refs = [a.evidence_reference for a in request.relevant_alerts]
                 observations.append(
@@ -137,7 +217,7 @@ class MockProvider:
                     )
                 )
 
-            # 6. Selected Events
+            # 7. Process Selected Events
             if request.selected_events:
                 event_refs = [e.evidence_reference for e in request.selected_events]
                 observations.append(
@@ -147,7 +227,7 @@ class MockProvider:
                     )
                 )
 
-            # 7. Correlations
+            # 8. Build Correlations (only if dependencies are present)
             if request.glucose_summary and request.adherence_summary:
                 gs = request.glucose_summary
                 as_ = request.adherence_summary
@@ -162,7 +242,7 @@ class MockProvider:
 
             if request.glucose_summary and request.relevant_alerts:
                 gs = request.glucose_summary
-                high_alerts = [a for a in request.relevant_alerts if "HIGH" in a.alert_type or "HIGH" in a.severity]
+                high_alerts = [a for a in request.relevant_alerts if "HIGH" in a.alert_type.upper() or "HIGH" in a.severity.upper()]
                 if gs.high_reading_count > 0 and high_alerts:
                     correlations.append(
                         Correlation(
@@ -175,14 +255,22 @@ class MockProvider:
                         )
                     )
 
-            uncertainties = [
-                "The supplied records are not sufficient to determine the medical cause of the observed readings.",
-                "Telemetry does not capture external context such as patient diet, stress, physical exercise, or device calibration issues.",
-            ]
-            discussion_points = [
-                "A healthcare professional may review the recorded timing of elevated readings and delayed administrations.",
-                "Discuss regular tracking habits and check if device sync schedules are operating correctly.",
-            ]
+            # 9. Build Uncertainties (guarantee at least one)
+            if not uncertainties:
+                uncertainties.append("The supplied records are not sufficient to determine the medical cause of the observed readings.")
+            uncertainties.append("Telemetry does not capture external context such as patient diet, stress, physical exercise, or device calibration issues.")
+
+            # 10. Build Discussion Points
+            if request.glucose_summary:
+                discussion_points.append("Discuss glucose reading trends and target ranges with a healthcare professional.")
+            if request.adherence_summary:
+                discussion_points.append("Discuss regular tracking habits and check if device sync schedules are operating correctly.")
+            if request.glucose_summary and request.adherence_summary:
+                discussion_points.append("A healthcare professional may review the recorded timing of elevated readings and delayed administrations.")
+            if request.storage_summary:
+                discussion_points.append("Confirm that insulin supplies are stored within the recommended temperature range.")
+            if request.inventory_summary:
+                discussion_points.append("Check inventory levels and coordinate timely refills to avoid supply shortages.")
 
         return ClinicalSummaryResponse(
             request_id=request_id,

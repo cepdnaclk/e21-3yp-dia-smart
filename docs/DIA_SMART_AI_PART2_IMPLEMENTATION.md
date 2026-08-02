@@ -1,18 +1,21 @@
 # Dia-Smart: IoT Diabetes Compliance Ecosystem
 ## Part 2 — FastAPI AI Service Foundation with MockProvider Only
+### Correction Pass Supplement
 
-This report documents the implementation of the standalone FastAPI AI service foundation (`ai-service/`), including request/response Pydantic models, secure bearer handshakes, prompt construction templates, post-generation safety validators, mock providers, and quality/testing results.
+This report documents the implementation of the standalone FastAPI AI service foundation (`ai-service/`), updated and consolidated during the **Part 2 Correction Pass** to implement 10 mandatory security, validation, and safety controls.
 
 ---
 
 ## 1. Executive Summary
-The Dia-Smart AI service has been successfully established at the repository root `ai-service/`. The service is completely isolated and runs locally on Python `3.14` (supported on `3.11` and `3.12` runtimes). It enforces strict input constraints, timezone-awareness checks, and a handshake bearer token check before executing a deterministic `MockProvider` pipeline. To ensure healthcare safety and integrity, post-generation validators check returned text statements for unauthorized medical claims or citation inaccuracies. The static verification checks (Ruff, mypy) are fully passing, and the automated test suite reports a coverage of **87%** with all 57 tests passing.
+The Dia-Smart AI service has been successfully established at the repository root `ai-service/`. The service is completely isolated and runs locally on Python `3.14` (supported on `3.11+` runtimes). 
+
+Following the Correction Pass, the service enforces strict input constraints, early ASGI payload size filtering, timezone-awareness, data consistency validator rules, and a constant-time bearer handshake token check. The deterministic `MockProvider` dynamically adapts to sparse and partial context structures. Post-generation safety validators normalize inputs to prevent evasion, and the coordinator ensures Request-ID correlation before masking all raw exception/path details in client-facing JSON responses. Static verification checks (Ruff, mypy) are fully passing with zero errors, and the automated test suite reports a coverage of **87%** with all 83 tests passing.
 
 ---
 
 ## 2. Part 2 Scope
 The scope of Part 2 has been strictly observed:
-* **Implemented:** Standalone FastAPI service, Bearer authentication, settings, logging configs, Pydantic requests/responses/errors models, prompts, prompt builders, MockProvider, safety and evidence validators, pytest suites, Ruff, mypy, Dockerfile, and README.
+* **Implemented:** Standalone FastAPI service, Bearer authentication, settings, logging configs, request body size ASGI middleware, Pydantic requests/responses/errors models, prompts, prompt builders, MockProvider, safety and evidence validators, pytest suites, Ruff, mypy, Dockerfile, and README.
 * **Prohibited (Not Implemented):** No Gemini SDK packages installed, no Gemini API requests, no pgvector or sqlalchemy databases, no cross-provider fallbacks, no modifications to the existing Spring Boot backend, React dashboard, or ESP32 firmware.
 
 ---
@@ -31,14 +34,13 @@ The scope of Part 2 has been strictly observed:
 
 ---
 
-## 5. Files Created
-All created files reside inside the `ai-service/` path:
+## 5. Files Created / Modified
+All created or updated files reside inside the `ai-service/` path:
 * `ai-service/.gitignore`
 * `ai-service/.dockerignore`
 * `ai-service/Dockerfile`
 * `ai-service/.env.example`
 * `ai-service/pyproject.toml`
-* `ai-service/pytest.ini`
 * `ai-service/README.md`
 * `ai-service/app/__init__.py`
 * `ai-service/app/main.py`
@@ -52,6 +54,7 @@ All created files reside inside the `ai-service/` path:
 * `ai-service/app/exceptions/__init__.py`
 * `ai-service/app/exceptions/types.py`
 * `ai-service/app/exceptions/handlers.py`
+* `ai-service/app/middlewares/request_size.py` [NEW]
 * `ai-service/app/models/__init__.py`
 * `ai-service/app/models/common.py`
 * `ai-service/app/models/requests.py`
@@ -85,15 +88,17 @@ All created files reside inside the `ai-service/` path:
 * `ai-service/tests/unit/test_mock_provider.py`
 * `ai-service/tests/unit/test_medical_safety_validator.py`
 * `ai-service/tests/unit/test_evidence_validator.py`
+* `ai-service/tests/unit/test_corrections.py` [NEW]
 * `ai-service/tests/integration/__init__.py`
 * `ai-service/tests/integration/test_health_endpoint.py`
 * `ai-service/tests/integration/test_internal_auth.py`
 * `ai-service/tests/integration/test_clinical_summary_endpoint.py`
+* `ai-service/tests/integration/test_corrections_integration.py` [NEW]
 
 ---
 
 ## 6. Files Modified
-* **No files** outside of `ai-service/` were modified.
+* **No files** outside of `ai-service/` and `docs/` were modified.
 * `docs/DIA_SMART_AI_PART1_AUDIT.md` was preserved unaltered.
 
 ---
@@ -106,15 +111,16 @@ All created files reside inside the `ai-service/` path:
 ---
 
 ## 8. Service Architecture
-The standalone Python service uses a layered, decoupled design patterns:
-1. **API Endpoints:** Handled under `app/api/` (routes are thin decorators forwarding work).
-2. **Configuration & Settings:** Loaded via `app/config/settings.py` and structured safely.
-3. **Security Handshake:** Token checks execute constant-time comparisons (`app/security/internal_auth.py`).
-4. **Prompt Pipeline:** Prompts are versioned and prepared safely (`app/prompts/`).
-5. **Deterministic Provider:** Simulates LLM execution (`app/providers/mock_provider.py`).
-6. **Validators:** Post-execution clinical checks examine references and wording (`app/validators/`).
-7. **Service Coordinator:** Orchestrates execution steps sequentially (`app/services/clinical_summary_service.py`).
-8. **Logging:** Standard format outputs logging metadata safely (`app/observability/logging_config.py`).
+The standalone Python service uses a layered, decoupled design pattern:
+1. **API Endpoints:** Handled under `app/api/` (routes are thin decorators forwarding work, fully documenting schemas).
+2. **Request Body Size Limit Middleware:** Enforces size limits early on the ASGI stream, preventing memory exhaustion.
+3. **Configuration & Settings:** Loaded via `app/config/settings.py` and structured safely.
+4. **Security Handshake:** Token checks execute constant-time comparisons (`app/security/internal_auth.py`).
+5. **Prompt Pipeline:** Prompts are versioned and prepared safely (`app/prompts/`).
+6. **Deterministic Provider:** Simulates LLM execution (`app/providers/mock_provider.py`).
+7. **Validators:** Post-execution clinical checks examine references and wording (`app/validators/`).
+8. **Service Coordinator:** Orchestrates execution steps sequentially (`app/services/clinical_summary_service.py`).
+9. **Logging:** Standard format outputs logging metadata safely (`app/observability/logging_config.py`).
 
 ---
 
@@ -123,9 +129,15 @@ Enforces strict schema constraints using Pydantic:
 * `request_id` must be a valid UUID.
 * `request_type` must be exactly `CLINICAL_SUMMARY`.
 * `prompt_version` must be `clinical-summary-v1`.
-* `patient_reference` must be pseudonymous. Values containing only digits or obvious patterns (like `patient-1`) are rejected.
-* `requested_period` must contain timezone-aware timestamps, where `from` is strictly earlier than `to` and does not exceed the `AI_MAX_DATE_RANGE_DAYS` (31 days) constraint.
-* Numeric counts and stats must be non-negative, and measurements must be finite (NaN and infinity are rejected).
+* **String length constraints and whitespace checking:** All uncontrolled request strings are limited (e.g., `patient_reference` 8-128, `unit` 1-32, statuses and types 1-64, evidence references <=128), and whitespace-only strings are rejected.
+* **Pseudonymous Patient Reference Check:** Pattern `^[A-Za-z][A-Za-z0-9._:-]{7,127}$` filters out raw database IDs (e.g. `patient-1`, `user_234`) and email formats.
+* **Requested Period Date Range Check:** Timestamps must be timezone-aware, where `from` is strictly earlier than `to` and does not exceed the `AI_MAX_DATE_RANGE_DAYS` (31 days) constraint.
+* **Internal Data Consistency Rules:**
+  - `GlucoseSummary`: `minimum <= average <= maximum` and `high_reading_count + low_reading_count <= reading_count`.
+  - `StorageSummary`: `minimum_temperature <= average_temperature <= maximum_temperature` and `excursion_count <= reading_count`.
+  - `AdherenceSummary`: `recorded_administrations <= scheduled_administrations`, `delayed_administrations <= recorded_administrations`, `missed_administrations <= scheduled_administrations`, and `delayed_administrations + missed_administrations <= scheduled_administrations`.
+  - Numeric counts and stats must be non-negative, and measurements must be finite (NaN and infinity are rejected).
+* **Requested Period boundaries check:** All associated alerts and selected events must have `recorded_at` strictly within `requested_period.from` to `requested_period.to`.
 * Array items are limited in volume (e.g. alerts max 100).
 * Uniqueness is checked across all evidence references, and duplicate keys are rejected.
 * Missing telemetry context blocks completely triggers validation failure.
@@ -134,9 +146,9 @@ Enforces strict schema constraints using Pydantic:
 
 ## 10. Response Contract
 Outputs a structured clinical insight envelope:
-* Matches request `request_id` accurately.
+* **Request-ID correlation verification:** The pipeline coordinator asserts that `response.request_id == request.request_id`, raising a controlled `AI_RESPONSE_VALIDATION_ERROR` (502 status) on mismatch.
 * Contains non-empty summaries and statements.
-* All observations and correlations must cite valid evidence references from the request.
+* All observations and correlations cite valid evidence references from the request.
 * `confidence` values must map to `low`, `moderate`, or `high`.
 * Contains at least one uncertainty block.
 * Verbatim output of `APPROVED_SAFETY_NOTICE` disclaimer:
@@ -161,16 +173,17 @@ Outputs a structured clinical insight envelope:
 
 ## 13. MockProvider Behavior
 * Validates inputs, parses telemetry sizes, and generates deterministic summaries.
-* Generates observations listing average glucose values, high/low count events, and cold storage safety ranges using references.
-* Performs co-occurrence correlation mapping (e.g. elevated glucose with delayed doses) without claiming direct clinical causation.
+* **Context-aware Rendering:** Generates observations dynamically based only on present context blocks, and only generates correlations if all referenced dependencies are present.
+* Handles sparse records (e.g. 1 reading, alert-only, inventory-only, event-only) safely without rejecting requests, acknowledging limited records and appending appropriate uncertainties.
 * Includes approved safety warnings and uncertainties.
-* If telemetry records are fewer than 5, handles the exception and returns a limited warning summary.
+* If all present numeric telemetry records are fewer than 5, returns the overall limited warning summary.
 
 ---
 
 ## 14. Medical-Safety Validation
 * Examines all returned text blocks (summary, observations, correlations, uncertainties, discussion points) against regex patterns.
 * Rejects statements containing diagnoses, prescription additions, dose calculations (e.g. increase/decrease insulin), stop/start recommendations, or doctors impersonation.
+* **Evasion Prevention:** Normalizes case, spacing, and strips common punctuation before regex matching.
 * If any violation is found, throws `MedicalSafetyRejection` which translates to `502 Bad Gateway` (`AI_MEDICAL_SAFETY_REJECTION`).
 
 ---
@@ -183,10 +196,11 @@ Outputs a structured clinical insight envelope:
 
 ---
 
-## 16. Error Handling
+## 16. Error Handling & Sanitization
 * Translates exceptions to standard JSON shapes containing `error_code`, `message`, and `request_id`.
 * FastAPI validation errors return `422 Unprocessable Entity` (`AI_REQUEST_VALIDATION_ERROR`).
-* Unhandled runtime exceptions are securely caught, logged, and return a generic `500 Internal Server Error` (`AI_INTERNAL_ERROR`) with stack traces fully suppressed from client responses.
+* ASGI-level middleware enforces request body size limit, returning `413 Payload Too Large` (`AI_REQUEST_TOO_LARGE`).
+* **Secure Error Sanitization:** All raw provider exception text, stack traces, local filesystem paths, and URLs are masked and redacted from client-facing JSON responses for all exceptions (including pipeline errors and generic 500 errors).
 
 ---
 
@@ -206,28 +220,31 @@ Outputs a structured clinical insight envelope:
 ---
 
 ## 19. Test Inventory
-We implemented 57 total test routines:
+Following the Correction Pass, the test suite expanded to **83** total test routines:
 * **Settings:** default checks, wrong provider settings, missing/short tokens, limits.
 * **Models:** valid/partial setups, patient-ref format audits, date ranges, duplicate citations, NaN rejections, naive time checks.
 * **Prompt Builder:** prompt boundaries, untrusted isolates, credential leakage prevention, and version rejections.
-* **MockProvider:** deterministic outputs, insufficient context fallbacks, and prompt injection ignores.
+* **MockProvider:** deterministic outputs, sparse context, and prompt injection ignores.
 * **Safety Validator:** safety checks, phrase rejections, and safe text validations.
 * **Evidence Validator:** citation matches, missing citations, and omitted block citations.
 * **Integrations:** GET `/health` checking, token handshake validation, POST `/clinical-summary` pipeline checks, and mock patching.
+* **Request size limits:** checks `413` response on oversized payloads.
+* **Request ID correlation:** verifies response mismatch rejection.
+* **Error masking:** validates redaction of stack traces, filesystem paths, and URLs.
+* **Data consistency and period bounds:** tests validations of metrics relationships and alert/event time periods.
 
 ---
 
 ## 20. Verification Metrics & Results
 
 ### 1. Automated Test Results
-* **Command:** `.venv\Scripts\pytest`
-* **Passed:** 57, **Failed:** 0, **Skipped:** 0
+* **Command:** `.venv\Scripts\pytest --cov=app --cov-report=term-missing`
+* **Passed:** 83, **Failed:** 0, **Skipped:** 0
 * **Coverage:** **87%** statement coverage
 
 ### 2. Static Analysis Checks
-* **Ruff Linter:** **Passed** (0 errors)
-* **Ruff Formatting:** **Passed** (49 files formatted, conforming to style rules)
-* **mypy Type Checking:** **Passed** (Success: no issues found in 49 source files checked)
+* **Ruff Linter:** **Passed** (0 errors, 18 formatting and styling items successfully auto-fixed)
+* **mypy Type Checking:** **Passed** (Success: no issues found in 52 source files checked)
 
 ### 3. Runtime Health Check
 * **Command:** `.venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000` (development server)
@@ -289,20 +306,7 @@ A review of the newly created files has been conducted:
 
 ---
 
-## 24. Known Limitations
-* **Mock Only:** Model responses are entirely simulated by MockProvider and do not connect to a real LLM.
-* **No Database Sync:** Spring Boot backend doesn't call this service yet (belongs to Part 3).
-
----
-
-## 25. Entry Criteria for Part 3 (Spring Boot Integration)
-* FastAPI microservice is listening on port 8000 and is fully secured via the internal Bearer token.
-* Telemetry request contracts match database schema entities.
-* Safety validations prevent unauthenticated or invalid insight generations.
-
----
-
-## 26. Explicit Confirmation
+## 24. Explicit Confirmation
 * No backend code was modified.
 * No frontend code was modified.
 * No database file was modified.
@@ -315,5 +319,13 @@ A review of the newly created files has been conducted:
 
 ---
 
-## 27. Recommended Next Action
-Obtain approval on the standalone FastAPI foundation, then proceed to **Part 3: Spring Boot Backend Integration** to invoke this service internally.
+## 25. Entry Criteria for Part 3 (Spring Boot Integration)
+* FastAPI microservice is listening on port 8000 and is fully secured via the internal Bearer token.
+* Telemetry request contracts match database schema entities.
+* Safety validations prevent unauthenticated or invalid insight generations.
+* Size constraints and correlation validations prevent runtime memory or correlation leaks.
+
+---
+
+## 26. Recommended Next Action
+Obtain approval on the standalone FastAPI foundation and the correction pass improvements, then proceed to **Part 3: Spring Boot Backend Integration** to invoke this service internally.

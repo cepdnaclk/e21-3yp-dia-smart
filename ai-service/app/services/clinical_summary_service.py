@@ -47,6 +47,12 @@ class ClinicalSummaryService:
         except ResponseValidationError as e:
             raise AiResponseValidationError(str(e)) from e
 
+        # 3.5 Request-ID correlation validation
+        if validated_response.request_id != request.request_id:
+            raise AiResponseValidationError(
+                "Provider response request_id does not match the incoming request"
+            )
+
         # 4. Medical-safety validation
         try:
             validate_medical_safety(validated_response)

@@ -1,6 +1,6 @@
 import copy
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
@@ -54,14 +54,15 @@ def test_provider_execution_error_502(mock_get_provider):
 
     data = res.json()
     assert data["error_code"] == "AI_PROVIDER_ERROR"
-    assert "provider execution failed" in data["message"]
+    assert "The AI provider could not complete the request." in data["message"]
 
 
 @patch("app.services.clinical_summary_service.get_provider")
 def test_medical_safety_rejection_502(mock_get_provider):
+    stable = copy.deepcopy(STABLE_GLUCOSE_PAYLOAD)
     # Mock the provider to return unsafe text that violates safety filters
     unsafe_response = ClinicalSummaryResponse(
-        request_id=uuid4(),
+        request_id=UUID(stable["request_id"]),
         summary="The patient has diabetic ketoacidosis. Increase the insulin dose to 12 units.",
         observations=[
             Observation(
@@ -80,20 +81,20 @@ def test_medical_safety_rejection_502(mock_get_provider):
     mock_provider.generate_clinical_summary.return_value = unsafe_response
     mock_get_provider.return_value = mock_provider
 
-    stable = copy.deepcopy(STABLE_GLUCOSE_PAYLOAD)
     res = client.post(URL, json=stable, headers=HEADERS)
     assert res.status_code == 502
 
     data = res.json()
     assert data["error_code"] == "AI_MEDICAL_SAFETY_REJECTION"
-    assert "safety violation" in data["message"]
+    assert "did not pass medical safety checks" in data["message"]
 
 
 @patch("app.services.clinical_summary_service.get_provider")
 def test_evidence_validation_rejection_502(mock_get_provider):
+    stable = copy.deepcopy(STABLE_GLUCOSE_PAYLOAD)
     # Mock response containing invented evidence references not in stable payload request
     invalid_evidence_response = ClinicalSummaryResponse(
-        request_id=uuid4(),
+        request_id=UUID(stable["request_id"]),
         summary="Safe summary description",
         observations=[
             Observation(
@@ -112,10 +113,9 @@ def test_evidence_validation_rejection_502(mock_get_provider):
     mock_provider.generate_clinical_summary.return_value = invalid_evidence_response
     mock_get_provider.return_value = mock_provider
 
-    stable = copy.deepcopy(STABLE_GLUCOSE_PAYLOAD)
     res = client.post(URL, json=stable, headers=HEADERS)
     assert res.status_code == 502
 
     data = res.json()
     assert data["error_code"] == "AI_EVIDENCE_VALIDATION_ERROR"
-    assert "Invented evidence reference" in data["message"]
+    assert "contains invalid citations" in data["message"]

@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any
 
 from app.models.requests import ClinicalSummaryRequest
 from app.prompts.clinical_summary_v1 import PROMPT_VERSION, SYSTEM_INSTRUCTION
@@ -17,7 +17,7 @@ def build_prompt(request: ClinicalSummaryRequest) -> StructuredPrompt:
         raise ValueError(f"Unsupported prompt version '{request.prompt_version}'")
 
     # Serialize context safely, sanitizing patient-entered strings
-    context_dict: Dict[str, Any] = {
+    context_dict: dict[str, Any] = {
         "patient_reference": request.patient_reference,
         "requested_period": {
             "from": request.requested_period.from_.isoformat(),

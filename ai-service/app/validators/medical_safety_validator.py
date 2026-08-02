@@ -3,45 +3,67 @@ import re
 from app.constants.safety import APPROVED_SAFETY_NOTICE
 from app.models.responses import ClinicalSummaryResponse
 
-# Rejection patterns targeting diagnostic, prescription, dosage, and causation assertions
+# NOTE: Deterministic safety validation reduces risk but cannot guarantee clinical safety.
+# A stronger model-output policy layer is required before real Gemini activation.
+
+# Rejection patterns targeting diagnostic, prescription, dosage, treatment, and causation assertions
 REJECTION_PHRASES = [
     # 1. Diagnoses
-    r"diabetic ketoacidosis",
-    r"severe diabetic complication",
+    r"ketoacidosis",
+    r"diabetic complication",
+    r"appear(s)? to have a complication",
+    r"confirm(s)? a diagnosis",
     r"suffer(ing|s)? from dka",
     r"has type \d diabetes",
     # 2. Dosage adjustments / calculations
     r"increase (the )?insulin( dose)?",
     r"decrease (the )?insulin( dose)?",
-    r"reduce (the )?(evening|morning|afternoon|night)?( insulin)?( dose)?",
+    r"take \d+ units",
+    r"use \d+ units",
+    r"raise (your )?insulin",
+    r"raise.*unit(s)?",
+    r"lower (the )?(evening|morning|afternoon|night|evening)?( insulin)?( dose)?",
+    r"adjust (the )?insulin dose",
     r"adjust (the )?dose",
     r"dose to \d+ units",
     r"dosage recommendation",
     r"calculate(d)? insulin",
+    r"increase medication",
+    r"reduce (the )?dose",
+    r"double (the )?dose",
     # 3. Treatment / prescription modifications
-    r"stop (the )?current medication",
+    r"begin metformin",
+    r"start taking metformin",
     r"stop taking",
-    r"start taking",
     r"start (a )?new medication",
+    r"switch to (another|other) medication",
+    r"replace (the )?medication",
     r"change (the )?prescription",
     r"change (the )?medication",
     r"change (the )?administration schedule",
+    r"modify (the )?treatment plan",
+    r"follow (this|my) treatment",
+    r"guarantee(s|d)? control",
     r"prescribe a",
     r"i prescribe",
     # 4. Definite causation claims
+    r"(late injection|delayed administration|delayed injection|storage conditions|dose timing).*caused",
     r"caused (the )?glucose (spike|increase|drop)",
-    r"delayed injection caused",
-    r"injection caused",
+    r"caused (the )?abnormal",
+    r"caused (the )?reading",
+    r"explains (the )?glucose",
     r"caused by (the )?delayed",
     r"due to (the )?delayed",
+    r"proves.*caused",
     # 5. Guaranteed clinical outcomes
     r"guarantee(s|d)? stable glucose",
     r"guarantee(s|d)? clinical",
-    r"will guarantee",
     # 6. Impersonating a doctor
     r"as your doctor",
     r"i am a doctor",
     r"the ai is a doctor",
+    r"my medical advice",
+    r"medical advice is",
     r"clinical physician recommendation",
 ]
 
@@ -84,8 +106,14 @@ def validate_medical_safety(response: ClinicalSummaryResponse) -> None:
     for dp in response.discussion_points:
         text_blocks.append(dp)
 
-    # Examine text blocks against regexes
+    # Examine text blocks against regexes after normalizing case and whitespaces
     for block in text_blocks:
+        # Normalize casing, repeated whitespace, and strip common punctuation boundaries
+        normalized = " ".join(block.lower().split())
+        # Remove punctuation that might act as boundaries but keep words intact
+        normalized = re.sub(r"[.,;:!?\(\)\[\]\{\}]", " ", normalized)
+        normalized = " ".join(normalized.split())
+
         for regex in REJECTION_REGEXES:
-            if regex.search(block):
+            if regex.search(normalized):
                 raise MedicalSafetyRejection(f"Clinical safety violation: phrase matching '{regex.pattern}' was detected. AI generation rejected.")

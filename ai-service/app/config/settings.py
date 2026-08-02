@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     AI_MAX_SELECTED_EVENTS: int = 100
     AI_MAX_ALERTS: int = 100
     AI_MAX_TEXT_LENGTH: int = 1000
+    AI_MAX_REQUEST_BODY_BYTES: int = 1048576
 
     # Logging
     AI_LOG_LEVEL: str = "INFO"
@@ -39,6 +40,8 @@ class Settings(BaseSettings):
             raise ValueError("AI_INTERNAL_SERVICE_TOKEN must be at least 32 characters long")
 
         # Validate limits
+        if self.AI_MAX_REQUEST_BODY_BYTES <= 0:
+            raise ValueError("AI_MAX_REQUEST_BODY_BYTES must be greater than 0")
         if self.AI_MAX_DATE_RANGE_DAYS <= 0:
             raise ValueError("AI_MAX_DATE_RANGE_DAYS must be greater than 0")
         if self.AI_MAX_CONTEXT_RECORDS <= 0:

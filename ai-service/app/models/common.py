@@ -9,6 +9,9 @@ def validate_evidence_ref(v: str) -> str:
     if not isinstance(v, str):
         raise ValueError("Evidence reference must be a string")
 
+    if len(v) > 128:
+        raise ValueError("Evidence reference length exceeds 128 characters")
+
     if ":" not in v:
         raise ValueError("Evidence reference must follow 'category:opaque-ref' format")
 

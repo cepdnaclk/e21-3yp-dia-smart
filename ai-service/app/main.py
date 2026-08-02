@@ -1,6 +1,8 @@
 import json
 import logging
-from typing import Any, Awaitable, Callable, Dict, cast
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
+
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 
@@ -13,6 +15,7 @@ from app.exceptions.handlers import (
     generic_exception_handler,
 )
 from app.exceptions.types import AiBaseException
+from app.middlewares.request_size import RequestSizeLimitMiddleware
 from app.observability.logging_config import setup_logging
 
 # Initialize safe logging configuration
@@ -27,6 +30,12 @@ app = FastAPI(
     description="Dia-Smart IoT Diabetes Management System AI Subsystem",
     docs_url="/docs",  # Default enabled in development; recommended to disable or protect in production
     redoc_url="/redoc",
+)
+
+# Add request body size limit protection middleware
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_size=settings.AI_MAX_REQUEST_BODY_BYTES
 )
 
 # Register endpoints
@@ -57,7 +66,7 @@ async def extract_request_id_middleware(
             body = await request.body()
 
             # Reset body read pointer for downstream route binding
-            async def receive() -> Dict[str, Any]:
+            async def receive() -> dict[str, Any]:
                 return {"type": "http.request", "body": body, "more_body": False}
 
             request._receive = receive

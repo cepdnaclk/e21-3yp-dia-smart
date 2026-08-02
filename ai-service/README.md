@@ -259,14 +259,16 @@ docker run -d -p 8000:8000 \
 
 ---
 
-## 10. Safety Controls & Known Limitations
-* **Safety notice enforcement:** The medical safety validator enforces the exact approved notice disclaimer in all generated responses.
-* **Phrase filters:** Rejects responses if terms like "diabetic ketoacidosis", "increase the insulin dose", "stop taking", or definite causation statements like "caused by the delayed" are found.
-* **Evidence references rules:** All observations and correlations must only reference elements provided in the request context using the opaque `<category>:<opaque-reference>` format.
-* **PII Filter:** Rejects `patient_reference` if it contains plain emails or digits indicating raw database primary keys.
-* **No Database operations:** Telemetry is read purely in-memory.
-* **Part 3 boundary:** Spring Boot backend will incorporate this microservice into its request loop privately.
-* **Part 5 boundary:** Real Google Gemini model connection and prompt injection audit validations belong to Part 5.
+## 10. Safety Controls & Validation Filters (Part 2 Correction Pass)
+* **Maximum Request Body Size Limit:** Enforces `AI_MAX_REQUEST_BODY_BYTES` (default 1 MiB) early in the ASGI request stream, rejecting oversized payloads with `413 Payload Too Large` and a controlled `AI_REQUEST_TOO_LARGE` JSON body before memory exhaustion.
+* **String Length & Whitespace Constraints:** Limits string properties (e.g., `patient_reference`: 8-128 chars; `unit`: 1-32; `evidence_reference`: <=128; others: 1-64) and rejects empty/whitespace-only strings.
+* **Pseudonymous Patient Reference Check:** Pattern `^[A-Za-z][A-Za-z0-9._:-]{7,127}$` filters out raw database IDs (e.g. `patient-1`, `user_234`) and email formats.
+* **Telemetry Data Consistency Rules:** Model-level validation ensures mathematical rules (e.g., `minimum <= average <= maximum` for glucose and storage, and logical reading/administration counts bounds).
+* **Time Period Boundaries Alignment:** Rejects requests if any associated alert or selected event falls outside `requested_period.from` to `requested_period.to`.
+* **Request-ID Correlation Validator:** Asserts `response.request_id == request.request_id` in the pipeline and returns a controlled `AI_RESPONSE_VALIDATION_ERROR` (502 status) on mismatch.
+* **Medical Safety Regex Checks:** Checks all response blocks against expanded phrase lists (diagnoses, dose recommendations, prescription changes, stop-medication instructions, causation claims, doctor impersonation) after case, space, and punctuation normalization.
+* **Secure Error Sanitization:** Exception handlers mask raw exception details, filesystems, URLs, and stack traces from API callers, returning safe, controlled error messages.
+* **Context-Aware Mock rendering:** MockProvider dynamically generates observations based only on present context blocks, handles sparse records (e.g., 1 reading), and verifies correlation dependencies.
 
 ---
 

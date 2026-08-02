@@ -14,6 +14,8 @@ public class AuditService {
 
         public static final String DEVICE_REGISTERED = "DEVICE_REGISTERED";
         public static final String DEVICE_ASSIGNED = "DEVICE_ASSIGNED";
+        public static final String DEVICE_KIT_ACTIVATED = "DEVICE_KIT_ACTIVATED";
+        public static final String DEVICE_KIT_ALREADY_ACTIVE = "DEVICE_KIT_ALREADY_ACTIVE";
         public static final String MQTT_REPLAY_EVENT = "MQTT_REPLAY_EVENT";
         public static final String DUPLICATE_MQTT_EVENT = "DUPLICATE_MQTT_EVENT";
         public static final String NOTIFICATION_DELIVERY = "NOTIFICATION_DELIVERY";
@@ -105,6 +107,47 @@ public class AuditService {
                                 "DEVICE",
                                 device.getDeviceId(),
                                 null,
+                                details);
+        }
+
+        public void logDeviceKitActivated(
+                        Long userId,
+                        Long patientId,
+                        Long kitId,
+                        String kitUid,
+                        String ipAddress) {
+                Map<String, Object> details = new LinkedHashMap<>();
+                details.put("kitUid", kitUid);
+                details.put("success", true);
+
+                record(
+                                userId,
+                                patientId,
+                                DEVICE_KIT_ACTIVATED,
+                                "DEVICE_KIT",
+                                kitId,
+                                ipAddress,
+                                details);
+        }
+
+        public void logDeviceKitAlreadyActive(
+                        Long userId,
+                        Long patientId,
+                        Long kitId,
+                        String kitUid,
+                        String ipAddress) {
+                Map<String, Object> details = new LinkedHashMap<>();
+                details.put("kitUid", kitUid);
+                details.put("success", true);
+                details.put("idempotent", true);
+
+                record(
+                                userId,
+                                patientId,
+                                DEVICE_KIT_ALREADY_ACTIVE,
+                                "DEVICE_KIT",
+                                kitId,
+                                ipAddress,
                                 details);
         }
 

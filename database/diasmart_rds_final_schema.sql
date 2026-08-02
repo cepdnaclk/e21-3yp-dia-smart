@@ -936,16 +936,22 @@ CREATE TABLE IF NOT EXISTS device_kits (
     device_kit_id BIGSERIAL PRIMARY KEY,
     kit_uid VARCHAR(80) NOT NULL,
     buyer_id BIGINT NOT NULL,
+    patient_id BIGINT,
     purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activated_at TIMESTAMPTZ,
     CONSTRAINT chk_device_kits_status
         CHECK (status IN ('ACTIVE', 'INACTIVE', 'DEACTIVATED')),
     CONSTRAINT fk_device_kits_buyer
         FOREIGN KEY (buyer_id)
         REFERENCES buyers(buyer_id)
-        ON DELETE RESTRICT
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_device_kits_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES patients(patient_id)
+        ON DELETE SET NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kits_kit_uid
@@ -953,6 +959,9 @@ ON device_kits (kit_uid);
 
 CREATE INDEX IF NOT EXISTS ix_device_kits_buyer_id
 ON device_kits (buyer_id);
+
+CREATE INDEX IF NOT EXISTS ix_device_kits_patient_id
+ON device_kits (patient_id);
 
 CREATE TABLE IF NOT EXISTS device_kit_devices (
     device_kit_device_id BIGSERIAL PRIMARY KEY,
@@ -988,6 +997,59 @@ ON device_kit_devices (device_kit_id);
 
 CREATE INDEX IF NOT EXISTS ix_device_kit_devices_device_id
 ON device_kit_devices (device_id);
+
+CREATE TABLE IF NOT EXISTS device_activation_attempts (
+    activation_attempt_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT
+        REFERENCES app_users(user_id) ON DELETE SET NULL,
+    patient_id BIGINT
+        REFERENCES patients(patient_id) ON DELETE SET NULL,
+    kit_id BIGINT
+        REFERENCES device_kits(device_kit_id) ON DELETE SET NULL,
+    ip_address VARCHAR(64),
+    success BOOLEAN NOT NULL DEFAULT FALSE,
+    failure_category VARCHAR(40),
+    request_fingerprint VARCHAR(64),
+    attempted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    blocked_until TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_device_activation_attempts_failure_category
+        CHECK (
+            failure_category IS NULL OR failure_category IN (
+                'INVALID_KIT',
+                'UNAUTHORIZED_PATIENT',
+                'DEVICE_CONFLICT',
+                'INACTIVE_DEVICE',
+                'TYPE_MISMATCH',
+                'RATE_LIMITED',
+                'INTEGRITY_ERROR'
+            )
+        ),
+    CONSTRAINT chk_device_activation_attempts_success_category
+        CHECK (
+            (success = TRUE AND failure_category IS NULL)
+            OR (success = FALSE AND failure_category IS NOT NULL)
+        )
+);
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_user_time
+ON device_activation_attempts (user_id, attempted_at DESC);
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_ip_time
+ON device_activation_attempts (ip_address, attempted_at DESC)
+WHERE ip_address IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_user_failed_time
+ON device_activation_attempts (user_id, attempted_at DESC)
+WHERE success = FALSE;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_ip_failed_time
+ON device_activation_attempts (ip_address, attempted_at DESC)
+WHERE success = FALSE AND ip_address IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_blocked_until
+ON device_activation_attempts (blocked_until)
+WHERE blocked_until IS NOT NULL;
 
 INSERT INTO buyers (
     full_name,

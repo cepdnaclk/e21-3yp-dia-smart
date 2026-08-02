@@ -2,3 +2,10 @@
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+
+diasmart:
+  device-activation:
+    max-failures-per-user: ${DEVICE_ACTIVATION_MAX_FAILURES_PER_USER:5}
+    max-failures-per-ip: ${DEVICE_ACTIVATION_MAX_FAILURES_PER_IP:10}
+    window-minutes: ${DEVICE_ACTIVATION_WINDOW_MINUTES:15}
+    trust-forwarded-headers: ${DEVICE_ACTIVATION_TRUST_FORWARDED_HEADERS:false}

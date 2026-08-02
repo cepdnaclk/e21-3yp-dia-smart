@@ -5,6 +5,7 @@ import com.diasmart.springapi.users.entity.AppUser;
 import com.diasmart.springapi.users.repository.AppUserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +23,13 @@ public class CurrentUserService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || authentication.getName() == null) {
-            throw new IllegalStateException("No authenticated user found");
+            throw new AuthenticationCredentialsNotFoundException("No authenticated user found");
         }
 
         String email = authentication.getName().trim().toLowerCase();
 
         return appUserRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user was not found"));
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("Authenticated user was not found"));
     }
 
     public Long getCurrentUserId() {

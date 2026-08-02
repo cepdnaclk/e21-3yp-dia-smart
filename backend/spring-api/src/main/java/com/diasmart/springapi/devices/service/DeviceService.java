@@ -3,6 +3,7 @@ package com.diasmart.springapi.devices.service;
 import com.diasmart.springapi.devices.dto.AssignDeviceRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
 import com.diasmart.springapi.devices.dto.DeviceKitDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitActivationResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.PatientDeviceSummaryDTO;
@@ -27,7 +28,10 @@ public interface DeviceService {
 
     DeviceResponseDTO assignDevice(Long id, AssignDeviceRequestDTO dto);
 
-    void activateDeviceKit(Long patientId, com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto);
+    DeviceKitActivationResponseDTO activateDeviceKit(
+            Long patientId,
+            com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto,
+            String ipAddress);
 
     DeviceResponseDTO unassignDevice(Long id);
 

@@ -21,6 +21,9 @@ public class DeviceKit {
     @Column(name = "buyer_id", nullable = false)
     private Long buyerId;
 
+    @Column(name = "patient_id")
+    private Long patientId;
+
     @Column(name = "purchase_date", nullable = false)
     private LocalDate purchaseDate;
 
@@ -32,6 +35,9 @@ public class DeviceKit {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name = "activated_at")
+    private OffsetDateTime activatedAt;
 
     @PrePersist
     public void prePersist() {
@@ -81,6 +87,14 @@ public class DeviceKit {
         this.buyerId = buyerId;
     }
 
+    public Long getPatientId() {
+        return patientId;
+    }
+
+    public void setPatientId(Long patientId) {
+        this.patientId = patientId;
+    }
+
     public LocalDate getPurchaseDate() {
         return purchaseDate;
     }
@@ -111,5 +125,13 @@ public class DeviceKit {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public OffsetDateTime getActivatedAt() {
+        return activatedAt;
+    }
+
+    public void setActivatedAt(OffsetDateTime activatedAt) {
+        this.activatedAt = activatedAt;
     }
 }

@@ -2,6 +2,13 @@ import api from "./api";
 import type { Device, DeviceDiagnostics } from "../types/device";
 import { getPatientId } from "../utils/patient";
 
+export interface PatientDeviceActivationRequest {
+  outerGatewayId: string;
+  innerUnitId: string;
+  penUnitId: string;
+  glucoseMeterId: string;
+}
+
 const findDeviceMatch = (
   devices: Device[],
   reference: string
@@ -97,5 +104,12 @@ export const deviceService = {
     deviceId: number
   ): Promise<void> => {
     await api.delete(`/devices/${deviceId}/assign`);
+  },
+
+  activateDeviceKit: async (
+    patientId: string | number,
+    request: PatientDeviceActivationRequest
+  ): Promise<void> => {
+    await api.post(`/patients/${patientId}/devices/activate-kit`, request);
   },
 };

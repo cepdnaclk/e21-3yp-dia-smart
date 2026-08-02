@@ -33,7 +33,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token =
-      localStorage.getItem("token");
+      sessionStorage.getItem("token");
 
     if (token) {
       config.headers.Authorization =
@@ -41,6 +41,22 @@ api.interceptors.request.use(
     }
 
     return config;
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isAuthRequest = error.config?.url?.includes("/auth/");
+    if (error.response?.status === 401 && !isAuthRequest) {
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("role");
+      sessionStorage.removeItem("userId");
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
   }
 );
 

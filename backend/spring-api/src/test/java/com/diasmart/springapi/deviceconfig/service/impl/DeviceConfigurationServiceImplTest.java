@@ -24,7 +24,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,20 +55,35 @@ class DeviceConfigurationServiceImplTest {
     @Mock
     private MqttService mqttService;
 
+    @Mock
+    private AfterCommitExecutor afterCommitExecutor;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private WifiCommandPublishProperties publishProperties;
+    private WifiCommandStateService wifiCommandStateService;
     private WifiConfigurationCommandPublisher wifiCommandPublisher;
     private DeviceConfigurationServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        wifiCommandPublisher = new WifiConfigurationCommandPublisher(
+        publishProperties = new WifiCommandPublishProperties();
+        wifiCommandStateService = new WifiCommandStateService(
                 commandRepository,
                 configRepository,
                 deviceRepository,
+                publishProperties
+        );
+        wifiCommandPublisher = new WifiConfigurationCommandPublisher(
+                wifiCommandStateService,
                 encryptionService,
                 mqttService,
                 objectMapper
         );
+        lenient().doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(0);
+            task.run();
+            return null;
+        }).when(afterCommitExecutor).runAfterCommit(any(Runnable.class));
         service = new DeviceConfigurationServiceImpl(
                 configRepository,
                 commandRepository,
@@ -74,6 +91,8 @@ class DeviceConfigurationServiceImplTest {
                 patientAccessService,
                 encryptionService,
                 wifiCommandPublisher,
+                wifiCommandStateService,
+                afterCommitExecutor,
                 objectMapper
         );
     }
@@ -161,6 +180,34 @@ class DeviceConfigurationServiceImplTest {
     }
 
     @Test
+    void createConfigurationShouldSchedulePublishAfterCommit() {
+        Device device = createOuterGateway();
+        CreateDeviceConfigurationRequestDTO dto = new CreateDeviceConfigurationRequestDTO();
+        dto.setOuterDeviceId(1L);
+        dto.setWifiSsid("Dialog Home");
+        dto.setWifiPassword("12345678");
+
+        doNothing().when(afterCommitExecutor).runAfterCommit(any(Runnable.class));
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(device));
+        when(configRepository.existsByOuterDeviceId(1L)).thenReturn(false);
+        when(encryptionService.encryptStructured("12345678")).thenReturn(encryptedPayload("cipher-one"));
+        when(configRepository.save(any(DeviceConfiguration.class))).thenAnswer(invocation -> {
+            DeviceConfiguration config = invocation.getArgument(0);
+            if (config.getConfigurationId() == null) {
+                config.setConfigurationId(11L);
+            }
+            return config;
+        });
+        stubCommandSaveOnly(25L);
+
+        DeviceConfigurationResponseDTO response = service.createConfiguration(dto);
+
+        assertEquals("PENDING", response.getConfigurationStatus());
+        verify(afterCommitExecutor).runAfterCommit(any(Runnable.class));
+        verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
     void getConfigurationShouldReturnConfigurationWithoutPassword() {
         Device device = createOuterGateway();
         DeviceConfiguration config = createConfiguration();
@@ -225,6 +272,7 @@ class DeviceConfigurationServiceImplTest {
         assertEquals(2, payload.get("payload").get("configurationVersion").asInt());
         assertEquals("Fiber Home", payload.get("payload").get("wifiSsid").asText());
         assertEquals("newpass123", payload.get("payload").get("wifiPassword").asText());
+        verify(commandRepository).expireSupersededWifiCommands(11L, 2);
 
         ArgumentCaptor<DeviceCommand> commandCaptor = ArgumentCaptor.forClass(DeviceCommand.class);
         verify(commandRepository, atLeast(2)).save(commandCaptor.capture());
@@ -276,6 +324,7 @@ class DeviceConfigurationServiceImplTest {
         when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
         when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
         when(deviceRepository.findById(2L)).thenReturn(Optional.of(innerDevice));
+        stubClaim(command, 25L);
         when(encryptionService.decryptStructured(
                 encoded("stored-cipher"),
                 encoded("stored-nonce"),
@@ -315,6 +364,7 @@ class DeviceConfigurationServiceImplTest {
 
         when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
         when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        stubClaim(command, 25L);
 
         ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
 
@@ -322,6 +372,7 @@ class DeviceConfigurationServiceImplTest {
         assertEquals("CONFIGURATION_VERSION_MISMATCH", exception.getErrorCode());
         assertEquals("FAILED", command.getCommandStatus());
         assertEquals("CONFIGURATION_VERSION_MISMATCH", command.getLastError());
+        assertEquals(3, command.getRetryCount());
         verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
         verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
     }
@@ -333,6 +384,7 @@ class DeviceConfigurationServiceImplTest {
 
         when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
         when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.empty());
+        stubClaim(command, 25L);
 
         ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
 
@@ -340,6 +392,7 @@ class DeviceConfigurationServiceImplTest {
         assertEquals("CONFIGURATION_NOT_FOUND", exception.getErrorCode());
         assertEquals("FAILED", command.getCommandStatus());
         assertEquals("CONFIGURATION_NOT_FOUND", command.getLastError());
+        assertEquals(3, command.getRetryCount());
         verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
         verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
     }
@@ -354,6 +407,7 @@ class DeviceConfigurationServiceImplTest {
         when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
         when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
         when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
+        stubClaim(command, 25L);
 
         ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
 
@@ -361,8 +415,88 @@ class DeviceConfigurationServiceImplTest {
         assertEquals("DEVICE_INACTIVE", exception.getErrorCode());
         assertEquals("FAILED", command.getCommandStatus());
         assertEquals("DEVICE_INACTIVE", command.getLastError());
+        assertEquals(3, command.getRetryCount());
         verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
         verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void publishWifiCommandShouldPersistRetryableFailureWhenMqttFails() throws Exception {
+        Device outerDevice = createOuterGateway();
+        DeviceConfiguration config = createConfiguration();
+        config.setWifiPasswordCiphertext(encoded("stored-cipher"));
+        config.setWifiPasswordNonce(encoded("stored-nonce"));
+        config.setWifiPasswordTag(encoded("stored-tag"));
+        DeviceCommand command = createWifiCommand(25L, config);
+
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
+        stubClaim(command, 25L);
+        when(encryptionService.decryptStructured(
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        )).thenReturn("stored-pass123");
+        doThrow(new RuntimeException("broker unavailable"))
+                .when(mqttService)
+                .publish(eq("diasmart/devices/OUT-001/commands"), anyString(), eq(1), eq(false));
+
+        ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+        assertEquals("MQTT_PUBLISH_ERROR", exception.getErrorCode());
+        assertEquals("FAILED", command.getCommandStatus());
+        assertEquals(1, command.getRetryCount());
+        assertEquals("MQTT_PUBLISH_FAILED", command.getLastError());
+        assertNotNull(command.getLastAttemptAt());
+        assertNotNull(command.getNextRetryAt());
+        assertEquals("FAILED", config.getConfigurationStatus());
+        assertPersistedWifiCommandPayloadSafe(command, "stored-pass123", 11L, 1, encoded("stored-cipher"));
+    }
+
+    @Test
+    void publishWifiCommandShouldNotPublishWhenClaimFailsAtRetryLimit() {
+        DeviceConfiguration config = createConfiguration();
+        DeviceCommand command = createWifiCommand(25L, config);
+        command.setRetryCount(3);
+
+        when(commandRepository.claimRecoverableWifiCommand(eq(25L), any(), any(), anyInt())).thenReturn(0);
+
+        assertFalse(wifiCommandPublisher.publishWifiCommand(25L));
+
+        verify(commandRepository, never()).findById(25L);
+        verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+        verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void recoverySchedulerShouldPublishEligibleCommands() {
+        Device outerDevice = createOuterGateway();
+        DeviceConfiguration config = createConfiguration();
+        config.setWifiPasswordCiphertext(encoded("stored-cipher"));
+        config.setWifiPasswordNonce(encoded("stored-nonce"));
+        config.setWifiPasswordTag(encoded("stored-tag"));
+        DeviceCommand command = createWifiCommand(25L, config);
+
+        when(commandRepository.findRecoverableWifiCommandIds(any(), any(), anyInt(), any()))
+                .thenReturn(List.of(25L));
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
+        stubClaim(command, 25L);
+        when(encryptionService.decryptStructured(
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        )).thenReturn("stored-pass123");
+
+        WifiCommandRecoveryScheduler scheduler = new WifiCommandRecoveryScheduler(wifiCommandStateService, wifiCommandPublisher);
+
+        scheduler.recoverPendingWifiCommands();
+
+        verify(mqttService).publish(eq("diasmart/devices/OUT-001/commands"), anyString(), eq(1), eq(false));
+        assertEquals("PUBLISHED", command.getCommandStatus());
     }
 
     @Test
@@ -431,6 +565,37 @@ class DeviceConfigurationServiceImplTest {
             return command;
         });
         when(commandRepository.findById(commandId)).thenAnswer(invocation -> Optional.ofNullable(savedCommand[0]));
+        when(commandRepository.claimRecoverableWifiCommand(eq(commandId), any(), any(), anyInt())).thenAnswer(invocation -> {
+            DeviceCommand command = savedCommand[0];
+            if (command == null) {
+                return 0;
+            }
+            OffsetDateTime now = invocation.getArgument(1);
+            command.setCommandStatus("SENT");
+            command.setLastAttemptAt(now);
+            command.setLastError(null);
+            return 1;
+        });
+    }
+
+    private void stubCommandSaveOnly(Long commandId) {
+        when(commandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> {
+            DeviceCommand command = invocation.getArgument(0);
+            if (command.getCommandId() == null) {
+                command.setCommandId(commandId);
+            }
+            return command;
+        });
+    }
+
+    private void stubClaim(DeviceCommand command, Long commandId) {
+        when(commandRepository.claimRecoverableWifiCommand(eq(commandId), any(), any(), anyInt())).thenAnswer(invocation -> {
+            OffsetDateTime now = invocation.getArgument(1);
+            command.setCommandStatus("SENT");
+            command.setLastAttemptAt(now);
+            command.setLastError(null);
+            return 1;
+        });
     }
 
     private EncryptedPayload encryptedPayload(String ciphertext) {

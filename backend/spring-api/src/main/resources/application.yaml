@@ -9,3 +9,10 @@ diasmart:
     max-failures-per-ip: ${DEVICE_ACTIVATION_MAX_FAILURES_PER_IP:10}
     window-minutes: ${DEVICE_ACTIVATION_WINDOW_MINUTES:15}
     trust-forwarded-headers: ${DEVICE_ACTIVATION_TRUST_FORWARDED_HEADERS:false}
+  mqtt:
+    wifi-command:
+      max-retries: ${DIASMART_WIFI_COMMAND_MAX_RETRIES:3}
+      retry-delay-seconds: ${DIASMART_WIFI_COMMAND_RETRY_DELAY_SECONDS:5}
+      sent-stale-after-seconds: ${DIASMART_WIFI_COMMAND_SENT_STALE_AFTER_SECONDS:60}
+      recovery-batch-size: ${DIASMART_WIFI_COMMAND_RECOVERY_BATCH_SIZE:25}
+      recovery-fixed-delay-ms: ${DIASMART_WIFI_COMMAND_RECOVERY_FIXED_DELAY_MS:30000}

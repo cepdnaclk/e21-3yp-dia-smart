@@ -42,6 +42,8 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
     private final PatientAccessService patientAccessService;
     private final EncryptionService encryptionService;
     private final WifiConfigurationCommandPublisher wifiCommandPublisher;
+    private final WifiCommandStateService wifiCommandStateService;
+    private final AfterCommitExecutor afterCommitExecutor;
     private final ObjectMapper objectMapper;
 
     public DeviceConfigurationServiceImpl(
@@ -51,6 +53,8 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
             PatientAccessService patientAccessService,
             EncryptionService encryptionService,
             WifiConfigurationCommandPublisher wifiCommandPublisher,
+            WifiCommandStateService wifiCommandStateService,
+            AfterCommitExecutor afterCommitExecutor,
             ObjectMapper objectMapper) {
         this.configRepository = configRepository;
         this.commandRepository = commandRepository;
@@ -58,6 +62,8 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         this.patientAccessService = patientAccessService;
         this.encryptionService = encryptionService;
         this.wifiCommandPublisher = wifiCommandPublisher;
+        this.wifiCommandStateService = wifiCommandStateService;
+        this.afterCommitExecutor = afterCommitExecutor;
         this.objectMapper = objectMapper;
     }
 
@@ -264,6 +270,13 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
     }
 
     private void publishConfigCommand(Device device, DeviceConfiguration config) {
+        if (config.getConfigurationVersion() != null && config.getConfigurationVersion() > 1) {
+            wifiCommandStateService.expireSupersededWifiCommands(
+                    config.getConfigurationId(),
+                    config.getConfigurationVersion()
+            );
+        }
+
         DeviceCommand command = new DeviceCommand();
         command.setDeviceId(device.getDeviceId());
         command.setPatientId(device.getPatientId());
@@ -280,7 +293,14 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
             command.setPayload(buildSafeWifiCommandMetadata(config));
             command = commandRepository.save(command);
 
-            wifiCommandPublisher.publishWifiCommand(command.getCommandId());
+            Long commandId = command.getCommandId();
+            afterCommitExecutor.runAfterCommit(() -> {
+                try {
+                    wifiCommandPublisher.publishWifiCommand(commandId);
+                } catch (RuntimeException ignored) {
+                    // Publication failures are stored on the command for retry/recovery.
+                }
+            });
         } catch (JsonProcessingException e) {
             command.setCommandStatus("FAILED");
             command.setLastError("Failed to serialize command payload");

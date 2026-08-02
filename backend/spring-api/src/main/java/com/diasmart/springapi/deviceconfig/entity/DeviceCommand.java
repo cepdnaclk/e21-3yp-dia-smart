@@ -46,6 +46,12 @@ public class DeviceCommand {
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
 
+    @Column(name = "last_attempt_at")
+    private OffsetDateTime lastAttemptAt;
+
+    @Column(name = "next_retry_at")
+    private OffsetDateTime nextRetryAt;
+
     @Column(name = "acknowledged_at")
     private OffsetDateTime acknowledgedAt;
 
@@ -160,6 +166,22 @@ public class DeviceCommand {
 
     public void setPublishedAt(OffsetDateTime publishedAt) {
         this.publishedAt = publishedAt;
+    }
+
+    public OffsetDateTime getLastAttemptAt() {
+        return lastAttemptAt;
+    }
+
+    public void setLastAttemptAt(OffsetDateTime lastAttemptAt) {
+        this.lastAttemptAt = lastAttemptAt;
+    }
+
+    public OffsetDateTime getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    public void setNextRetryAt(OffsetDateTime nextRetryAt) {
+        this.nextRetryAt = nextRetryAt;
     }
 
     public OffsetDateTime getAcknowledgedAt() {

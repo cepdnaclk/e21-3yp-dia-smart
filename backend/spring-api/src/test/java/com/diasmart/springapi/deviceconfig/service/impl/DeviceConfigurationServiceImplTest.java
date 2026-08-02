@@ -54,17 +54,26 @@ class DeviceConfigurationServiceImplTest {
     private MqttService mqttService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private WifiConfigurationCommandPublisher wifiCommandPublisher;
     private DeviceConfigurationServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        wifiCommandPublisher = new WifiConfigurationCommandPublisher(
+                commandRepository,
+                configRepository,
+                deviceRepository,
+                encryptionService,
+                mqttService,
+                objectMapper
+        );
         service = new DeviceConfigurationServiceImpl(
                 configRepository,
                 commandRepository,
                 deviceRepository,
                 patientAccessService,
                 encryptionService,
-                mqttService,
+                wifiCommandPublisher,
                 objectMapper
         );
     }
@@ -80,20 +89,22 @@ class DeviceConfigurationServiceImplTest {
         when(deviceRepository.findById(1L)).thenReturn(Optional.of(device));
         when(configRepository.existsByOuterDeviceId(1L)).thenReturn(false);
         when(encryptionService.encryptStructured("12345678")).thenReturn(encryptedPayload("cipher-one"));
+        when(encryptionService.decryptStructured(
+                encoded("cipher-one"),
+                encoded("nonce-123456"),
+                encoded("tag-123456789012")
+        )).thenReturn("12345678");
+        DeviceConfiguration[] savedConfig = new DeviceConfiguration[1];
         when(configRepository.save(any(DeviceConfiguration.class))).thenAnswer(invocation -> {
             DeviceConfiguration config = invocation.getArgument(0);
             if (config.getConfigurationId() == null) {
                 config.setConfigurationId(11L);
             }
+            savedConfig[0] = config;
             return config;
         });
-        when(commandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> {
-            DeviceCommand command = invocation.getArgument(0);
-            if (command.getCommandId() == null) {
-                command.setCommandId(25L);
-            }
-            return command;
-        });
+        when(configRepository.findByConfigurationId(11L)).thenAnswer(invocation -> Optional.ofNullable(savedConfig[0]));
+        stubCommandSaveAndFind(25L);
 
         DeviceConfigurationResponseDTO response = service.createConfiguration(dto);
 
@@ -190,14 +201,14 @@ class DeviceConfigurationServiceImplTest {
         when(deviceRepository.findById(1L)).thenReturn(Optional.of(device));
         when(configRepository.findByOuterDeviceId(1L)).thenReturn(Optional.of(config));
         when(encryptionService.encryptStructured("newpass123")).thenReturn(encryptedPayload("cipher-two"));
+        when(encryptionService.decryptStructured(
+                encoded("cipher-two"),
+                encoded("nonce-123456"),
+                encoded("tag-123456789012")
+        )).thenReturn("newpass123");
         when(configRepository.save(any(DeviceConfiguration.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> {
-            DeviceCommand command = invocation.getArgument(0);
-            if (command.getCommandId() == null) {
-                command.setCommandId(26L);
-            }
-            return command;
-        });
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        stubCommandSaveAndFind(26L);
 
         DeviceConfigurationResponseDTO response = service.updateConfiguration(1L, dto);
 
@@ -251,6 +262,110 @@ class DeviceConfigurationServiceImplTest {
     }
 
     @Test
+    void publishWifiCommandShouldBuildPayloadFromStoredConfiguration() throws Exception {
+        Device outerDevice = createOuterGateway();
+        Device innerDevice = createInnerUnit();
+        DeviceConfiguration config = createConfiguration();
+        config.setInnerDeviceId(2L);
+        config.setWifiPasswordCiphertext(encoded("stored-cipher"));
+        config.setWifiPasswordNonce(encoded("stored-nonce"));
+        config.setWifiPasswordTag(encoded("stored-tag"));
+        DeviceCommand command = createWifiCommand(25L, config);
+
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
+        when(deviceRepository.findById(2L)).thenReturn(Optional.of(innerDevice));
+        when(encryptionService.decryptStructured(
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        )).thenReturn("stored-pass123");
+
+        wifiCommandPublisher.publishWifiCommand(25L);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService).publish(eq("diasmart/devices/OUT-001/commands"), payloadCaptor.capture(), eq(1), eq(false));
+
+        JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
+        assertEquals("CMD-25", payload.get("commandId").asText());
+        assertEquals("OUT-001", payload.get("outerDeviceId").asText());
+        assertEquals("INNER-001", payload.get("payload").get("innerDeviceId").asText());
+        assertEquals(2, payload.get("payload").get("innerDeviceNumericId").asInt());
+        assertEquals(1, payload.get("payload").get("configurationVersion").asInt());
+        assertEquals("Dialog Home", payload.get("payload").get("wifiSsid").asText());
+        assertEquals("stored-pass123", payload.get("payload").get("wifiPassword").asText());
+        assertPersistedWifiCommandPayloadSafe(
+                command,
+                "stored-pass123",
+                11L,
+                1,
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        );
+    }
+
+    @Test
+    void publishWifiCommandShouldRejectConfigurationVersionMismatch() {
+        DeviceConfiguration config = createConfiguration();
+        config.setConfigurationVersion(2);
+        DeviceCommand command = createWifiCommand(25L, config);
+        command.setConfigurationVersion(1);
+
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+
+        ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("CONFIGURATION_VERSION_MISMATCH", exception.getErrorCode());
+        assertEquals("FAILED", command.getCommandStatus());
+        assertEquals("CONFIGURATION_VERSION_MISMATCH", command.getLastError());
+        verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+        verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void publishWifiCommandShouldHandleMissingConfigurationSafely() {
+        DeviceConfiguration config = createConfiguration();
+        DeviceCommand command = createWifiCommand(25L, config);
+
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.empty());
+
+        ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatus());
+        assertEquals("CONFIGURATION_NOT_FOUND", exception.getErrorCode());
+        assertEquals("FAILED", command.getCommandStatus());
+        assertEquals("CONFIGURATION_NOT_FOUND", command.getLastError());
+        verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+        verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void publishWifiCommandShouldRejectInactiveOuterDevice() {
+        Device outerDevice = createOuterGateway();
+        outerDevice.setActive(false);
+        DeviceConfiguration config = createConfiguration();
+        DeviceCommand command = createWifiCommand(25L, config);
+
+        when(commandRepository.findById(25L)).thenReturn(Optional.of(command));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(outerDevice));
+
+        ApiException exception = assertThrows(ApiException.class, () -> wifiCommandPublisher.publishWifiCommand(25L));
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+        assertEquals("DEVICE_INACTIVE", exception.getErrorCode());
+        assertEquals("FAILED", command.getCommandStatus());
+        assertEquals("DEVICE_INACTIVE", command.getLastError());
+        verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+        verify(encryptionService, never()).decryptStructured(anyString(), anyString(), anyString());
+    }
+
+    @Test
     void nonWifiCommandShouldRetainGenericPayloadBehavior() {
         DeviceCommand command = new DeviceCommand();
         command.setCommandType("CARE_PLAN");
@@ -269,6 +384,16 @@ class DeviceConfigurationServiceImplTest {
         return device;
     }
 
+    private Device createInnerUnit() {
+        Device device = new Device();
+        device.setDeviceId(2L);
+        device.setPatientId(10L);
+        device.setDeviceUid("INNER-001");
+        device.setDeviceType("INNER_UNIT");
+        device.setActive(true);
+        return device;
+    }
+
     private DeviceConfiguration createConfiguration() {
         DeviceConfiguration config = new DeviceConfiguration();
         config.setConfigurationId(11L);
@@ -279,6 +404,33 @@ class DeviceConfigurationServiceImplTest {
         config.setConfigurationVersion(1);
         config.setConfigurationStatus("SENT");
         return config;
+    }
+
+    private DeviceCommand createWifiCommand(Long commandId, DeviceConfiguration config) {
+        DeviceCommand command = new DeviceCommand();
+        command.setCommandId(commandId);
+        command.setCommandUid("CMD-" + commandId);
+        command.setDeviceId(config.getOuterDeviceId());
+        command.setPatientId(config.getPatientId());
+        command.setDeviceConfigurationId(config.getConfigurationId());
+        command.setConfigurationVersion(config.getConfigurationVersion());
+        command.setCommandType("WIFI_CONFIGURATION");
+        command.setCommandStatus("PENDING");
+        command.setPayload("{\"configurationId\":11,\"configurationVersion\":1,\"innerDeviceId\":2}");
+        return command;
+    }
+
+    private void stubCommandSaveAndFind(Long commandId) {
+        DeviceCommand[] savedCommand = new DeviceCommand[1];
+        when(commandRepository.save(any(DeviceCommand.class))).thenAnswer(invocation -> {
+            DeviceCommand command = invocation.getArgument(0);
+            if (command.getCommandId() == null) {
+                command.setCommandId(commandId);
+            }
+            savedCommand[0] = command;
+            return command;
+        });
+        when(commandRepository.findById(commandId)).thenAnswer(invocation -> Optional.ofNullable(savedCommand[0]));
     }
 
     private EncryptedPayload encryptedPayload(String ciphertext) {

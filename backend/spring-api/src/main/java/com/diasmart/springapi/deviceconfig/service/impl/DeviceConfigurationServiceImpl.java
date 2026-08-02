@@ -12,7 +12,6 @@ import com.diasmart.springapi.deviceconfig.repository.DeviceConfigurationReposit
 import com.diasmart.springapi.deviceconfig.service.DeviceConfigurationService;
 import com.diasmart.springapi.devices.entity.Device;
 import com.diasmart.springapi.devices.repository.DeviceRepository;
-import com.diasmart.springapi.mqtt.service.MqttService;
 import com.diasmart.springapi.relationships.service.PatientAccessService;
 import com.diasmart.springapi.shared.exceptions.ResourceNotFoundException;
 import com.diasmart.springapi.shared.security.EncryptionService;
@@ -23,8 +22,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -38,14 +35,13 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
     private static final String DEVICE_TYPE_PEN = "DOSE_CAP";
     private static final String DEVICE_TYPE_GLUCOMETER = "GLUCOMETER";
     private static final String COMMAND_TYPE_WIFI_CONFIGURATION = "WIFI_CONFIGURATION";
-    private static final int MQTT_QOS_ONE = 1;
 
     private final DeviceConfigurationRepository configRepository;
     private final DeviceCommandRepository commandRepository;
     private final DeviceRepository deviceRepository;
     private final PatientAccessService patientAccessService;
     private final EncryptionService encryptionService;
-    private final MqttService mqttService;
+    private final WifiConfigurationCommandPublisher wifiCommandPublisher;
     private final ObjectMapper objectMapper;
 
     public DeviceConfigurationServiceImpl(
@@ -54,14 +50,14 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
             DeviceRepository deviceRepository,
             PatientAccessService patientAccessService,
             EncryptionService encryptionService,
-            MqttService mqttService,
+            WifiConfigurationCommandPublisher wifiCommandPublisher,
             ObjectMapper objectMapper) {
         this.configRepository = configRepository;
         this.commandRepository = commandRepository;
         this.deviceRepository = deviceRepository;
         this.patientAccessService = patientAccessService;
         this.encryptionService = encryptionService;
-        this.mqttService = mqttService;
+        this.wifiCommandPublisher = wifiCommandPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -93,7 +89,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
 
         config = configRepository.save(config);
 
-        publishConfigCommand(device, config, dto.getWifiPassword());
+        publishConfigCommand(device, config);
 
         return DeviceConfigurationMapper.toResponseDTO(config);
     }
@@ -132,7 +128,6 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         DeviceConfiguration config = configRepository.findByOuterDeviceId(outerDeviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Configuration not found for this device"));
 
-        String plainTextPassword = null;
         boolean publishRequired = false;
 
         if (dto.getWifiSsid() != null && !dto.getWifiSsid().isBlank()) {
@@ -141,8 +136,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         }
 
         if (dto.getWifiPassword() != null && !dto.getWifiPassword().isBlank()) {
-            plainTextPassword = dto.getWifiPassword();
-            setEncryptedWifiPassword(config, plainTextPassword);
+            setEncryptedWifiPassword(config, dto.getWifiPassword());
             publishRequired = true;
         }
 
@@ -165,15 +159,11 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         }
 
         if (publishRequired) {
-            if (plainTextPassword == null) {
-                plainTextPassword = decryptWifiPassword(config);
-            }
-
             config.setConfigurationStatus("PENDING");
             config.setOuterUnitStatus("PENDING");
             config.setConfigurationVersion(config.getConfigurationVersion() + 1);
             config = configRepository.save(config);
-            publishConfigCommand(device, config, plainTextPassword);
+            publishConfigCommand(device, config);
         }
 
         return DeviceConfigurationMapper.toResponseDTO(config);
@@ -191,7 +181,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         config.setOuterUnitStatus("PENDING");
         config = configRepository.save(config);
 
-        publishConfigCommand(device, config, decryptWifiPassword(config));
+        publishConfigCommand(device, config);
 
         return DeviceConfigurationMapper.toResponseDTO(config);
     }
@@ -206,7 +196,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
             config.setConfigurationStatus("PENDING");
             config.setOuterUnitStatus("PENDING");
             DeviceConfiguration savedConfig = configRepository.save(config);
-            publishConfigCommand(device, savedConfig, decryptWifiPassword(savedConfig));
+            publishConfigCommand(device, savedConfig);
         });
     }
 
@@ -260,20 +250,6 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         config.setWifiPassword(toLegacyEncryptedBundle(encrypted));
     }
 
-    private String decryptWifiPassword(DeviceConfiguration config) {
-        if (hasText(config.getWifiPasswordCiphertext())
-                && hasText(config.getWifiPasswordNonce())
-                && hasText(config.getWifiPasswordTag())) {
-            return encryptionService.decryptStructured(
-                    config.getWifiPasswordCiphertext(),
-                    config.getWifiPasswordNonce(),
-                    config.getWifiPasswordTag()
-            );
-        }
-
-        return encryptionService.decrypt(config.getWifiPassword());
-    }
-
     private String toLegacyEncryptedBundle(EncryptedPayload encrypted) {
         byte[] nonce = Base64.getDecoder().decode(encrypted.getNonce());
         byte[] ciphertext = Base64.getDecoder().decode(encrypted.getCiphertext());
@@ -287,7 +263,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         return Base64.getEncoder().encodeToString(bundled);
     }
 
-    private void publishConfigCommand(Device device, DeviceConfiguration config, String plainTextPassword) {
+    private void publishConfigCommand(Device device, DeviceConfiguration config) {
         DeviceCommand command = new DeviceCommand();
         command.setDeviceId(device.getDeviceId());
         command.setPatientId(device.getPatientId());
@@ -301,40 +277,16 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         command.setCommandUid("CMD-" + command.getCommandId());
 
         try {
-            String payloadJson = buildWifiCommandPayload(command, device, config, plainTextPassword);
             command.setPayload(buildSafeWifiCommandMetadata(config));
             command = commandRepository.save(command);
 
-            publishWithRetry(command, config, "diasmart/devices/" + device.getDeviceUid() + "/commands", payloadJson, false);
+            wifiCommandPublisher.publishWifiCommand(command.getCommandId());
         } catch (JsonProcessingException e) {
             command.setCommandStatus("FAILED");
             command.setLastError("Failed to serialize command payload");
             commandRepository.save(command);
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "PAYLOAD_SERIALIZATION_ERROR", "Failed to serialize command payload");
         }
-    }
-
-    private String buildWifiCommandPayload(
-            DeviceCommand command,
-            Device device,
-            DeviceConfiguration config,
-            String plainTextPassword
-    ) throws JsonProcessingException {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("wifiSsid", config.getWifiSsid());
-        payload.put("wifiPassword", plainTextPassword);
-        payload.put("innerDeviceId", resolveDeviceUid(config.getInnerDeviceId()));
-        payload.put("innerDeviceNumericId", config.getInnerDeviceId());
-        payload.put("configurationVersion", config.getConfigurationVersion());
-
-        Map<String, Object> commandEnvelope = new HashMap<>();
-        commandEnvelope.put("commandId", command.getCommandUid());
-        commandEnvelope.put("commandType", COMMAND_TYPE_WIFI_CONFIGURATION);
-        commandEnvelope.put("createdAt", Instant.now().toString());
-        commandEnvelope.put("outerDeviceId", device.getDeviceUid());
-        commandEnvelope.put("payload", payload);
-
-        return objectMapper.writeValueAsString(commandEnvelope);
     }
 
     private String buildSafeWifiCommandMetadata(DeviceConfiguration config) throws JsonProcessingException {
@@ -346,59 +298,5 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         safeMetadata.put("glucometerDeviceId", config.getGlucometerDeviceId());
 
         return objectMapper.writeValueAsString(safeMetadata);
-    }
-
-    private void publishWithRetry(
-            DeviceCommand command,
-            DeviceConfiguration config,
-            String topic,
-            String payloadJson,
-            boolean retained
-    ) {
-        RuntimeException lastException = null;
-
-        for (int attempt = 1; attempt <= 2; attempt++) {
-            try {
-                mqttService.publish(topic, payloadJson, MQTT_QOS_ONE, retained);
-                command.setCommandStatus("PUBLISHED");
-                command.setPublishedAt(OffsetDateTime.now());
-                command.setRetryCount(attempt - 1);
-                command.setLastError(null);
-                commandRepository.save(command);
-
-                config.setConfigurationStatus("PUBLISHED");
-                config.setOuterUnitStatus("PUBLISHED");
-                configRepository.save(config);
-                return;
-            } catch (RuntimeException ex) {
-                lastException = ex;
-                command.setRetryCount(attempt);
-                command.setLastError(ex.getMessage());
-                commandRepository.save(command);
-            }
-        }
-
-        command.setCommandStatus("FAILED");
-        commandRepository.save(command);
-
-        config.setConfigurationStatus("FAILED");
-        config.setOuterUnitStatus("FAILED");
-        configRepository.save(config);
-
-        throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "MQTT_PUBLISH_ERROR", "Failed to publish MQTT command");
-    }
-
-    private String resolveDeviceUid(Long deviceId) {
-        if (deviceId == null) {
-            return null;
-        }
-
-        return deviceRepository.findById(deviceId)
-                .map(Device::getDeviceUid)
-                .orElse(null);
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 }

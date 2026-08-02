@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -27,6 +27,10 @@ import {
 import { deviceService } from "../../services/deviceService";
 import { getPatientId } from "../../utils/patient";
 import { deviceConfigurationService } from "../../services/deviceConfigurationService";
+import type {
+  LocalProvisionStatusResponse,
+  DeviceConfigurationResponse,
+} from "../../services/deviceConfigurationService";
 
 const steps = [
   "Device Registration",
@@ -60,6 +64,9 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
   const [wifiSsid, setWifiSsid] = useState<string>("");
   const [wifiPassword, setWifiPassword] = useState<string>("");
 
+  // Store resolved database primary key of Outer gateway
+  const [outerDeviceId, setOuterDeviceId] = useState<number | null>(null);
+
   // Loading & Error States for Step 1 Activation
   const [isActivating, setIsActivating] = useState<boolean>(false);
   const [activationError, setActivationError] = useState<string>("");
@@ -67,6 +74,21 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
   // Loading & Error States for Step 2 Wi-Fi config saving
   const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
   const [configError, setConfigError] = useState<string>("");
+
+  // Loading & Error States for Step 4 Local Provisioning
+  const [isSendingLocal, setIsSendingLocal] = useState<boolean>(false);
+  const [localSendError, setLocalSendError] = useState<string>("");
+
+  // Polling States for Step 5 Local connection progress status
+  const [localProvisionStatus, setLocalProvisionStatus] =
+    useState<LocalProvisionStatusResponse | null>(null);
+  const [localProvisionError, setLocalProvisionError] = useState<string>("");
+
+  // Polling States for Step 7 Cloud Synchronization status checking
+  const [cloudConfigStatus, setCloudConfigStatus] =
+    useState<DeviceConfigurationResponse | null>(null);
+  const [cloudVerifyError, setCloudVerifyError] = useState<string>("");
+  const [cloudVerifyFailed, setCloudVerifyFailed] = useState<boolean>(false);
 
   // Validation checks for buttons
   const isStep1Valid =
@@ -76,6 +98,143 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
     glucoseMeterUid.trim() !== "";
 
   const isStep2Valid = wifiSsid.trim() !== "" && wifiPassword.length >= 8;
+
+  const sendCredentialsLocally = async () => {
+    if (!wifiPassword) {
+      setLocalSendError(
+        "Wi-Fi password is missing in memory. Please go back to Wi-Fi Setup and re-enter credentials."
+      );
+      return;
+    }
+
+    setIsSendingLocal(true);
+    setLocalSendError("");
+
+    try {
+      await deviceConfigurationService.provisionLocalDevice({
+        ssid: wifiSsid.trim(),
+        password: wifiPassword,
+      });
+
+      setWifiPassword("");
+      setActiveStep(4); // Advance to Step 5 (Provisioning Progress)
+    } catch (err: any) {
+      setWifiPassword("");
+      const errMsg =
+        err.message ||
+        "Failed to deliver configurations. Please verify your connection to the hotspot and try again.";
+      setLocalSendError(errMsg);
+    } finally {
+      setIsSendingLocal(false);
+    }
+  };
+
+  // Automatically dispatch credentials when entering Step 4 (index 3)
+  useEffect(() => {
+    if (activeStep === 3) {
+      void sendCredentialsLocally();
+    }
+  }, [activeStep]);
+
+  // Polling Step 5 (index 4) - Local status polling
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (activeStep === 4) {
+      setLocalProvisionStatus(null);
+      setLocalProvisionError("");
+
+      const pollLocalStatus = async () => {
+        try {
+          const res = await deviceConfigurationService.getLocalProvisionStatus();
+          setLocalProvisionStatus(res);
+
+          if (res.status === "success") {
+            if (intervalId) clearInterval(intervalId);
+            setActiveStep(5); // Auto-advance to Step 6 (Reconnect home wifi)
+          } else if (res.status === "error") {
+            if (intervalId) clearInterval(intervalId);
+            setLocalProvisionError(
+              res.message || "Wi-Fi credentials rejected by local gateway base station."
+            );
+          }
+        } catch (err: any) {
+          consecutiveLocalFailures++;
+          if (consecutiveLocalFailures >= 5) {
+            if (intervalId) clearInterval(intervalId);
+            setLocalProvisionError(
+              "Lost contact with base station hotspot. Please verify connection and try again."
+            );
+          }
+        }
+      };
+
+      let consecutiveLocalFailures = 0;
+      void pollLocalStatus();
+      intervalId = setInterval(pollLocalStatus, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeStep]);
+
+  // Polling Step 7 (index 6) - Cloud validation polling
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    if (activeStep === 6 && outerDeviceId !== null) {
+      setCloudConfigStatus(null);
+      setCloudVerifyError("");
+      setCloudVerifyFailed(false);
+
+      const pollCloud = async () => {
+        try {
+          const res = await deviceConfigurationService.getConfigurationStatus(
+            outerDeviceId
+          );
+          setCloudConfigStatus(res);
+
+          const isSuccess =
+            res.configurationStatus === "PUBLISHED" &&
+            res.outerUnitStatus === "PUBLISHED" &&
+            res.innerUnitStatus === "CONNECTED";
+
+          const isFailed =
+            res.configurationStatus === "FAILED" ||
+            res.outerUnitStatus === "FAILED" ||
+            res.innerUnitStatus === "FAILED";
+
+          if (isSuccess) {
+            if (intervalId) clearInterval(intervalId);
+          } else if (isFailed) {
+            if (intervalId) clearInterval(intervalId);
+            setCloudVerifyFailed(true);
+            setCloudVerifyError(
+              res.innerUnitMessage || "Verification failed on backend IoT validation."
+            );
+          }
+        } catch (err: any) {
+          consecutiveCloudFailures++;
+          if (consecutiveCloudFailures >= 5) {
+            if (intervalId) clearInterval(intervalId);
+            setCloudVerifyFailed(true);
+            setCloudVerifyError(
+              "AWS IoT backend validation link failed to report heartbeat signals."
+            );
+          }
+        }
+      };
+
+      let consecutiveCloudFailures = 0;
+      void pollCloud();
+      intervalId = setInterval(pollCloud, 2000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeStep, outerDeviceId]);
 
   const handleNext = async () => {
     if (activeStep === 0) {
@@ -90,7 +249,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
           penUnitId: penUid.trim(),
           glucoseMeterId: glucoseMeterUid.trim(),
         });
-        setActiveStep(1); // Proceed to Step 2
+        setActiveStep(1);
       } catch (err: any) {
         const errMsg =
           err.response?.data?.message ||
@@ -101,11 +260,10 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
         setIsActivating(false);
       }
     } else if (activeStep === 1) {
-      // Step 2: Wi-Fi Config
+      // Step 2: Wi-Fi Config Saving
       setIsSavingConfig(true);
       setConfigError("");
       try {
-        // Fetch patient devices to locate database ID mappings
         const patientDevices = await deviceService.getPatientDevices();
         const outerDevice = patientDevices.find(
           (d) => d.deviceUid === outerUid.trim()
@@ -126,7 +284,8 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
           );
         }
 
-        // Save configuration to backend database. Fallback to PUT if already existing.
+        setOuterDeviceId(outerDevice.deviceId); // Cache DB identifier
+
         try {
           await deviceConfigurationService.createConfiguration({
             outerDeviceId: outerDevice.deviceId,
@@ -156,7 +315,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
           }
         }
 
-        setActiveStep(2); // Proceed to Step 3
+        setActiveStep(2);
       } catch (err: any) {
         const errMsg =
           err.response?.data?.message ||
@@ -166,6 +325,12 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
       } finally {
         setIsSavingConfig(false);
       }
+    } else if (activeStep === 2) {
+      // Step 3: Hotspot confirmation
+      setActiveStep(3); // Moves to Step 4 (Automated provisioning call)
+    } else if (activeStep === 5) {
+      // Step 6: Home connection confirmation
+      setActiveStep(6); // Moves to Step 7 (Cloud verification polling)
     } else if (activeStep === steps.length - 1) {
       onComplete();
     } else {
@@ -222,13 +387,35 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
       case 2:
         return <ConnectHotspotStep outerUid={outerUid} />;
       case 3:
-        return <SendingCredentialsStep />;
+        return (
+          <SendingCredentialsStep
+            isSending={isSendingLocal}
+            error={localSendError}
+            onRetry={() => {
+              setActiveStep(1);
+            }}
+          />
+        );
       case 4:
-        return <ProvisioningProgressStep />;
+        return (
+          <ProvisioningProgressStep
+            status={localProvisionStatus}
+            error={localProvisionError}
+          />
+        );
       case 5:
         return <ReconnectHomeWifiStep />;
       case 6:
-        return <CloudVerificationStep />;
+        return (
+          <CloudVerificationStep
+            status={cloudConfigStatus}
+            error={cloudVerifyError}
+            isFailed={cloudVerifyFailed}
+            onRetry={() => {
+              setActiveStep(5); // Go back to step 6 to allow verification restart
+            }}
+          />
+        );
       default:
         return null;
     }
@@ -261,7 +448,30 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
     );
   };
 
-  const isWorking = isActivating || isSavingConfig;
+  const isWorking = isActivating || isSavingConfig || isSendingLocal;
+
+  const isCloudSuccess =
+    cloudConfigStatus?.configurationStatus === "PUBLISHED" &&
+    cloudConfigStatus?.outerUnitStatus === "PUBLISHED" &&
+    cloudConfigStatus?.innerUnitStatus === "CONNECTED";
+
+  const isNextDisabled =
+    (activeStep === 0 && (!isStep1Valid || isWorking)) ||
+    (activeStep === 1 && (!isStep2Valid || isWorking)) ||
+    (activeStep === 2 && isWorking) ||
+    activeStep === 3 || // Automated sending
+    activeStep === 4 || // Automated polling
+    (activeStep === 5 && isWorking) ||
+    (activeStep === 6 && !isCloudSuccess) || // Disabled until fully verified
+    isWorking;
+
+  const isBackDisabled =
+    activeStep === 0 ||
+    activeStep === steps.length - 1 ||
+    activeStep === 3 || // Automated step locks navigation
+    activeStep === 4 || // Automated step locks navigation
+    activeStep === 6 || // Prevent going back while verifying or after sync success
+    isWorking;
 
   return (
     <Card sx={{ width: "100%", borderRadius: 3, boxShadow: 3, overflow: "hidden" }}>
@@ -283,7 +493,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
 
         <Stack direction="row" spacing={2} sx={{ justifyContent: "space-between" }}>
           <Button
-            disabled={activeStep === 0 || activeStep === steps.length - 1 || isWorking}
+            disabled={isBackDisabled}
             onClick={handleBack}
             variant="outlined"
             size="large"
@@ -293,11 +503,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
           </Button>
 
           <Button
-            disabled={
-              (activeStep === 0 && (!isStep1Valid || isWorking)) ||
-              (activeStep === 1 && (!isStep2Valid || isWorking)) ||
-              isWorking
-            }
+            disabled={isNextDisabled}
             onClick={handleNext}
             variant="contained"
             size="large"
@@ -306,10 +512,12 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
             {isWorking ? (
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 <CircularProgress size={20} color="inherit" />
-                <span>Saving...</span>
+                <span>Processing...</span>
               </Stack>
             ) : activeStep === steps.length - 1 ? (
               "Finish Setup"
+            ) : activeStep === 5 ? (
+              "I've Reconnected"
             ) : activeStep === 1 ? (
               "Save Config"
             ) : (

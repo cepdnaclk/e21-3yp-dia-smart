@@ -215,8 +215,7 @@ const DevicesPage = () => {
     useState<DeviceDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  // const [setupValues, setSetupValues] = useState<Record<string, string>>({});
-  // const [setupStatuses, setSetupStatuses] = useState<Record<string, { status: "idle" | "connecting" | "success" | "error"; message: string }>>({});
+
   const [disconnectTarget, setDisconnectTarget] =
     useState<Device | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -303,63 +302,7 @@ const DevicesPage = () => {
     };
   }, [devices]);
 
-  /*
-  const handleSetupChange = (deviceKey: string, value: string) => {
-    setSetupValues((current) => ({
-      ...current,
-      [deviceKey]: value,
-    }));
-  };
 
-  const handleConnectDevice = async (
-    deviceKey: string,
-    label: string
-  ) => {
-    const reference = setupValues[deviceKey]?.trim();
-
-    if (!reference) {
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "error",
-          message: "Please enter a device ID before connecting.",
-        },
-      }));
-      return;
-    }
-
-    setSetupStatuses((current) => ({
-      ...current,
-      [deviceKey]: {
-        status: "connecting",
-        message: `Connecting ${label}...`,
-      },
-    }));
-
-    try {
-      await deviceService.connectDevice(reference);
-      await loadDevices(true);
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "success",
-          message: `${label} connected successfully.`,
-        },
-      }));
-    } catch (err) {
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "error",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Unable to connect the device.",
-        },
-      }));
-    }
-  };
-  */
 
   const handleDisconnectConfirm = async () => {
     if (!disconnectTarget) {
@@ -372,7 +315,7 @@ const DevicesPage = () => {
       await deviceService.disconnectDevice(disconnectTarget.deviceId);
       await loadDevices(true);
       setDisconnectTarget(null);
-      // setSetupStatuses({});
+
     } catch (err) {
       setError(
         err instanceof Error

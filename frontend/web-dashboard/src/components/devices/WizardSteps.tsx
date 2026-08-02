@@ -1,4 +1,8 @@
 import React from "react";
+import type {
+  LocalProvisionStatusResponse,
+  DeviceConfigurationResponse,
+} from "../../services/deviceConfigurationService";
 import {
   Box,
   TextField,
@@ -12,6 +16,8 @@ import {
   Card,
   LinearProgress,
   Divider,
+  Button,
+  Chip,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -217,7 +223,7 @@ export const ConnectHotspotStep: React.FC<ConnectHotspotStepProps> = ({ outerUid
         <Typography variant="body2" sx={{ textAlign: "left", mb: 1 }}>
           1. Open your smartphone or computer's <b>Wi-Fi Settings</b>.
         </Typography>
-        <Typography variant="body2" sx={{ textAlign: "left", mb: 1 }}>
+        <Typography variant="body2" sx={{ textAlign: "left", mb: 1, wordBreak: "break-all" }}>
           2. Connect to the network named: <b><span style={{ color: "#1976d2" }}>DiaSmart-{outerUid || "XXXX"}</span></b>
         </Typography>
         <Typography variant="body2" sx={{ textAlign: "left", mb: 2 }}>
@@ -233,34 +239,99 @@ export const ConnectHotspotStep: React.FC<ConnectHotspotStepProps> = ({ outerUid
 };
 
 // --- STEP 4: SENDING CREDENTIALS ---
-export const SendingCredentialsStep: React.FC = () => {
+interface SendingCredentialsStepProps {
+  isSending: boolean;
+  error: string;
+  onRetry: () => void;
+}
+
+export const SendingCredentialsStep: React.FC<SendingCredentialsStepProps> = ({
+  isSending,
+  error,
+  onRetry,
+}) => {
   return (
     <Stack spacing={3} sx={{ alignItems: "center", textAlign: "center", py: 2 }}>
-      <CircularProgress size={50} sx={{ mb: 1 }} />
+      {isSending && <CircularProgress size={50} sx={{ mb: 1 }} />}
+      
       <Box>
         <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
-          Sending Wi-Fi Credentials...
+          {isSending ? "Sending Wi-Fi Credentials..." : error ? "Transmission Failed" : "Sent"}
         </Typography>
         <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
-          Uploading the new network credentials directly to the Outer Base Station. This process takes a few seconds.
+          {isSending 
+            ? "Uploading the new network credentials directly to the Outer Base Station. This process takes a few seconds."
+            : error 
+            ? "We were unable to deliver the Wi-Fi configuration details to the local station. Please verify your connection to the hotspot."
+            : "Credentials delivered successfully."
+          }
         </Typography>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ width: "100%", maxWidth: "450px" }}>
+          {error}
+        </Alert>
+      )}
 
       <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", bgcolor: "background.default", p: 3 }}>
         <Typography variant="body2" color="text.primary" sx={{ mb: 1, fontWeight: "bold" }}>
           Transmission Progress
         </Typography>
-        <LinearProgress sx={{ height: 10, borderRadius: 5, mb: 1 }} />
+        <LinearProgress variant={isSending ? "indeterminate" : "determinate"} value={error ? 0 : 100} sx={{ height: 10, borderRadius: 5, mb: 1 }} />
         <Typography variant="caption" color="text.secondary">
-          Sending SSID and Password bundle safely over local network...
+          {isSending ? "Sending SSID and Password bundle safely over local network..." : error ? "Connection timed out." : "Credentials received by hardware."}
         </Typography>
       </Card>
+
+      {error && (
+        <Button variant="contained" size="large" onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
+          Re-enter Wi-Fi Credentials
+        </Button>
+      )}
     </Stack>
   );
 };
 
 // --- STEP 5: PROVISIONING PROGRESS ---
-export const ProvisioningProgressStep: React.FC = () => {
+interface ProvisioningProgressStepProps {
+  status: LocalProvisionStatusResponse | null;
+  error: string;
+}
+
+export const ProvisioningProgressStep: React.FC<ProvisioningProgressStepProps> = ({
+  status,
+  error,
+}) => {
+  const outerState = status?.outerStatus || "PENDING";
+  const innerState = status?.innerStatus || "PENDING";
+
+  const getProgressValue = (state: string) => {
+    switch (state) {
+      case "CONNECTED":
+        return 100;
+      case "CONNECTING":
+        return 50;
+      case "PENDING":
+        return 10;
+      default:
+        return 0;
+    }
+  };
+
+  const getChipProps = (state: string) => {
+    switch (state) {
+      case "CONNECTED":
+        return { label: "Connected", color: "success" as const };
+      case "CONNECTING":
+        return { label: "Connecting", color: "warning" as const, icon: <AutorenewIcon className="rotating" /> };
+      case "FAILED":
+        return { label: "Failed", color: "error" as const };
+      default:
+        return { label: "Waiting", color: "default" as const };
+    }
+  };
+
   return (
     <Stack spacing={3}>
       <Box>
@@ -272,6 +343,12 @@ export const ProvisioningProgressStep: React.FC = () => {
         </Typography>
       </Box>
 
+      {error && (
+        <Alert severity="error" sx={{ my: 1 }}>
+          {error}
+        </Alert>
+      )}
+
       <Card variant="outlined" sx={{ p: 3, bgcolor: "background.default" }}>
         <Stack spacing={3}>
           <Box>
@@ -279,11 +356,11 @@ export const ProvisioningProgressStep: React.FC = () => {
               <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                 Outer Unit Connection Stage
               </Typography>
-              <Chip label="Processing" color="warning" size="small" icon={<AutorenewIcon className="rotating" />} />
+              <Chip size="small" {...getChipProps(outerState)} />
             </Stack>
-            <LinearProgress variant="determinate" value={65} sx={{ height: 8, borderRadius: 4 }} />
+            <LinearProgress variant={outerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(outerState)} sx={{ height: 8, borderRadius: 4 }} />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-              Staging Wi-Fi configuration and verifying ESP32 memory...
+              {status?.message || "Staging Wi-Fi configuration and verifying ESP32 memory..."}
             </Typography>
           </Box>
 
@@ -291,12 +368,12 @@ export const ProvisioningProgressStep: React.FC = () => {
 
           <Box>
             <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "text.secondary" }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                 Inner Unit Connection Stage
               </Typography>
-              <Chip label="Waiting" size="small" />
+              <Chip size="small" {...getChipProps(innerState)} />
             </Stack>
-            <LinearProgress variant="determinate" value={0} sx={{ height: 8, borderRadius: 4, bgcolor: "action.disabledBackground" }} />
+            <LinearProgress variant={innerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(innerState)} sx={{ height: 8, borderRadius: 4 }} />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
               Waiting for Outer station to broadcast ESP-NOW credentials...
             </Typography>
@@ -340,30 +417,113 @@ export const ReconnectHomeWifiStep: React.FC = () => {
 };
 
 // --- STEP 7: CLOUD VERIFICATION ---
-export const CloudVerificationStep: React.FC = () => {
+import { ErrorOutlined as ErrorOutlinedIcon } from "@mui/icons-material";
+
+interface CloudVerificationStepProps {
+  status: DeviceConfigurationResponse | null;
+  error: string;
+  isFailed: boolean;
+  onRetry: () => void;
+}
+
+export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
+  status,
+  error,
+  isFailed,
+  onRetry,
+}) => {
+  const configStatus = status?.configurationStatus || "PENDING";
+  const outerStatus = status?.outerUnitStatus || "PENDING";
+  const innerStatus = status?.innerUnitStatus || "PENDING";
+
+  const isSuccess = configStatus === "PUBLISHED" && outerStatus === "PUBLISHED" && innerStatus === "CONNECTED";
+
   return (
     <Stack spacing={3} sx={{ alignItems: "center", py: 2 }}>
-      <CheckCircleIcon color="success" sx={{ fontSize: 70 }} />
-      <Box sx={{ textAlign: "center" }}>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h5">
-          Kit Setup Successful!
-        </Typography>
-        <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
-          All devices are successfully registered and connected to the Dia-Smart Cloud. Your guardians can now view your logs in real-time.
-        </Typography>
-      </Box>
+      {isSuccess ? (
+        <>
+          <CheckCircleIcon color="success" sx={{ fontSize: 70 }} />
+          <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h5">
+              Kit Setup Successful!
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
+              All devices are successfully registered and connected to the Dia-Smart Cloud. Your guardians can now view your logs in real-time.
+            </Typography>
+          </Box>
 
-      <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", p: 3, bgcolor: "success.light", color: "success.contrastText" }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
-          Connection Validated
-        </Typography>
-        <Typography variant="body2">
-          Cloud heartbeat check has passed. Outer base station and Inner storage units are officially connected online to AWS IoT Core.
-        </Typography>
-      </Card>
+          <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", p: 3, bgcolor: "success.light", color: "success.contrastText" }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
+              Connection Validated
+            </Typography>
+            <Typography variant="body2">
+              Cloud heartbeat check has passed. Outer base station and Inner storage units are officially connected online to AWS IoT Core.
+            </Typography>
+          </Card>
+        </>
+      ) : isFailed ? (
+        <>
+          <ErrorOutlinedIcon color="error" sx={{ fontSize: 70 }} />
+          <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h5">
+              Cloud Sync Failed
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
+              The cloud configuration validation process has failed. {error || "One or more devices were unable to establish contact with cloud services."}
+            </Typography>
+          </Box>
+
+          <Alert severity="error" sx={{ width: "100%", maxWidth: "450px" }}>
+            {error || "Verification timeout or backend synchronization error occurred."}
+          </Alert>
+
+          <Button variant="contained" size="large" onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
+            Retry Verification
+          </Button>
+        </>
+      ) : (
+        <>
+          <CircularProgress size={50} sx={{ mb: 1 }} />
+          <Box sx={{ textAlign: "center" }}>
+            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+              Verifying Cloud Synchronization...
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
+              We are waiting for AWS IoT and our cloud services to detect device heartbeats. This may take up to 30 seconds.
+            </Typography>
+          </Box>
+
+          <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", p: 3, bgcolor: "background.default" }}>
+            <Stack spacing={2}>
+              <Box>
+                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold" }}>Configuration State</Typography>
+                  <Typography variant="body2" color={configStatus === "PUBLISHED" ? "success.main" : "warning.main"}>{configStatus}</Typography>
+                </Stack>
+                <LinearProgress variant={configStatus === "PENDING" ? "indeterminate" : "determinate"} value={configStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+              </Box>
+
+              <Box>
+                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold" }}>Outer Base Station</Typography>
+                  <Typography variant="body2" color={outerStatus === "PUBLISHED" ? "success.main" : "warning.main"}>{outerStatus}</Typography>
+                </Stack>
+                <LinearProgress variant={outerStatus === "PENDING" ? "indeterminate" : "determinate"} value={outerStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+              </Box>
+
+              <Box>
+                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: "bold" }}>Inner Enclosure Unit</Typography>
+                  <Typography variant="body2" color={innerStatus === "CONNECTED" ? "success.main" : "warning.main"}>{innerStatus}</Typography>
+                </Stack>
+                <LinearProgress variant={innerStatus === "PENDING" ? "indeterminate" : "determinate"} value={innerStatus === "CONNECTED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+              </Box>
+            </Stack>
+          </Card>
+        </>
+      )}
     </Stack>
   );
 };
 
-// Simple Chip component fallback since it is imported inside ProvisioningWizard or locally
-import { Chip } from "@mui/material";
+

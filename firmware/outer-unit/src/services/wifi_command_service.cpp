@@ -15,7 +15,22 @@ struct WifiCommandMessage {
     char payload[WIFI_COMMAND_MAX_BYTES + 1];
 };
 
+enum class WifiStatusEventType : uint8_t {
+    COMMAND_ACK = 1,
+    INNER_RESULT = 2
+};
+
+struct WifiStatusEvent {
+    WifiStatusEventType eventType;
+    char commandId[WIFI_COMMAND_ID_MAX_LENGTH + 1];
+    char status[16];
+    char message[64];
+    uint32_t configurationVersion;
+    uint8_t ipAddress[4];
+};
+
 QueueHandle_t wifiCommandQueue = nullptr;
+QueueHandle_t wifiStatusQueue = nullptr;
 
 void currentTimestamp(char* output, size_t outputLength) {
     struct tm timeInfo;
@@ -61,6 +76,49 @@ void publishWifiCommandAck(
         Serial.printf(
             "[WiFiCommand] ACK publish failed. status=%s\n",
             status);
+    }
+}
+
+void publishInnerResult(const WifiStatusEvent& event) {
+    JsonDocument document;
+    char timestamp[32];
+    currentTimestamp(timestamp, sizeof(timestamp));
+
+    char eventId[48];
+    snprintf(
+        eventId,
+        sizeof(eventId),
+        "INNER-WIFI-%lu-%08lX",
+        static_cast<unsigned long>(time(nullptr)),
+        static_cast<unsigned long>(esp_random()));
+
+    char ipAddress[16];
+    snprintf(
+        ipAddress,
+        sizeof(ipAddress),
+        "%u.%u.%u.%u",
+        event.ipAddress[0],
+        event.ipAddress[1],
+        event.ipAddress[2],
+        event.ipAddress[3]);
+
+    document["eventId"] = eventId;
+    document["commandId"] = event.commandId;
+    document["eventType"] = "INNER_WIFI_CONFIGURATION_RESULT";
+    document["outerDeviceId"] = DEVICE_UID_OUTER;
+    document["innerDeviceId"] = DEVICE_UID_INNER;
+    document["status"] = event.status;
+    document["ipAddress"] = ipAddress;
+    document["message"] = event.message;
+    document["timestamp"] = timestamp;
+
+    String payload;
+    serializeJson(document, payload);
+    if (!publishMqttMessage(
+            AWS_IOT_DEVICE_TELEMETRY_TOPIC,
+            payload,
+            false)) {
+        Serial.println("[WiFiCommand] Inner result publish failed");
     }
 }
 
@@ -250,7 +308,18 @@ bool setupWifiCommandService() {
     wifiCommandQueue = xQueueCreate(
         WIFI_COMMAND_QUEUE_LENGTH,
         sizeof(WifiCommandMessage));
-    if (wifiCommandQueue == nullptr) {
+    wifiStatusQueue = xQueueCreate(
+        WIFI_STATUS_QUEUE_LENGTH,
+        sizeof(WifiStatusEvent));
+    if (wifiCommandQueue == nullptr || wifiStatusQueue == nullptr) {
+        if (wifiCommandQueue != nullptr) {
+            vQueueDelete(wifiCommandQueue);
+            wifiCommandQueue = nullptr;
+        }
+        if (wifiStatusQueue != nullptr) {
+            vQueueDelete(wifiStatusQueue);
+            wifiStatusQueue = nullptr;
+        }
         Serial.println("[WiFiCommand] Queue creation failed");
         return false;
     }
@@ -275,6 +344,51 @@ bool enqueueWifiCommandPayload(
     return xQueueSend(wifiCommandQueue, &message, 0) == pdTRUE;
 }
 
+bool queueWifiCommandStatus(
+    const char* commandId,
+    uint32_t configurationVersion,
+    const char* status,
+    const char* message
+) {
+    if (wifiStatusQueue == nullptr ||
+        commandId == nullptr ||
+        status == nullptr ||
+        message == nullptr) {
+        return false;
+    }
+
+    WifiStatusEvent event = {};
+    event.eventType = WifiStatusEventType::COMMAND_ACK;
+    strlcpy(event.commandId, commandId, sizeof(event.commandId));
+    strlcpy(event.status, status, sizeof(event.status));
+    strlcpy(event.message, message, sizeof(event.message));
+    event.configurationVersion = configurationVersion;
+    return xQueueSend(wifiStatusQueue, &event, 0) == pdTRUE;
+}
+
+bool queueInnerWifiConfigurationResult(
+    const char* commandId,
+    const char* status,
+    const uint8_t ipAddress[4],
+    const char* message
+) {
+    if (wifiStatusQueue == nullptr ||
+        commandId == nullptr ||
+        status == nullptr ||
+        ipAddress == nullptr ||
+        message == nullptr) {
+        return false;
+    }
+
+    WifiStatusEvent event = {};
+    event.eventType = WifiStatusEventType::INNER_RESULT;
+    strlcpy(event.commandId, commandId, sizeof(event.commandId));
+    strlcpy(event.status, status, sizeof(event.status));
+    strlcpy(event.message, message, sizeof(event.message));
+    memcpy(event.ipAddress, ipAddress, sizeof(event.ipAddress));
+    return xQueueSend(wifiStatusQueue, &event, 0) == pdTRUE;
+}
+
 void processPendingWifiCommand() {
     if (wifiCommandQueue == nullptr) {
         return;
@@ -284,5 +398,21 @@ void processPendingWifiCommand() {
     if (xQueueReceive(wifiCommandQueue, &message, 0) == pdTRUE) {
         handleWifiCommand(message);
         memset(&message, 0, sizeof(message));
+    }
+
+    WifiStatusEvent event = {};
+    if (wifiStatusQueue != nullptr &&
+        xQueueReceive(wifiStatusQueue, &event, 0) == pdTRUE) {
+        if (event.eventType == WifiStatusEventType::COMMAND_ACK) {
+            publishWifiCommandAck(
+                event.commandId,
+                event.status,
+                event.configurationVersion,
+                event.message);
+        } else if (
+            event.eventType == WifiStatusEventType::INNER_RESULT) {
+            publishInnerResult(event);
+        }
+        memset(&event, 0, sizeof(event));
     }
 }

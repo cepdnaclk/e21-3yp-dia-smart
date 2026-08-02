@@ -4,7 +4,6 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <HX711.h>
-#include <esp_now.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -12,15 +11,13 @@
 
 #include "../config/app_config.h"
 #include "../models/inner_event.h"
+#include "../services/wifi_provisioning_service.h"
 
 // ---- Sensor objects ------------------------------------------------------- //
 
 static OneWire oneWire(TEMP_SENSOR_PIN);
 static DallasTemperature sensors(&oneWire);
 static HX711 scale;
-
-// Broadcast address: outer unit receives without us knowing its MAC.
-static uint8_t broadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 static uint8_t readDoorOpen() {
     return (digitalRead(DOOR_SENSOR_PIN) == HIGH) ? 1 : 0;
@@ -83,13 +80,15 @@ static bool sendInnerPacket(uint32_t& seq,
     esp_err_t lastResult = ESP_OK;
 
     for (uint8_t i = 0; i < burstCount; ++i) {
-        lastResult = esp_now_send(
-            broadcastMac,
+        const bool sent = sendInnerSensorPacket(
             reinterpret_cast<uint8_t*>(&pkt),
             sizeof(InnerPacket));
 
-        if (lastResult == ESP_OK) {
+        if (sent) {
             sentAny = true;
+            lastResult = ESP_OK;
+        } else {
+            lastResult = ESP_FAIL;
         }
 
         if ((i + 1) < burstCount) {
@@ -114,36 +113,6 @@ static bool sendInnerPacket(uint32_t& seq,
 
     Serial.printf("[Sensors] esp_now_send error: %d\n", lastResult);
     return false;
-}
-
-static void onEspNowSent(const uint8_t* mac, esp_now_send_status_t status) {
-    (void)mac;
-    if (status != ESP_NOW_SEND_SUCCESS) {
-        Serial.println("[ESP-NOW] Send failed");
-    }
-}
-
-static void initEspNow() {
-    if (esp_now_init() != ESP_OK) {
-        Serial.println("[ESP-NOW] Init failed - halting");
-        while (true) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
-    }
-    esp_now_register_send_cb(onEspNowSent);
-
-    esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, broadcastMac, 6);
-    peer.channel = 0; // Follow the WiFi radio channel locked in main.cpp.
-    peer.encrypt = false;
-    if (esp_now_add_peer(&peer) != ESP_OK) {
-        Serial.println("[ESP-NOW] Add broadcast peer failed - halting");
-        while (true) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
-    }
-    Serial.printf("[ESP-NOW] Initialised on channel %d, broadcast peer registered\n",
-                  (int)WiFi.channel());
 }
 
 void sensorSamplingTask(void* pvParams) {
@@ -172,8 +141,6 @@ void sensorSamplingTask(void* pvParams) {
     uint32_t rawDoorChangedAtMs = millis();
     uint32_t lastFullSampleAtMs = 0;
     uint32_t lastHeartbeatAtMs = 0;
-
-    initEspNow();
 
     Serial.println("[Sensors] Task started with fast door trigger");
     sendInnerPacket(seq,

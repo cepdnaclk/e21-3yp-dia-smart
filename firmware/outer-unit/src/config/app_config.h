@@ -29,6 +29,7 @@
 #define MQTT_BUFFER_BYTES            8192
 #define WIFI_COMMAND_MAX_BYTES       1024
 #define WIFI_COMMAND_QUEUE_LENGTH    3
+#define WIFI_STATUS_QUEUE_LENGTH     6
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200
@@ -37,6 +38,12 @@
 // Outer unit receives on same channel as its WiFi AP.
 // Inner unit must lock to the same channel (ESPNOW_CHANNEL=1 on both sides).
 #define ESPNOW_CHANNEL               1
+#define WIFI_CONFIG_FRAME_QUEUE_LENGTH 4
+#define WIFI_PROVISIONING_TASK_STACK   8192
+#define WIFI_PAIRING_TIMEOUT_MS        3000
+#define WIFI_STAGE_ACK_TIMEOUT_MS      3000
+#define WIFI_INNER_RESULT_TIMEOUT_MS   15000
+#define WIFI_CONFIG_SEND_ATTEMPTS      3
 
 // ---- Pen Unit BLE (central scans for this peripheral) -------------------- //
 #define PEN_BLE_DEVICE_NAME          "Dose_ESP32_C3"

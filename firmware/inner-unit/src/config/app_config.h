@@ -18,6 +18,8 @@
 // ---- ESP-NOW ---------------------------------------------------------------
 // Must match outer unit's WiFi channel.
 #define ESPNOW_CHANNEL           1
+#define WIFI_CONFIG_FRAME_QUEUE_LENGTH 4
+#define WIFI_PROVISIONING_TASK_STACK   8192
 
 // ---- DS18B20 temperature sensor (OneWire) ----------------------------------
 #define TEMP_SENSOR_PIN          21

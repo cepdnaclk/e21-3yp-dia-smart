@@ -9,7 +9,8 @@ void setupWiFi();
 bool isWiFiConnected();
 bool connectUsingWifiConfiguration(
     const WifiConfiguration& configuration,
-    uint32_t timeoutMs);
+    uint32_t timeoutMs,
+    bool enableAutoReconnectOnFailure = true);
 bool loadActiveWifiConfiguration(
     WifiConfiguration& configuration,
     WifiCredentialSource& source);

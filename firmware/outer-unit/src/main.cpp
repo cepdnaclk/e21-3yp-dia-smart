@@ -8,6 +8,8 @@
 #include "include/system_queues.h"
 #include "managers/wifi_manager.h"
 #include "services/care_plan_service.h"
+#include "services/wifi_provisioning_coordinator.h"
+#include "../../common/protocols/wifi_config_packets.h"
 
 // ---- Queue definitions (extern declared in system_queues.h) -------------- //
 QueueHandle_t telemetryQueue;
@@ -37,8 +39,11 @@ void keypadTask(void* parameter);
 // Runs in WiFi/ESP-NOW task context (NOT in our FreeRTOS task).
 // Must be fast — just copy and enqueue, no Serial.print inside.
 static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
-    (void)mac;
     g_espNowRxTotal++;
+    if (isWifiConfigPacket(data, len)) {
+        handleOuterWifiProvisioningPacket(mac, data, len);
+        return;
+    }
     if (len != sizeof(InnerPacket)) {
         g_espNowRxLenDrop++;
         return;
@@ -49,6 +54,7 @@ static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
         g_espNowRxMagicDrop++;
         return;
     }
+    observeInnerSensorMac(mac);
     if (hasLastQueuedInnerSeq && pkt->seq == lastQueuedInnerSeq) {
         g_espNowRxDuplicateDrop++;
         return;
@@ -129,6 +135,12 @@ void setup() {
 
     // ESP-NOW — init after WiFi so channel is already set by the AP association
     initEspNow();
+    if (!setupWifiProvisioningCoordinator()) {
+        Serial.println("[Main] Wi-Fi coordinator failed - halting");
+        while (true) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
 
     // eventAggregatorTask — reads sensor + dose + glucose queues → builds TelemetryEvent
     xTaskCreatePinnedToCore(

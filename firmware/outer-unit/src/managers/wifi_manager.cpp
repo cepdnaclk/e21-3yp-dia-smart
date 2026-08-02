@@ -24,7 +24,8 @@ const char* credentialSourceName(WifiCredentialSource source) {
 
 bool connectUsingWifiConfiguration(
     const WifiConfiguration& configuration,
-    uint32_t timeoutMs
+    uint32_t timeoutMs,
+    bool enableAutoReconnectOnFailure
 ) {
     if (validateStoredWifiConfiguration(configuration) !=
         WifiValidationResult::VALID) {
@@ -32,6 +33,8 @@ bool connectUsingWifiConfiguration(
         return false;
     }
 
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(false);
     WiFi.mode(WIFI_STA);
     WiFi.setHostname("Dia-Smart-Outer-Unit");
 
@@ -63,7 +66,7 @@ bool connectUsingWifiConfiguration(
         esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
         Serial.printf("[WiFi] Forced ESP-NOW fallback channel %d\n", ESPNOW_CHANNEL);
     }
-    WiFi.setAutoReconnect(true);
+    WiFi.setAutoReconnect(enableAutoReconnectOnFailure);
     return false;
 }
 

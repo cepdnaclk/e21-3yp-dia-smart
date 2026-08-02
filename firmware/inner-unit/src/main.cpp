@@ -5,6 +5,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "config/app_config.h"
+#include "services/wifi_provisioning_service.h"
 #include "../../common/services/wifi_credential_manager.h"
 
 // Forward declaration for task defined in tasks/
@@ -87,6 +88,13 @@ void setup() {
     Serial.println("=== Dia-Smart Inner Unit Starting ===");
 
     lockEspNowChannel();
+
+    if (!setupInnerWifiProvisioningService()) {
+        Serial.println("[Main] Wi-Fi provisioning service failed - halting");
+        while (true) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
 
     // Sensor sampling + ESP-NOW TX — runs on Core 1 (sensor-heavy)
     xTaskCreatePinnedToCore(

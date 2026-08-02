@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -26,21 +27,24 @@ public class WifiCommandStateService {
     private final DeviceConfigurationRepository configRepository;
     private final DeviceRepository deviceRepository;
     private final WifiCommandPublishProperties properties;
+    private final DeviceProvisioningProperties provisioningProperties;
 
     public WifiCommandStateService(
             DeviceCommandRepository commandRepository,
             DeviceConfigurationRepository configRepository,
             DeviceRepository deviceRepository,
-            WifiCommandPublishProperties properties) {
+            WifiCommandPublishProperties properties,
+            DeviceProvisioningProperties provisioningProperties) {
         this.commandRepository = commandRepository;
         this.configRepository = configRepository;
         this.deviceRepository = deviceRepository;
         this.properties = properties;
+        this.provisioningProperties = provisioningProperties;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean claimForPublish(Long commandId) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime staleSentBefore = now.minusSeconds(properties.getSentStaleAfterSeconds());
 
         return commandRepository.claimRecoverableWifiCommand(
@@ -119,11 +123,14 @@ public class WifiCommandStateService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markPublished(Long commandId, Long configurationId) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime timeoutAt = now.plusMinutes(provisioningProperties.getCommandTimeoutMinutes());
 
         commandRepository.findById(commandId).ifPresent(command -> {
             command.setCommandStatus("PUBLISHED");
             command.setPublishedAt(now);
+            command.setTimeoutAt(timeoutAt);
+            command.setCompletedAt(null);
             command.setNextRetryAt(null);
             command.setLastError(null);
             commandRepository.save(command);
@@ -133,6 +140,11 @@ public class WifiCommandStateService {
             configRepository.findByConfigurationId(configurationId).ifPresent(config -> {
                 config.setConfigurationStatus("PUBLISHED");
                 config.setOuterUnitStatus("PUBLISHED");
+                config.setMqttStatus("PENDING");
+                config.setProvisioningTimeoutAt(timeoutAt);
+                if (config.getProvisioningStartedAt() == null) {
+                    config.setProvisioningStartedAt(now);
+                }
                 configRepository.save(config);
             });
         }
@@ -140,7 +152,7 @@ public class WifiCommandStateService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markRetryableFailure(Long commandId, Long configurationId, String errorCode) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         commandRepository.findById(commandId)
                 .ifPresent(command -> {
                     int nextAttemptCount = safeRetryCount(command) + 1;
@@ -158,6 +170,8 @@ public class WifiCommandStateService {
             configRepository.findByConfigurationId(configurationId).ifPresent(config -> {
                 config.setConfigurationStatus("FAILED");
                 config.setOuterUnitStatus("FAILED");
+                config.setMqttStatus("PUBLISH_FAILED");
+                config.setProvisioningFailureCode(errorCode);
                 configRepository.save(config);
             });
         }
@@ -165,7 +179,7 @@ public class WifiCommandStateService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markNonRetryableFailure(Long commandId, Long configurationId, String errorCode) {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         commandRepository.findById(commandId).ifPresent(command -> {
             command.setCommandStatus("FAILED");
@@ -180,6 +194,9 @@ public class WifiCommandStateService {
             configRepository.findByConfigurationId(configurationId).ifPresent(config -> {
                 config.setConfigurationStatus("FAILED");
                 config.setOuterUnitStatus("FAILED");
+                config.setMqttStatus("PUBLISH_FAILED");
+                config.setProvisioningFailureCode(errorCode);
+                config.setProvisioningCompletedAt(now);
                 configRepository.save(config);
             });
         }
@@ -196,7 +213,7 @@ public class WifiCommandStateService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public List<Long> findRecoverableWifiCommandIds() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime staleSentBefore = now.minusSeconds(properties.getSentStaleAfterSeconds());
 
         return commandRepository.findRecoverableWifiCommandIds(
@@ -205,6 +222,64 @@ public class WifiCommandStateService {
                 properties.getMaxRetries(),
                 PageRequest.of(0, properties.getRecoveryBatchSize())
         );
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    public List<Long> findTimedOutProvisioningCommandIds() {
+        return commandRepository.findTimedOutProvisioningCommandIds(
+                OffsetDateTime.now(ZoneOffset.UTC),
+                PageRequest.of(0, provisioningProperties.getTimeoutBatchSize())
+        );
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markProvisioningTimedOut(Long commandId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        commandRepository.findById(commandId).ifPresent(command -> {
+            if (!isTimeoutCandidate(command)) {
+                return;
+            }
+
+            command.setCommandStatus("TIMED_OUT");
+            command.setLastError("PROVISIONING_TIMEOUT");
+            command.setNextRetryAt(null);
+            command.setCompletedAt(now);
+            commandRepository.save(command);
+
+            Long configurationId = command.getDeviceConfigurationId();
+            if (configurationId == null || command.getConfigurationVersion() == null) {
+                return;
+            }
+
+            configRepository.findByConfigurationId(configurationId).ifPresent(config -> {
+                if (!command.getConfigurationVersion().equals(config.getConfigurationVersion())) {
+                    return;
+                }
+                config.setConfigurationStatus("TIMED_OUT");
+                config.setProvisioningFailureCode("INNER_RESULT_TIMEOUT");
+                config.setProvisioningFailureMessage("Provisioning timed out before a final Inner Unit result arrived");
+                config.setProvisioningCompletedAt(now);
+                if (config.getMqttStatus() == null) {
+                    config.setMqttStatus("PENDING");
+                }
+                configRepository.save(config);
+            });
+        });
+    }
+
+    private boolean isTimeoutCandidate(DeviceCommand command) {
+        if (command.getPublishedAt() == null || command.getCompletedAt() != null) {
+            return false;
+        }
+
+        String status = command.getCommandStatus();
+        return "PUBLISHED".equals(status)
+                || "RECEIVED".equals(status)
+                || "VALIDATED".equals(status)
+                || "STAGED".equals(status)
+                || "APPLYING".equals(status)
+                || "APPLIED".equals(status);
     }
 
     private int safeRetryCount(DeviceCommand command) {

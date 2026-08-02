@@ -15,6 +15,8 @@ public interface DeviceKitDeviceRepository extends JpaRepository<DeviceKitDevice
 
     List<DeviceKitDevice> findByDeviceIdIn(Collection<Long> deviceIds);
 
+    Optional<DeviceKitDevice> findByDeviceId(Long deviceId);
+
     Optional<DeviceKitDevice> findByDeviceKitIdAndKitDeviceRole(Long deviceKitId, String kitDeviceRole);
 
     boolean existsByDeviceId(Long deviceId);

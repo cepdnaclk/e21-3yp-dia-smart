@@ -16,6 +16,17 @@ public interface DeviceCommandRepository extends JpaRepository<DeviceCommand, Lo
 
     Optional<DeviceCommand> findByCommandUid(String commandUid);
 
+    Optional<DeviceCommand> findTopByDeviceConfigurationIdAndConfigurationVersionAndCommandTypeOrderByCreatedAtDesc(
+            Long deviceConfigurationId,
+            Integer configurationVersion,
+            String commandType
+    );
+
+    Optional<DeviceCommand> findTopByDeviceConfigurationIdAndCommandTypeOrderByCreatedAtDesc(
+            Long deviceConfigurationId,
+            String commandType
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("""
@@ -69,6 +80,24 @@ public interface DeviceCommandRepository extends JpaRepository<DeviceCommand, Lo
             @Param("now") OffsetDateTime now,
             @Param("staleSentBefore") OffsetDateTime staleSentBefore,
             @Param("maxRetries") int maxRetries,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT c.commandId
+            FROM DeviceCommand c
+            WHERE c.commandType = 'WIFI_CONFIGURATION'
+              AND c.publishedAt IS NOT NULL
+              AND c.completedAt IS NULL
+              AND c.commandStatus IN ('PUBLISHED', 'RECEIVED', 'VALIDATED', 'STAGED', 'APPLYING', 'APPLIED')
+              AND (
+                    c.timeoutAt IS NOT NULL
+                    AND c.timeoutAt <= :now
+              )
+            ORDER BY c.timeoutAt ASC
+            """)
+    List<Long> findTimedOutProvisioningCommandIds(
+            @Param("now") OffsetDateTime now,
             Pageable pageable
     );
 

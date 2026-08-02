@@ -20,6 +20,7 @@ public enum CommandAckStatus {
             "FAILED",
             "REJECTED",
             "ROLLED_BACK",
+            "TIMED_OUT",
             "EXPIRED"
     );
 

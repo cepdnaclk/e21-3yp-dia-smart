@@ -55,6 +55,12 @@ public class DeviceCommand {
     @Column(name = "acknowledged_at")
     private OffsetDateTime acknowledgedAt;
 
+    @Column(name = "timeout_at")
+    private OffsetDateTime timeoutAt;
+
+    @Column(name = "completed_at")
+    private OffsetDateTime completedAt;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -190,6 +196,22 @@ public class DeviceCommand {
 
     public void setAcknowledgedAt(OffsetDateTime acknowledgedAt) {
         this.acknowledgedAt = acknowledgedAt;
+    }
+
+    public OffsetDateTime getTimeoutAt() {
+        return timeoutAt;
+    }
+
+    public void setTimeoutAt(OffsetDateTime timeoutAt) {
+        this.timeoutAt = timeoutAt;
+    }
+
+    public OffsetDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(OffsetDateTime completedAt) {
+        this.completedAt = completedAt;
     }
 
     public OffsetDateTime getCreatedAt() {

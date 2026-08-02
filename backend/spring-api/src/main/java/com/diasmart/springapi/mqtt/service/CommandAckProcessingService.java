@@ -182,20 +182,56 @@ public class CommandAckProcessingService {
         OffsetDateTime acknowledgedAt = deviceTimestamp != null ? deviceTimestamp : OffsetDateTime.now(ZoneOffset.UTC);
         command.setCommandStatus(ackStatus.commandStatus());
         command.setAcknowledgedAt(acknowledgedAt);
+        if (ackStatus == CommandAckStatus.FAILED
+                || ackStatus == CommandAckStatus.REJECTED
+                || ackStatus == CommandAckStatus.ROLLED_BACK) {
+            command.setCompletedAt(acknowledgedAt);
+            command.setLastError("OUTER_" + ackStatus.name());
+        }
         commandRepository.save(command);
 
         config.setOuterUnitStatus(ackStatus.name());
         if (ackStatus == CommandAckStatus.APPLIED) {
-            config.setConfigurationStatus("APPLIED");
-            config.setLastSyncedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            config.setMqttStatus("CONNECTED");
+            if ("CONNECTED".equals(config.getInnerUnitStatus())) {
+                markProvisioningSucceeded(config, command, acknowledgedAt);
+            } else {
+                config.setConfigurationStatus("APPLYING");
+            }
         } else if (ackStatus == CommandAckStatus.FAILED
                 || ackStatus == CommandAckStatus.REJECTED
                 || ackStatus == CommandAckStatus.ROLLED_BACK) {
             config.setConfigurationStatus("FAILED");
+            config.setMqttStatus("FAILED");
+            config.setProvisioningFailureCode("OUTER_" + ackStatus.name());
+            config.setProvisioningFailureMessage("Outer Unit reported WiFi command " + ackStatus.name());
+            config.setProvisioningCompletedAt(acknowledgedAt);
+            if (ackStatus == CommandAckStatus.ROLLED_BACK) {
+                config.setRollbackStatus("ROLLED_BACK");
+            }
         } else {
             config.setConfigurationStatus(ackStatus.name());
+            if (ackStatus == CommandAckStatus.APPLYING) {
+                config.setMqttStatus("RECONNECTING");
+            }
         }
         configRepository.save(config);
+    }
+
+    private void markProvisioningSucceeded(DeviceConfiguration config, DeviceCommand command, OffsetDateTime completedAt) {
+        command.setCompletedAt(completedAt);
+        command.setLastError(null);
+        commandRepository.save(command);
+
+        config.setConfigurationStatus("APPLIED");
+        config.setProvisioningCompletedAt(completedAt);
+        config.setProvisioningFailureCode(null);
+        config.setProvisioningFailureMessage(null);
+        config.setRollbackStatus("NOT_REQUIRED");
+        config.setLastSyncedAt(completedAt);
+        config.setLastSuccessfulConfigurationId(config.getConfigurationId());
+        config.setLastSuccessfulConfigurationVersion(config.getConfigurationVersion());
+        config.setLastSuccessfulAt(completedAt);
     }
 
     private java.util.Optional<DeviceCommand> findCommand(String commandId) {

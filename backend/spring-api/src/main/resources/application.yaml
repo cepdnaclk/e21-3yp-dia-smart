@@ -4,6 +4,10 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
 diasmart:
+  device-provisioning:
+    command-timeout-minutes: ${DIASMART_DEVICE_PROVISIONING_COMMAND_TIMEOUT_MINUTES:5}
+    timeout-scan-fixed-delay-ms: ${DIASMART_DEVICE_PROVISIONING_TIMEOUT_SCAN_FIXED_DELAY_MS:60000}
+    timeout-batch-size: ${DIASMART_DEVICE_PROVISIONING_TIMEOUT_BATCH_SIZE:50}
   device-activation:
     max-failures-per-user: ${DEVICE_ACTIVATION_MAX_FAILURES_PER_USER:5}
     max-failures-per-ip: ${DEVICE_ACTIVATION_MAX_FAILURES_PER_IP:10}

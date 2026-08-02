@@ -22,6 +22,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -89,9 +91,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         config.setPenDeviceId(dto.getPenDeviceId());
         config.setGlucometerDeviceId(dto.getGlucometerDeviceId());
         config.setConfigurationVersion(1);
-        config.setConfigurationStatus("PENDING");
-        config.setOuterUnitStatus("PENDING");
-        config.setInnerUnitStatus("NOT_CONFIGURED");
+        prepareProvisioningAttempt(config, false);
 
         config = configRepository.save(config);
 
@@ -165,9 +165,9 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         }
 
         if (publishRequired) {
-            config.setConfigurationStatus("PENDING");
-            config.setOuterUnitStatus("PENDING");
+            rememberPreviousSuccessfulConfiguration(config);
             config.setConfigurationVersion(config.getConfigurationVersion() + 1);
+            prepareProvisioningAttempt(config, true);
             config = configRepository.save(config);
             publishConfigCommand(device, config);
         }
@@ -183,8 +183,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         DeviceConfiguration config = configRepository.findByOuterDeviceId(outerDeviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Configuration not found for this device"));
 
-        config.setConfigurationStatus("PENDING");
-        config.setOuterUnitStatus("PENDING");
+        prepareProvisioningAttempt(config, true);
         config = configRepository.save(config);
 
         publishConfigCommand(device, config);
@@ -199,8 +198,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         }
 
         configRepository.findByOuterDeviceId(device.getDeviceId()).ifPresent(config -> {
-            config.setConfigurationStatus("PENDING");
-            config.setOuterUnitStatus("PENDING");
+            prepareProvisioningAttempt(config, true);
             DeviceConfiguration savedConfig = configRepository.save(config);
             publishConfigCommand(device, savedConfig);
         });
@@ -288,6 +286,9 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         command = commandRepository.save(command);
 
         command.setCommandUid("CMD-" + command.getCommandId());
+        config.setLastProvisioningCommandId(command.getCommandId());
+        config.setLastProvisioningCommandUid(command.getCommandUid());
+        configRepository.save(config);
 
         try {
             command.setPayload(buildSafeWifiCommandMetadata(config));
@@ -318,5 +319,41 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         safeMetadata.put("glucometerDeviceId", config.getGlucometerDeviceId());
 
         return objectMapper.writeValueAsString(safeMetadata);
+    }
+
+    private void prepareProvisioningAttempt(DeviceConfiguration config, boolean preserveInnerAsWaiting) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        config.setConfigurationStatus("PENDING");
+        config.setOuterUnitStatus("PENDING");
+        config.setMqttStatus("PENDING");
+        config.setRollbackStatus("NOT_REQUIRED");
+        config.setProvisioningStartedAt(now);
+        config.setProvisioningCompletedAt(null);
+        config.setProvisioningTimeoutAt(null);
+        config.setProvisioningFailureCode(null);
+        config.setProvisioningFailureMessage(null);
+        config.setInnerUnitIpAddress(null);
+        config.setInnerUnitMessage(null);
+        if (preserveInnerAsWaiting) {
+            config.setInnerUnitStatus("WAITING_FOR_CONFIGURATION");
+        } else {
+            config.setInnerUnitStatus("NOT_CONFIGURED");
+        }
+    }
+
+    private void rememberPreviousSuccessfulConfiguration(DeviceConfiguration config) {
+        if (config.getLastSuccessfulConfigurationVersion() != null) {
+            config.setPreviousConfigurationId(config.getLastSuccessfulConfigurationId());
+            config.setPreviousConfigurationVersion(config.getLastSuccessfulConfigurationVersion());
+            return;
+        }
+
+        if ("APPLIED".equals(config.getConfigurationStatus())) {
+            config.setPreviousConfigurationId(config.getConfigurationId());
+            config.setPreviousConfigurationVersion(config.getConfigurationVersion());
+            config.setLastSuccessfulConfigurationId(config.getConfigurationId());
+            config.setLastSuccessfulConfigurationVersion(config.getConfigurationVersion());
+            config.setLastSuccessfulAt(config.getLastSyncedAt() != null ? config.getLastSyncedAt() : OffsetDateTime.now(ZoneOffset.UTC));
+        }
     }
 }

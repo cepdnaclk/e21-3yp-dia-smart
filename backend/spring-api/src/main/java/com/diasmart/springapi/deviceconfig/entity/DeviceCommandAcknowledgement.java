@@ -172,6 +172,10 @@ public class DeviceCommandAcknowledgement {
         return acknowledgedAt;
     }
 
+    public OffsetDateTime getAcknowledgedAt() {
+        return acknowledgedAt;
+    }
+
     public void setAcknowledgedAt(OffsetDateTime acknowledgedAt) {
         this.acknowledgedAt = acknowledgedAt;
     }

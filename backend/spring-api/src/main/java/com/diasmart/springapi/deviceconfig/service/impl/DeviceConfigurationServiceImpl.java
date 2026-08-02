@@ -5,11 +5,15 @@ import com.diasmart.springapi.deviceconfig.dto.CreateDeviceConfigurationRequestD
 import com.diasmart.springapi.deviceconfig.dto.DeviceConfigurationResponseDTO;
 import com.diasmart.springapi.deviceconfig.dto.UpdateDeviceConfigurationRequestDTO;
 import com.diasmart.springapi.deviceconfig.entity.DeviceCommand;
+import com.diasmart.springapi.deviceconfig.entity.DeviceCommandAcknowledgement;
 import com.diasmart.springapi.deviceconfig.entity.DeviceConfiguration;
 import com.diasmart.springapi.deviceconfig.mapper.DeviceConfigurationMapper;
+import com.diasmart.springapi.deviceconfig.repository.DeviceCommandAcknowledgementRepository;
 import com.diasmart.springapi.deviceconfig.repository.DeviceCommandRepository;
 import com.diasmart.springapi.deviceconfig.repository.DeviceConfigurationRepository;
 import com.diasmart.springapi.deviceconfig.service.DeviceConfigurationService;
+import com.diasmart.springapi.deviceevents.entity.DeviceTelemetryEvent;
+import com.diasmart.springapi.deviceevents.repository.DeviceTelemetryEventRepository;
 import com.diasmart.springapi.devices.entity.Device;
 import com.diasmart.springapi.devices.repository.DeviceRepository;
 import com.diasmart.springapi.relationships.service.PatientAccessService;
@@ -28,6 +32,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class DeviceConfigurationServiceImpl implements DeviceConfigurationService {
@@ -37,34 +42,44 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
     private static final String DEVICE_TYPE_PEN = "DOSE_CAP";
     private static final String DEVICE_TYPE_GLUCOMETER = "GLUCOMETER";
     private static final String COMMAND_TYPE_WIFI_CONFIGURATION = "WIFI_CONFIGURATION";
+    private static final String EVENT_TYPE_INNER_WIFI_CONFIGURATION_RESULT = "INNER_WIFI_CONFIGURATION_RESULT";
 
     private final DeviceConfigurationRepository configRepository;
     private final DeviceCommandRepository commandRepository;
+    private final DeviceCommandAcknowledgementRepository acknowledgementRepository;
+    private final DeviceTelemetryEventRepository telemetryEventRepository;
     private final DeviceRepository deviceRepository;
     private final PatientAccessService patientAccessService;
     private final EncryptionService encryptionService;
     private final WifiConfigurationCommandPublisher wifiCommandPublisher;
     private final WifiCommandStateService wifiCommandStateService;
+    private final DeviceProvisioningLifecycleService lifecycleService;
     private final AfterCommitExecutor afterCommitExecutor;
     private final ObjectMapper objectMapper;
 
     public DeviceConfigurationServiceImpl(
             DeviceConfigurationRepository configRepository,
             DeviceCommandRepository commandRepository,
+            DeviceCommandAcknowledgementRepository acknowledgementRepository,
+            DeviceTelemetryEventRepository telemetryEventRepository,
             DeviceRepository deviceRepository,
             PatientAccessService patientAccessService,
             EncryptionService encryptionService,
             WifiConfigurationCommandPublisher wifiCommandPublisher,
             WifiCommandStateService wifiCommandStateService,
+            DeviceProvisioningLifecycleService lifecycleService,
             AfterCommitExecutor afterCommitExecutor,
             ObjectMapper objectMapper) {
         this.configRepository = configRepository;
         this.commandRepository = commandRepository;
+        this.acknowledgementRepository = acknowledgementRepository;
+        this.telemetryEventRepository = telemetryEventRepository;
         this.deviceRepository = deviceRepository;
         this.patientAccessService = patientAccessService;
         this.encryptionService = encryptionService;
         this.wifiCommandPublisher = wifiCommandPublisher;
         this.wifiCommandStateService = wifiCommandStateService;
+        this.lifecycleService = lifecycleService;
         this.afterCommitExecutor = afterCommitExecutor;
         this.objectMapper = objectMapper;
     }
@@ -98,6 +113,28 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         publishConfigCommand(device, config);
 
         return DeviceConfigurationMapper.toResponseDTO(config);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DeviceConfigurationResponseDTO getConfigurationStatus(Long outerDeviceId) {
+        Device device = getValidatedOuterDevice(outerDeviceId);
+
+        DeviceConfiguration config = configRepository.findByOuterDeviceId(outerDeviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Configuration not found for this device"));
+
+        DeviceCommand command = findCurrentProvisioningCommand(config);
+        DeviceCommandAcknowledgement acknowledgement = command == null
+                ? null
+                : acknowledgementRepository.findTopByCommandIdOrderByAcknowledgedAtDesc(command.getCommandId()).orElse(null);
+        DeviceTelemetryEvent latestInnerResult = telemetryEventRepository
+                .findTopByDeviceConfigurationIdAndEventTypeOrderByReceivedAtDesc(
+                        config.getConfigurationId(),
+                        EVENT_TYPE_INNER_WIFI_CONFIGURATION_RESULT
+                )
+                .orElse(null);
+
+        return lifecycleService.toStatusResponse(config, device, command, acknowledgement, latestInnerResult);
     }
 
     @Override
@@ -319,6 +356,37 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         safeMetadata.put("glucometerDeviceId", config.getGlucometerDeviceId());
 
         return objectMapper.writeValueAsString(safeMetadata);
+    }
+
+    private DeviceCommand findCurrentProvisioningCommand(DeviceConfiguration config) {
+        if (config == null || config.getConfigurationId() == null) {
+            return null;
+        }
+
+        if (config.getConfigurationVersion() != null) {
+            Optional<DeviceCommand> currentVersionCommand = commandRepository
+                    .findTopByDeviceConfigurationIdAndConfigurationVersionAndCommandTypeOrderByCreatedAtDesc(
+                            config.getConfigurationId(),
+                            config.getConfigurationVersion(),
+                            COMMAND_TYPE_WIFI_CONFIGURATION
+                    );
+            if (currentVersionCommand.isPresent()) {
+                return currentVersionCommand.get();
+            }
+        }
+
+        if (config.getLastProvisioningCommandId() != null) {
+            Optional<DeviceCommand> lastRecordedCommand = commandRepository.findById(config.getLastProvisioningCommandId());
+            if (lastRecordedCommand.isPresent()) {
+                return lastRecordedCommand.get();
+            }
+        }
+
+        return commandRepository.findTopByDeviceConfigurationIdAndCommandTypeOrderByCreatedAtDesc(
+                        config.getConfigurationId(),
+                        COMMAND_TYPE_WIFI_CONFIGURATION
+                )
+                .orElse(null);
     }
 
     private void prepareProvisioningAttempt(DeviceConfiguration config, boolean preserveInnerAsWaiting) {

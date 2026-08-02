@@ -1,9 +1,11 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "config/app_config.h"
+#include "../../common/services/wifi_credential_manager.h"
 
 // Forward declaration for task defined in tasks/
 void sensorSamplingTask(void* pvParams);
@@ -14,11 +16,46 @@ void sensorSamplingTask(void* pvParams);
 // After locking the channel, WiFi is disconnected but the radio stays in
 // STA mode — required for ESP-NOW to operate.
 
-static void lockEspNowChannel() {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+namespace {
+WifiCredentialManager credentialManager(
+    "diasmart-wifi",
+    WIFI_SSID,
+    WIFI_PASSWORD);
 
-    Serial.printf("[WiFi] Connecting to lock channel %d", ESPNOW_CHANNEL);
+const char* credentialSourceName(WifiCredentialSource source) {
+    switch (source) {
+        case WifiCredentialSource::NVS_CURRENT:
+            return "saved";
+        case WifiCredentialSource::DEVELOPMENT_FALLBACK:
+            return "development fallback";
+        default:
+            return "unavailable";
+    }
+}
+}
+
+static void lockEspNowChannel() {
+    WifiConfiguration configuration = {};
+    WifiCredentialSource source = WifiCredentialSource::NONE;
+    if (!credentialManager.loadActive(configuration, source)) {
+        Serial.println("[WiFi] No valid credentials - using recovery channel");
+        WiFi.mode(WIFI_STA);
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+        return;
+    }
+
+    WiFi.mode(WIFI_STA);
+    if (configuration.openNetwork != 0) {
+        WiFi.begin(configuration.ssid);
+    } else {
+        WiFi.begin(configuration.ssid, configuration.password);
+    }
+
+    Serial.printf(
+        "[WiFi] Connecting with %s credentials (version=%lu)",
+        credentialSourceName(source),
+        static_cast<unsigned long>(configuration.configurationVersion));
+    clearWifiConfiguration(configuration);
 
     uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED) {

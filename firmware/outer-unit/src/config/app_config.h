@@ -23,9 +23,12 @@
 // Must match backend MQTT_TOPIC subscription.
 #define AWS_IOT_PUBLISH_TOPIC        "diasmart/device/telemetry"
 #define AWS_IOT_CARE_PLAN_TOPIC      "diasmart/devices/" DEVICE_UID_OUTER "/care-plan"
+#define AWS_IOT_COMMAND_TOPIC        "diasmart/devices/" DEVICE_UID_OUTER "/commands"
 #define AWS_IOT_COMMAND_ACK_TOPIC    "diasmart/devices/" DEVICE_UID_OUTER "/command-ack"
 #define AWS_IOT_DEVICE_TELEMETRY_TOPIC "diasmart/devices/" DEVICE_UID_OUTER "/telemetry"
 #define MQTT_BUFFER_BYTES            8192
+#define WIFI_COMMAND_MAX_BYTES       1024
+#define WIFI_COMMAND_QUEUE_LENGTH    3
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200

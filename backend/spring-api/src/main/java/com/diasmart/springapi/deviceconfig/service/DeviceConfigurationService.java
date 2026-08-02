@@ -14,6 +14,8 @@ public interface DeviceConfigurationService {
 
     DeviceConfigurationResponseDTO getConfiguration(Long outerDeviceId);
 
+    DeviceConfigurationResponseDTO getConfigurationStatus(Long outerDeviceId);
+
     DeviceConfigurationResponseDTO updateConfiguration(Long outerDeviceId, UpdateDeviceConfigurationRequestDTO dto);
 
     DeviceConfigurationResponseDTO sendConfiguration(Long outerDeviceId);

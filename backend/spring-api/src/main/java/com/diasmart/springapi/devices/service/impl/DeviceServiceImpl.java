@@ -4,26 +4,45 @@ import com.diasmart.springapi.audit.service.AuditService;
 import com.diasmart.springapi.common.exceptions.ApiException;
 import com.diasmart.springapi.devices.dto.AssignDeviceRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitActivationResponseDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceReplayStatisticsDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
+import com.diasmart.springapi.devices.dto.PatientDeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
 import com.diasmart.springapi.devices.entity.Device;
+import com.diasmart.springapi.devices.entity.DeviceActivationFailureCategory;
 import com.diasmart.springapi.devices.entity.DeviceHealthLog;
+import com.diasmart.springapi.devices.entity.DeviceKit;
+import com.diasmart.springapi.devices.entity.DeviceKitDevice;
 import com.diasmart.springapi.devices.repository.DeviceHealthLogRepository;
+import com.diasmart.springapi.devices.repository.DeviceKitDeviceRepository;
+import com.diasmart.springapi.devices.repository.DeviceKitRepository;
 import com.diasmart.springapi.devices.repository.DeviceRepository;
+import com.diasmart.springapi.devices.service.DeviceActivationAttemptService;
 import com.diasmart.springapi.devices.service.DeviceService;
+import com.diasmart.springapi.relationships.service.PatientAccessService;
 import com.diasmart.springapi.raw_events.entity.RawDeviceEvent;
 import com.diasmart.springapi.raw_events.repository.RawDeviceEventRepository;
+import com.diasmart.springapi.shared.security.CurrentUserService;
+import com.diasmart.springapi.users.entity.AppUser;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.LocalDate;
 import com.diasmart.springapi.devices.dto.BuyerDeviceKitsDTO;
-import com.diasmart.springapi.devices.dto.DeviceKitDTO;
-import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.entity.Buyer;
 import com.diasmart.springapi.devices.entity.DeviceStatus;
 import com.diasmart.springapi.devices.repository.BuyerRepository;
@@ -31,8 +50,13 @@ import com.diasmart.springapi.patients.repository.PatientRepository;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class DeviceServiceImpl implements DeviceService {
@@ -55,12 +79,50 @@ public class DeviceServiceImpl implements DeviceService {
                         "MANUAL",
                         "OTHER");
 
+        private static final String KIT_STATUS_ACTIVE = "ACTIVE";
+        private static final String ACTIVATION_STATUS_ACTIVATED = "ACTIVATED";
+        private static final String ACTIVATION_STATUS_ALREADY_ACTIVE = "ALREADY_ACTIVE";
+        private static final String INVALID_KIT_MESSAGE = "The entered device kit information is invalid.";
+        private static final String RATE_LIMIT_MESSAGE = "Too many failed activation attempts. Please try again later.";
+
+        private static final List<KitDeviceDefinition> KIT_DEVICE_DEFINITIONS = List.of(
+                        new KitDeviceDefinition(
+                                        "OUTER_GATEWAY",
+                                        "OUTER_GATEWAY",
+                                        "DiaSmart Outer Gateway",
+                                        "MQTTS"),
+                        new KitDeviceDefinition(
+                                        "INNER_UNIT",
+                                        "INNER_UNIT",
+                                        "DiaSmart Inner Unit",
+                                        "ESP_NOW"),
+                        new KitDeviceDefinition(
+                                        "DOSE_CAP",
+                                        "DOSE_CAP",
+                                        "DiaSmart Pen Unit",
+                                        "BLE"),
+                        new KitDeviceDefinition(
+                                        "GLUCOMETER",
+                                        "GLUCOMETER",
+                                        "DiaSmart Glucose Meter",
+                                        "BLE"));
+
+        private static final Set<String> KIT_DEVICE_ROLES = KIT_DEVICE_DEFINITIONS
+                        .stream()
+                        .map(KitDeviceDefinition::role)
+                        .collect(Collectors.toUnmodifiableSet());
+
         private final DeviceRepository deviceRepository;
         private final DeviceHealthLogRepository healthLogRepository;
         private final RawDeviceEventRepository rawDeviceEventRepository;
         private final AuditService auditService;
         private final BuyerRepository buyerRepository;
         private final PatientRepository patientRepository;
+        private final DeviceKitRepository deviceKitRepository;
+        private final DeviceKitDeviceRepository deviceKitDeviceRepository;
+        private final PatientAccessService patientAccessService;
+        private final CurrentUserService currentUserService;
+        private final DeviceActivationAttemptService activationAttemptService;
 
         public DeviceServiceImpl(
                         DeviceRepository deviceRepository,
@@ -68,13 +130,23 @@ public class DeviceServiceImpl implements DeviceService {
                         RawDeviceEventRepository rawDeviceEventRepository,
                         AuditService auditService,
                         BuyerRepository buyerRepository,
-                        PatientRepository patientRepository) {
+                        PatientRepository patientRepository,
+                        DeviceKitRepository deviceKitRepository,
+                        DeviceKitDeviceRepository deviceKitDeviceRepository,
+                        PatientAccessService patientAccessService,
+                        CurrentUserService currentUserService,
+                        DeviceActivationAttemptService activationAttemptService) {
                 this.deviceRepository = deviceRepository;
                 this.healthLogRepository = healthLogRepository;
                 this.rawDeviceEventRepository = rawDeviceEventRepository;
                 this.auditService = auditService;
                 this.buyerRepository = buyerRepository;
                 this.patientRepository = patientRepository;
+                this.deviceKitRepository = deviceKitRepository;
+                this.deviceKitDeviceRepository = deviceKitDeviceRepository;
+                this.patientAccessService = patientAccessService;
+                this.currentUserService = currentUserService;
+                this.activationAttemptService = activationAttemptService;
         }
 
         @Override
@@ -87,45 +159,70 @@ public class DeviceServiceImpl implements DeviceService {
         }
 
         @Override
+        @Transactional(readOnly = true)
+        public List<PatientDeviceSummaryDTO> getPatientDevices(Long patientId) {
+                patientAccessService.requireCanViewPatient(patientId);
+                return deviceRepository
+                                .findByPatientIdOrderByDeviceIdAsc(patientId)
+                                .stream()
+                                .map(this::mapToPatientDeviceSummaryDTO)
+                                .toList();
+        }
+
+        @Override
+        @Transactional(readOnly = true)
         public List<BuyerDeviceKitsDTO> getDeviceKits() {
-                List<Device> allDevices = deviceRepository.findAllByOrderByDeviceIdAsc();
-                List<Buyer> allBuyers = buyerRepository.findAll();
+                List<DeviceKit> kits = deviceKitRepository.findAllByOrderByCreatedAtDesc();
 
-                return allBuyers.stream().map(buyer -> {
-                        BuyerDeviceKitsDTO dto = new BuyerDeviceKitsDTO();
-                        
-                        DeviceResponseDTO.BuyerDTO buyerDto = new DeviceResponseDTO.BuyerDTO();
-                        buyerDto.setFullName(buyer.getFullName());
-                        buyerDto.setNic(buyer.getNic());
-                        buyerDto.setContactNumber(buyer.getContactNumber());
-                        buyerDto.setAddress(buyer.getAddress());
-                        buyerDto.setPurchaseDate(buyer.getPurchaseDate());
-                        dto.setBuyer(buyerDto);
+                if (kits.isEmpty()) {
+                        return List.of();
+                }
 
-                        List<Device> buyerDevices = allDevices.stream()
-                                .filter(d -> buyer.getBuyerId().equals(d.getBuyerId()))
+                Set<Long> buyerIds = kits.stream()
+                                .map(DeviceKit::getBuyerId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+                Map<Long, Buyer> buyersById = buyerRepository.findAllById(buyerIds)
+                                .stream()
+                                .collect(Collectors.toMap(Buyer::getBuyerId, Function.identity()));
+
+                List<Long> kitIds = kits.stream()
+                                .map(DeviceKit::getDeviceKitId)
+                                .filter(Objects::nonNull)
                                 .toList();
+                List<DeviceKitDevice> memberships = kitIds.isEmpty()
+                                ? List.of()
+                                : deviceKitDeviceRepository.findByDeviceKitIdIn(kitIds);
+                Map<Long, List<DeviceKitDevice>> membershipsByKit = memberships.stream()
+                                .collect(Collectors.groupingBy(DeviceKitDevice::getDeviceKitId));
 
-                        java.util.Map<LocalDate, List<Device>> groupedByDate = buyerDevices.stream()
-                                .collect(java.util.stream.Collectors.groupingBy(d -> 
-                                        d.getCreatedAt() != null ? d.getCreatedAt().toLocalDate() : buyer.getPurchaseDate()
-                                ));
+                Set<Long> deviceIds = memberships.stream()
+                                .map(DeviceKitDevice::getDeviceId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+                Map<Long, Device> devicesById = deviceIds.isEmpty()
+                                ? Map.of()
+                                : deviceRepository.findAllById(deviceIds)
+                                                .stream()
+                                                .collect(Collectors.toMap(
+                                                                Device::getDeviceId,
+                                                                Function.identity()));
 
-                        List<DeviceKitDTO> kits = groupedByDate.entrySet().stream()
-                                .sorted((e1, e2) -> e2.getKey().compareTo(e1.getKey())) // Sort descending by date
-                                .map(entry -> {
-                                        DeviceKitDTO kitDto = new DeviceKitDTO();
-                                        kitDto.setPurchaseDate(entry.getKey());
-                                        kitDto.setDevices(entry.getValue().stream().map(this::mapToSummaryDTO).toList());
-                                        return kitDto;
-                                })
+                Map<Long, List<DeviceKit>> kitsByBuyer = kits.stream()
+                                .filter(kit -> kit.getBuyerId() != null)
+                                .collect(Collectors.groupingBy(
+                                                DeviceKit::getBuyerId,
+                                                LinkedHashMap::new,
+                                                Collectors.toList()));
+
+                return kitsByBuyer.entrySet().stream()
+                                .map(entry -> mapToBuyerDeviceKitsDTO(
+                                                buyersById.get(entry.getKey()),
+                                                entry.getValue(),
+                                                membershipsByKit,
+                                                devicesById))
+                                .filter(Objects::nonNull)
                                 .toList();
-
-                        dto.setKits(kits);
-                        dto.setPurchaseCount(kits.size());
-
-                        return dto;
-                }).filter(dto -> dto.getPurchaseCount() > 0).toList();
         }
 
         @Override
@@ -200,51 +297,129 @@ public class DeviceServiceImpl implements DeviceService {
 
         @Override
         @Transactional
-        public void registerDeviceKit(DeviceKitRegistrationRequestDTO dto) {
-                // Ensure at least one ID is provided
-                boolean hasOuter = dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty();
-                boolean hasInner = dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty();
-                boolean hasPen = dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty();
-                boolean hasGluco = dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty();
-
-                if (!hasOuter && !hasInner && !hasPen && !hasGluco) {
-                        throw new ApiException(HttpStatus.BAD_REQUEST, "NO_DEVICES_PROVIDED", "At least one Device ID must be provided.");
+        public DeviceKitDTO registerDeviceKit(DeviceKitRegistrationRequestDTO dto) {
+                if (dto == null) {
+                        throw new ApiException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "VALIDATION_ERROR",
+                                        "Device kit registration request is required");
                 }
 
-                // Check if any provided device ID already exists
-                checkDeviceExists(dto.getOuterGatewayId(), "Outer Gateway");
-                checkDeviceExists(dto.getInnerUnitId(), "Inner Unit");
-                checkDeviceExists(dto.getPenUnitId(), "Pen Unit");
-                checkDeviceExists(dto.getGlucoseMeterId(), "Glucose Meter");
+                Map<String, String> deviceUidsByRole = requireCompleteKitDeviceUids(dto);
+                deviceUidsByRole.forEach(this::checkDeviceDoesNotExist);
 
-                // Get or Create the Buyer
-                Buyer buyer = buyerRepository.findByNic(dto.getNic()).orElseGet(() -> {
+                Buyer buyer = getOrCreateBuyer(dto);
+
+                DeviceKit deviceKit = new DeviceKit();
+                deviceKit.setKitUid(resolveKitUid(dto.getKitUid()));
+                deviceKit.setBuyerId(buyer.getBuyerId());
+                deviceKit.setPurchaseDate(resolvePurchaseDate(dto.getPurchaseDate()));
+                deviceKit.setStatus(KIT_STATUS_ACTIVE);
+
+                DeviceKit savedKit = deviceKitRepository.save(deviceKit);
+
+                Map<Long, Device> devicesById = new LinkedHashMap<>();
+                List<DeviceKitDevice> memberships = new ArrayList<>();
+
+                for (KitDeviceDefinition definition : KIT_DEVICE_DEFINITIONS) {
+                        Device savedDevice = createDevice(
+                                        deviceUidsByRole.get(definition.role()),
+                                        definition.deviceType(),
+                                        definition.deviceName(),
+                                        definition.communicationType(),
+                                        buyer.getBuyerId());
+                        auditService.logDeviceRegistration(savedDevice);
+
+                        DeviceKitDevice membership = addDeviceToKit(
+                                        savedKit,
+                                        savedDevice,
+                                        definition.role());
+                        memberships.add(membership);
+                        devicesById.put(savedDevice.getDeviceId(), savedDevice);
+                }
+
+                return mapToKitDTO(savedKit, memberships, devicesById);
+        }
+
+        private Map<String, String> requireCompleteKitDeviceUids(DeviceKitRegistrationRequestDTO dto) {
+                Map<String, String> deviceUidsByRole = new LinkedHashMap<>();
+                deviceUidsByRole.put("OUTER_GATEWAY", trimToNull(dto.getOuterGatewayId()));
+                deviceUidsByRole.put("INNER_UNIT", trimToNull(dto.getInnerUnitId()));
+                deviceUidsByRole.put("DOSE_CAP", trimToNull(dto.getPenUnitId()));
+                deviceUidsByRole.put("GLUCOMETER", trimToNull(dto.getGlucoseMeterId()));
+
+                if (deviceUidsByRole.values().stream().anyMatch(Objects::isNull)) {
+                        throw new ApiException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "KIT_REQUIRES_ALL_DEVICES",
+                                        "A complete kit requires outer gateway, inner unit, dose cap, and glucometer device IDs.");
+                }
+
+                if (new HashSet<>(deviceUidsByRole.values()).size() != deviceUidsByRole.size()) {
+                        throw new ApiException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "DUPLICATE_DEVICE_UID_IN_KIT",
+                                        "Each kit device ID must be unique.");
+                }
+
+                return deviceUidsByRole;
+        }
+
+        private void checkDeviceDoesNotExist(String role, String uid) {
+                if (deviceRepository.existsByDeviceUid(uid)) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_ALREADY_EXISTS",
+                                        role + " with ID " + uid + " already exists.");
+                }
+        }
+
+        private Buyer getOrCreateBuyer(DeviceKitRegistrationRequestDTO dto) {
+                String nic = requireText(dto.getNic(), "nic");
+                return buyerRepository.findByNic(nic).orElseGet(() -> {
                         Buyer newBuyer = new Buyer();
-                        newBuyer.setFullName(dto.getBuyerFullName());
-                        newBuyer.setNic(dto.getNic());
-                        newBuyer.setContactNumber(dto.getContactNumber());
-                        newBuyer.setAddress(dto.getAddress());
-                        newBuyer.setPurchaseDate(dto.getPurchaseDate());
+                        newBuyer.setFullName(requireText(dto.getBuyerFullName(), "buyerFullName"));
+                        newBuyer.setNic(nic);
+                        newBuyer.setContactNumber(requireText(dto.getContactNumber(), "contactNumber"));
+                        newBuyer.setAddress(trimToNull(dto.getAddress()));
+                        newBuyer.setPurchaseDate(resolvePurchaseDate(dto.getPurchaseDate()));
                         return buyerRepository.save(newBuyer);
                 });
-
-                // Create the Devices
-                if (hasOuter) createDevice(dto.getOuterGatewayId(), "OUTER_GATEWAY", "DiaSmart Outer Gateway", "MQTTS", buyer.getBuyerId());
-                if (hasInner) createDevice(dto.getInnerUnitId(), "INNER_UNIT", "DiaSmart Inner Unit", "ESP_NOW", buyer.getBuyerId());
-                if (hasPen) createDevice(dto.getPenUnitId(), "DOSE_CAP", "DiaSmart Pen Unit", "BLE", buyer.getBuyerId());
-                if (hasGluco) createDevice(dto.getGlucoseMeterId(), "GLUCOMETER", "DiaSmart Glucose Meter", "BLE", buyer.getBuyerId());
         }
 
-        private void checkDeviceExists(String uid, String label) {
-                if (uid != null && !uid.trim().isEmpty()) {
-                        if (deviceRepository.existsByDeviceUid(uid)) {
-                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_EXISTS",
-                                                label + " with ID " + uid + " already exists.");
+        private String resolveKitUid(String requestedKitUid) {
+                String normalized = trimToNull(requestedKitUid);
+
+                if (normalized != null) {
+                        if (deviceKitRepository.existsByKitUid(normalized)) {
+                                throw new ApiException(
+                                                HttpStatus.CONFLICT,
+                                                "DEVICE_KIT_ALREADY_EXISTS",
+                                                "Device kit UID already exists.");
+                        }
+
+                        return normalized;
+                }
+
+                for (int attempt = 0; attempt < 5; attempt++) {
+                        String generated = "KIT-" + UUID.randomUUID();
+
+                        if (!deviceKitRepository.existsByKitUid(generated)) {
+                                return generated;
                         }
                 }
+
+                throw new ApiException(
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                "DEVICE_KIT_UID_GENERATION_FAILED",
+                                "Unable to generate a unique device kit UID.");
         }
 
-        private void createDevice(String uid, String type, String name, String commType, Long buyerId) {
+        private LocalDate resolvePurchaseDate(LocalDate purchaseDate) {
+                return purchaseDate == null ? LocalDate.now(ZoneOffset.UTC) : purchaseDate;
+        }
+
+        private Device createDevice(String uid, String type, String name, String commType, Long buyerId) {
                 Device d = new Device();
                 d.setDeviceUid(uid);
                 d.setDeviceType(type);
@@ -254,49 +429,541 @@ public class DeviceServiceImpl implements DeviceService {
                 d.setPatientId(null);
                 d.setActive(true);
                 d.setStatus(DeviceStatus.UNKNOWN);
-                deviceRepository.save(d);
+                return deviceRepository.save(d);
         }
 
-        private Device findDeviceByUid(String uid, String label) {
-                return deviceRepository.findByDeviceUid(uid)
-                                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "DEVICE_NOT_FOUND", label + " ID is invalid or does not exist."));
+        DeviceKitDevice addDeviceToKit(DeviceKit kit, Device device, String kitDeviceRole) {
+                if (kit == null || kit.getDeviceKitId() == null) {
+                        throw new ApiException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "DEVICE_KIT_REQUIRED",
+                                        "A saved device kit is required.");
+                }
+
+                if (device == null || device.getDeviceId() == null) {
+                        throw new ApiException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "DEVICE_REQUIRED",
+                                        "A saved device is required.");
+                }
+
+                String normalizedRole = normalizeRequired(
+                                kitDeviceRole,
+                                KIT_DEVICE_ROLES,
+                                "kitDeviceRole");
+                String expectedDeviceType = expectedDeviceTypeForRole(normalizedRole);
+                String actualDeviceType = normalize(device.getDeviceType());
+
+                if (!expectedDeviceType.equals(actualDeviceType)) {
+                        throw new ApiException(
+                                        HttpStatus.UNPROCESSABLE_ENTITY,
+                                        "KIT_DEVICE_ROLE_MISMATCH",
+                                        "Device type " + device.getDeviceType() + " cannot be registered as " + normalizedRole + ".");
+                }
+
+                if (deviceKitDeviceRepository.existsByDeviceKitIdAndKitDeviceRole(
+                                kit.getDeviceKitId(),
+                                normalizedRole)) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_KIT_ROLE_ALREADY_EXISTS",
+                                        "This device kit already has a " + normalizedRole + " device.");
+                }
+
+                if (deviceKitDeviceRepository.existsByDeviceId(device.getDeviceId())) {
+                        throw new ApiException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_ALREADY_IN_KIT",
+                                        "This device already belongs to a device kit.");
+                }
+
+                DeviceKitDevice membership = new DeviceKitDevice();
+                membership.setDeviceKitId(kit.getDeviceKitId());
+                membership.setDeviceId(device.getDeviceId());
+                membership.setKitDeviceRole(normalizedRole);
+
+                return deviceKitDeviceRepository.save(membership);
+        }
+
+        private String expectedDeviceTypeForRole(String role) {
+                return KIT_DEVICE_DEFINITIONS.stream()
+                                .filter(definition -> definition.role().equals(role))
+                                .findFirst()
+                                .map(KitDeviceDefinition::deviceType)
+                                .orElseThrow(() -> new ApiException(
+                                                HttpStatus.BAD_REQUEST,
+                                                "VALIDATION_ERROR",
+                                                "kitDeviceRole is invalid"));
         }
 
         @Override
         @Transactional
-        public void activateDeviceKit(Long patientId, com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto) {
-                List<Device> devicesToActivate = new java.util.ArrayList<>();
-                if (dto.getOuterGatewayId() != null && !dto.getOuterGatewayId().trim().isEmpty()) {
-                        devicesToActivate.add(findDeviceByUid(dto.getOuterGatewayId(), "Outer Gateway"));
-                }
-                if (dto.getInnerUnitId() != null && !dto.getInnerUnitId().trim().isEmpty()) {
-                        devicesToActivate.add(findDeviceByUid(dto.getInnerUnitId(), "Inner Unit"));
-                }
-                if (dto.getPenUnitId() != null && !dto.getPenUnitId().trim().isEmpty()) {
-                        devicesToActivate.add(findDeviceByUid(dto.getPenUnitId(), "Pen Unit"));
-                }
-                if (dto.getGlucoseMeterId() != null && !dto.getGlucoseMeterId().trim().isEmpty()) {
-                        devicesToActivate.add(findDeviceByUid(dto.getGlucoseMeterId(), "Glucose Meter"));
+        public DeviceKitActivationResponseDTO activateDeviceKit(
+                        Long patientId,
+                        com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto,
+                        String ipAddress) {
+                AppUser currentUser = currentUserService.getCurrentUser();
+                OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+                String requestFingerprint = activationRequestFingerprint(dto);
+
+                if (!currentUser.isActive()) {
+                        recordActivationFailure(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        null,
+                                        ipAddress,
+                                        DeviceActivationFailureCategory.UNAUTHORIZED_PATIENT,
+                                        requestFingerprint,
+                                        now,
+                                        null);
+                        throw new AccessDeniedException("Inactive users cannot activate device kits");
                 }
 
-                if (devicesToActivate.isEmpty()) {
-                        throw new ApiException(HttpStatus.BAD_REQUEST, "NO_DEVICES_PROVIDED", "At least one Device ID must be provided to activate.");
+                if (activationAttemptService.isRateLimited(
+                                currentUser.getUserId(),
+                                ipAddress,
+                                now)) {
+                        OffsetDateTime blockedUntil = activationAttemptService.blockedUntil(now);
+                        recordActivationFailure(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        null,
+                                        ipAddress,
+                                        DeviceActivationFailureCategory.RATE_LIMITED,
+                                        requestFingerprint,
+                                        now,
+                                        blockedUntil);
+                        throw new ApiException(
+                                        HttpStatus.TOO_MANY_REQUESTS,
+                                        "ACTIVATION_RATE_LIMIT_EXCEEDED",
+                                        RATE_LIMIT_MESSAGE);
                 }
 
-                for (Device device : devicesToActivate) {
-                        if (!Boolean.TRUE.equals(device.getActive())) {
-                                throw new ApiException(HttpStatus.BAD_REQUEST, "DEVICE_INACTIVE", "Device " + device.getDeviceUid() + " is not active.");
+                try {
+                        patientAccessService.requireCanManagePatientDevices(patientId);
+                        ensurePatientExists(patientId);
+
+                        Map<String, String> deviceUidsByRole = requireActivationDeviceUids(dto);
+                        ActivationPlan activationPlan = resolveActivationPlan(deviceUidsByRole);
+                        DeviceKitActivationResponseDTO response = activatePlan(
+                                        currentUser,
+                                        patientId,
+                                        activationPlan,
+                                        ipAddress,
+                                        now);
+
+                        activationAttemptService.recordSuccess(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        activationPlan.kit().getDeviceKitId(),
+                                        ipAddress,
+                                        requestFingerprint,
+                                        now);
+
+                        return response;
+                } catch (AccessDeniedException ex) {
+                        recordActivationFailure(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        null,
+                                        ipAddress,
+                                        DeviceActivationFailureCategory.UNAUTHORIZED_PATIENT,
+                                        requestFingerprint,
+                                        now,
+                                        null);
+                        throw ex;
+                } catch (ActivationFailureException ex) {
+                        recordActivationFailure(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        ex.getKitId(),
+                                        ipAddress,
+                                        ex.getFailureCategory(),
+                                        requestFingerprint,
+                                        now,
+                                        null);
+                        throw ex;
+                } catch (ApiException ex) {
+                        recordActivationFailure(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        null,
+                                        ipAddress,
+                                        DeviceActivationFailureCategory.INTEGRITY_ERROR,
+                                        requestFingerprint,
+                                        now,
+                                        null);
+                        throw ex;
+                }
+        }
+
+        private Map<String, String> requireActivationDeviceUids(
+                        com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto) {
+                if (dto == null) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "VALIDATION_ERROR",
+                                        "Device kit activation request is required.",
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        null);
+                }
+
+                Map<String, String> deviceUidsByRole = new LinkedHashMap<>();
+                deviceUidsByRole.put("OUTER_GATEWAY", trimToNull(dto.getOuterGatewayId()));
+                deviceUidsByRole.put("INNER_UNIT", trimToNull(dto.getInnerUnitId()));
+                deviceUidsByRole.put("DOSE_CAP", trimToNull(dto.getPenUnitId()));
+                deviceUidsByRole.put("GLUCOMETER", trimToNull(dto.getGlucoseMeterId()));
+
+                if (deviceUidsByRole.values().stream().anyMatch(Objects::isNull)) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "KIT_REQUIRES_ALL_DEVICES",
+                                        "A complete kit requires outer gateway, inner unit, dose cap, and glucometer device IDs.",
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        null);
+                }
+
+                if (new HashSet<>(deviceUidsByRole.values()).size() != deviceUidsByRole.size()) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "DUPLICATE_DEVICE_UID_IN_KIT",
+                                        "Each kit device ID must be unique.",
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        null);
+                }
+
+                return deviceUidsByRole;
+        }
+
+        private void ensurePatientExists(Long patientId) {
+                if (!patientRepository.existsById(patientId)) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.NOT_FOUND,
+                                        "PATIENT_NOT_FOUND",
+                                        "Patient not found",
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        null);
+                }
+        }
+
+        private ActivationPlan resolveActivationPlan(Map<String, String> deviceUidsByRole) {
+                Map<String, Device> devicesByRole = new LinkedHashMap<>();
+
+                for (Map.Entry<String, String> entry : deviceUidsByRole.entrySet()) {
+                        Device device = deviceRepository.findByDeviceUid(entry.getValue())
+                                        .orElseThrow(() -> invalidKit(
+                                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                                        null));
+
+                        validateActivationDevice(entry.getKey(), device);
+                        devicesByRole.put(entry.getKey(), device);
+                }
+
+                List<Long> deviceIds = devicesByRole.values()
+                                .stream()
+                                .map(Device::getDeviceId)
+                                .filter(Objects::nonNull)
+                                .toList();
+
+                if (deviceIds.size() != KIT_DEVICE_DEFINITIONS.size()) {
+                        throw invalidKit(DeviceActivationFailureCategory.INTEGRITY_ERROR, null);
+                }
+
+                List<DeviceKitDevice> submittedMemberships = deviceKitDeviceRepository.findByDeviceIdIn(deviceIds);
+
+                if (submittedMemberships.size() != KIT_DEVICE_DEFINITIONS.size()) {
+                        throw invalidKit(DeviceActivationFailureCategory.INVALID_KIT, null);
+                }
+
+                Map<Long, DeviceKitDevice> membershipByDeviceId = submittedMemberships.stream()
+                                .collect(Collectors.toMap(
+                                                DeviceKitDevice::getDeviceId,
+                                                Function.identity(),
+                                                (left, right) -> left));
+
+                for (Map.Entry<String, Device> entry : devicesByRole.entrySet()) {
+                        DeviceKitDevice membership = membershipByDeviceId.get(entry.getValue().getDeviceId());
+
+                        if (membership == null || !entry.getKey().equals(membership.getKitDeviceRole())) {
+                                throw invalidKit(
+                                                DeviceActivationFailureCategory.TYPE_MISMATCH,
+                                                null);
                         }
-                        if (device.getPatientId() != null && !device.getPatientId().equals(patientId)) {
-                                throw new ApiException(HttpStatus.CONFLICT, "DEVICE_ALREADY_ASSIGNED", "Device " + device.getDeviceUid() + " is already assigned to another patient.");
-                        }
                 }
 
-                for (Device device : devicesToActivate) {
+                Set<Long> kitIds = submittedMemberships.stream()
+                                .map(DeviceKitDevice::getDeviceKitId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+
+                if (kitIds.size() != 1) {
+                        throw invalidKit(DeviceActivationFailureCategory.INVALID_KIT, null);
+                }
+
+                Long kitId = kitIds.iterator().next();
+                DeviceKit kit = deviceKitRepository.findById(kitId)
+                                .orElseThrow(() -> invalidKit(
+                                                DeviceActivationFailureCategory.INTEGRITY_ERROR,
+                                                kitId));
+
+                validateKitEligibility(kit, devicesByRole);
+                validateCompleteKitMembership(kit, deviceIds);
+
+                return new ActivationPlan(kit, devicesByRole);
+        }
+
+        private void validateActivationDevice(String role, Device device) {
+                if (!Boolean.TRUE.equals(device.getActive())
+                                || DeviceStatus.RETIRED.equals(device.getStatus())) {
+                        throw invalidKit(DeviceActivationFailureCategory.INACTIVE_DEVICE, null);
+                }
+
+                String expectedDeviceType = expectedDeviceTypeForRole(role);
+                String actualDeviceType = normalize(device.getDeviceType());
+
+                if (!expectedDeviceType.equals(actualDeviceType)) {
+                        throw invalidKit(DeviceActivationFailureCategory.TYPE_MISMATCH, null);
+                }
+        }
+
+        private void validateKitEligibility(
+                        DeviceKit kit,
+                        Map<String, Device> devicesByRole) {
+                if (!KIT_STATUS_ACTIVE.equals(kit.getStatus())) {
+                        throw invalidKit(
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        kit.getDeviceKitId());
+                }
+
+                if (kit.getBuyerId() == null || !buyerRepository.existsById(kit.getBuyerId())) {
+                        throw invalidKit(
+                                        DeviceActivationFailureCategory.INTEGRITY_ERROR,
+                                        kit.getDeviceKitId());
+                }
+
+                boolean allDevicesShareKitBuyer = devicesByRole.values()
+                                .stream()
+                                .allMatch(device -> Objects.equals(
+                                                kit.getBuyerId(),
+                                                device.getBuyerId()));
+
+                if (!allDevicesShareKitBuyer) {
+                        throw invalidKit(
+                                        DeviceActivationFailureCategory.INVALID_KIT,
+                                        kit.getDeviceKitId());
+                }
+        }
+
+        private void validateCompleteKitMembership(DeviceKit kit, List<Long> submittedDeviceIds) {
+                List<DeviceKitDevice> kitMemberships = deviceKitDeviceRepository.findByDeviceKitId(kit.getDeviceKitId());
+                Set<String> roles = kitMemberships.stream()
+                                .map(DeviceKitDevice::getKitDeviceRole)
+                                .collect(Collectors.toSet());
+                Set<Long> kitDeviceIds = kitMemberships.stream()
+                                .map(DeviceKitDevice::getDeviceId)
+                                .collect(Collectors.toSet());
+
+                if (kitMemberships.size() != KIT_DEVICE_DEFINITIONS.size()
+                                || roles.size() != KIT_DEVICE_DEFINITIONS.size()
+                                || !roles.equals(KIT_DEVICE_ROLES)
+                                || !kitDeviceIds.equals(new HashSet<>(submittedDeviceIds))) {
+                        throw invalidKit(
+                                        DeviceActivationFailureCategory.INTEGRITY_ERROR,
+                                        kit.getDeviceKitId());
+                }
+        }
+
+        private DeviceKitActivationResponseDTO activatePlan(
+                        AppUser currentUser,
+                        Long patientId,
+                        ActivationPlan activationPlan,
+                        String ipAddress,
+                        OffsetDateTime now) {
+                DeviceKit kit = activationPlan.kit();
+                Map<String, Device> devicesByRole = activationPlan.devicesByRole();
+
+                if (kit.getPatientId() != null && !kit.getPatientId().equals(patientId)) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_KIT_ALREADY_ASSIGNED",
+                                        "This device kit is already connected to another patient. Please contact your administrator.",
+                                        DeviceActivationFailureCategory.DEVICE_CONFLICT,
+                                        kit.getDeviceKitId());
+                }
+
+                long devicesAlreadyAssignedToPatient = devicesByRole.values()
+                                .stream()
+                                .filter(device -> patientId.equals(device.getPatientId()))
+                                .count();
+                boolean hasDeviceAssignedToAnotherPatient = devicesByRole.values()
+                                .stream()
+                                .anyMatch(device -> device.getPatientId() != null
+                                                && !patientId.equals(device.getPatientId()));
+
+                if (hasDeviceAssignedToAnotherPatient) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_ALREADY_ASSIGNED",
+                                        "This device kit is already connected to another patient. Please contact your administrator.",
+                                        DeviceActivationFailureCategory.DEVICE_CONFLICT,
+                                        kit.getDeviceKitId());
+                }
+
+                if (devicesAlreadyAssignedToPatient == KIT_DEVICE_DEFINITIONS.size()) {
+                        if (kit.getPatientId() == null) {
+                                kit.setPatientId(patientId);
+                                kit.setActivatedAt(kit.getActivatedAt() == null ? now : kit.getActivatedAt());
+                                deviceKitRepository.save(kit);
+                        }
+
+                        auditService.logDeviceKitAlreadyActive(
+                                        currentUser.getUserId(),
+                                        patientId,
+                                        kit.getDeviceKitId(),
+                                        kit.getKitUid(),
+                                        ipAddress);
+                        return mapToActivationResponse(
+                                        patientId,
+                                        kit,
+                                        devicesByRole,
+                                        ACTIVATION_STATUS_ALREADY_ACTIVE,
+                                        kit.getActivatedAt() == null ? now : kit.getActivatedAt());
+                }
+
+                if (devicesAlreadyAssignedToPatient > 0 || kit.getPatientId() != null) {
+                        throw new ActivationFailureException(
+                                        HttpStatus.CONFLICT,
+                                        "DEVICE_KIT_PARTIALLY_ASSIGNED",
+                                        "This device kit assignment is inconsistent. Please contact your administrator.",
+                                        DeviceActivationFailureCategory.DEVICE_CONFLICT,
+                                        kit.getDeviceKitId());
+                }
+
+                kit.setPatientId(patientId);
+                kit.setActivatedAt(now);
+                deviceKitRepository.save(kit);
+
+                Map<String, Device> savedDevicesByRole = new LinkedHashMap<>();
+
+                for (Map.Entry<String, Device> entry : devicesByRole.entrySet()) {
+                        Device device = entry.getValue();
                         device.setPatientId(patientId);
                         device.setStatus(DeviceStatus.CONNECTED);
-                        deviceRepository.save(device);
+                        Device savedDevice = deviceRepository.save(device);
+                        savedDevicesByRole.put(
+                                        entry.getKey(),
+                                        savedDevice == null ? device : savedDevice);
                 }
+
+                auditService.logDeviceKitActivated(
+                                currentUser.getUserId(),
+                                patientId,
+                                kit.getDeviceKitId(),
+                                kit.getKitUid(),
+                                ipAddress);
+
+                return mapToActivationResponse(
+                                patientId,
+                                kit,
+                                savedDevicesByRole,
+                                ACTIVATION_STATUS_ACTIVATED,
+                                now);
+        }
+
+        private DeviceKitActivationResponseDTO mapToActivationResponse(
+                        Long patientId,
+                        DeviceKit kit,
+                        Map<String, Device> devicesByRole,
+                        String activationStatus,
+                        OffsetDateTime activatedAt) {
+                DeviceKitActivationResponseDTO response = new DeviceKitActivationResponseDTO();
+                response.setPatientId(patientId);
+                response.setKitId(kit.getDeviceKitId());
+                response.setKitUid(kit.getKitUid());
+                response.setActivationStatus(activationStatus);
+                response.setActivatedAt(activatedAt);
+                response.setDevices(mapToActivationDevicesDTO(devicesByRole));
+                return response;
+        }
+
+        private DeviceKitActivationResponseDTO.ActivationDevicesDTO mapToActivationDevicesDTO(
+                        Map<String, Device> devicesByRole) {
+                DeviceKitActivationResponseDTO.ActivationDevicesDTO devicesDto =
+                                new DeviceKitActivationResponseDTO.ActivationDevicesDTO();
+
+                Device outer = devicesByRole.get("OUTER_GATEWAY");
+                Device inner = devicesByRole.get("INNER_UNIT");
+                Device pen = devicesByRole.get("DOSE_CAP");
+                Device glucometer = devicesByRole.get("GLUCOMETER");
+
+                devicesDto.setOuterDeviceId(outer.getDeviceId());
+                devicesDto.setOuterDeviceUid(outer.getDeviceUid());
+                devicesDto.setInnerDeviceId(inner.getDeviceId());
+                devicesDto.setInnerDeviceUid(inner.getDeviceUid());
+                devicesDto.setPenDeviceId(pen.getDeviceId());
+                devicesDto.setPenDeviceUid(pen.getDeviceUid());
+                devicesDto.setGlucometerDeviceId(glucometer.getDeviceId());
+                devicesDto.setGlucometerDeviceUid(glucometer.getDeviceUid());
+
+                return devicesDto;
+        }
+
+        private ActivationFailureException invalidKit(
+                        DeviceActivationFailureCategory failureCategory,
+                        Long kitId) {
+                return new ActivationFailureException(
+                                HttpStatus.UNPROCESSABLE_ENTITY,
+                                "INVALID_DEVICE_KIT",
+                                INVALID_KIT_MESSAGE,
+                                failureCategory,
+                                kitId);
+        }
+
+        private void recordActivationFailure(
+                        Long userId,
+                        Long patientId,
+                        Long kitId,
+                        String ipAddress,
+                        DeviceActivationFailureCategory failureCategory,
+                        String requestFingerprint,
+                        OffsetDateTime attemptedAt,
+                        OffsetDateTime blockedUntil) {
+                activationAttemptService.recordFailure(
+                                userId,
+                                patientId,
+                                kitId,
+                                ipAddress,
+                                failureCategory,
+                                requestFingerprint,
+                                attemptedAt,
+                                blockedUntil);
+        }
+
+        private String activationRequestFingerprint(
+                        com.diasmart.springapi.devices.dto.PatientDeviceActivationRequestDTO dto) {
+                String fingerprintSource = dto == null
+                                ? "null"
+                                : String.join(
+                                                "|",
+                                                "outer=" + nullToEmpty(trimToNull(dto.getOuterGatewayId())),
+                                                "inner=" + nullToEmpty(trimToNull(dto.getInnerUnitId())),
+                                                "pen=" + nullToEmpty(trimToNull(dto.getPenUnitId())),
+                                                "glucometer=" + nullToEmpty(trimToNull(dto.getGlucoseMeterId())));
+
+                try {
+                        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                        byte[] hashed = digest.digest(fingerprintSource.getBytes(StandardCharsets.UTF_8));
+                        return java.util.HexFormat.of().formatHex(hashed);
+                } catch (NoSuchAlgorithmException ex) {
+                        throw new ApiException(
+                                        HttpStatus.INTERNAL_SERVER_ERROR,
+                                        "ACTIVATION_FINGERPRINT_ERROR",
+                                        "Unable to process activation request.");
+                }
+        }
+
+        private String nullToEmpty(String value) {
+                return value == null ? "" : value;
         }
 
         @Override
@@ -427,6 +1094,111 @@ public class DeviceServiceImpl implements DeviceService {
                                                                 HttpStatus.NOT_FOUND,
                                                                 "DEVICE_NOT_FOUND",
                                                                 "Device not found"));
+        }
+
+        private BuyerDeviceKitsDTO mapToBuyerDeviceKitsDTO(
+                        Buyer buyer,
+                        List<DeviceKit> kits,
+                        Map<Long, List<DeviceKitDevice>> membershipsByKit,
+                        Map<Long, Device> devicesById) {
+                if (buyer == null) {
+                        return null;
+                }
+
+                BuyerDeviceKitsDTO dto = new BuyerDeviceKitsDTO();
+                dto.setBuyer(mapToBuyerDTO(buyer));
+                dto.setKits(kits.stream()
+                                .map(kit -> mapToKitDTO(
+                                                kit,
+                                                membershipsByKit.getOrDefault(
+                                                                kit.getDeviceKitId(),
+                                                                List.of()),
+                                                devicesById))
+                                .toList());
+                dto.setPurchaseCount(dto.getKits().size());
+
+                return dto;
+        }
+
+        private DeviceKitDTO mapToKitDTO(
+                        DeviceKit kit,
+                        List<DeviceKitDevice> memberships,
+                        Map<Long, Device> devicesById) {
+                DeviceKitDTO dto = new DeviceKitDTO();
+                dto.setDeviceKitId(kit.getDeviceKitId());
+                dto.setKitUid(kit.getKitUid());
+                dto.setBuyerId(kit.getBuyerId());
+                dto.setPurchaseDate(kit.getPurchaseDate());
+                dto.setStatus(kit.getStatus());
+                dto.setCreatedAt(kit.getCreatedAt());
+                dto.setUpdatedAt(kit.getUpdatedAt());
+                dto.setDevices(memberships.stream()
+                                .sorted(Comparator.comparingInt(
+                                                membership -> kitRoleOrder(
+                                                                membership.getKitDeviceRole())))
+                                .map(membership -> {
+                                        Device device = devicesById.get(membership.getDeviceId());
+
+                                        if (device == null) {
+                                                return null;
+                                        }
+
+                                        DeviceSummaryDTO summary = mapToSummaryDTO(device);
+                                        summary.setKitDeviceRole(membership.getKitDeviceRole());
+                                        return summary;
+                                })
+                                .filter(Objects::nonNull)
+                                .toList());
+
+                return dto;
+        }
+
+        private DeviceResponseDTO.BuyerDTO mapToBuyerDTO(Buyer buyer) {
+                DeviceResponseDTO.BuyerDTO buyerDto = new DeviceResponseDTO.BuyerDTO();
+                buyerDto.setFullName(buyer.getFullName());
+                buyerDto.setNic(buyer.getNic());
+                buyerDto.setContactNumber(buyer.getContactNumber());
+                buyerDto.setAddress(buyer.getAddress());
+                buyerDto.setPurchaseDate(buyer.getPurchaseDate());
+                return buyerDto;
+        }
+
+        private int kitRoleOrder(String role) {
+                for (int i = 0; i < KIT_DEVICE_DEFINITIONS.size(); i++) {
+                        if (KIT_DEVICE_DEFINITIONS.get(i).role().equals(role)) {
+                                return i;
+                        }
+                }
+
+                return KIT_DEVICE_DEFINITIONS.size();
+        }
+
+        private PatientDeviceSummaryDTO mapToPatientDeviceSummaryDTO(Device device) {
+                Optional<DeviceHealthLog> latestHealth = healthLogRepository
+                                .findTopByDeviceIdOrderByMeasuredAtDesc(
+                                                device.getDeviceId());
+                OffsetDateTime lastMqttReceivedAt = rawDeviceEventRepository
+                                .findLatestForDeviceDiagnostics(
+                                                device.getDeviceId())
+                                .map(RawDeviceEvent::getReceivedAt)
+                                .orElse(device.getLastSeenAt());
+                DeviceHealthLog healthLog = latestHealth.orElse(null);
+                String status = resolveStatus(
+                                device,
+                                healthLog,
+                                lastMqttReceivedAt);
+
+                PatientDeviceSummaryDTO dto = new PatientDeviceSummaryDTO();
+                dto.setDeviceId(device.getDeviceId());
+                dto.setDeviceUid(device.getDeviceUid());
+                dto.setDeviceType(device.getDeviceType());
+                dto.setDeviceName(device.getDeviceName());
+                dto.setStatus(status);
+                dto.setActive(device.getActive());
+                dto.setLastSeenAt(device.getLastSeenAt());
+                dto.setFirmwareVersion(device.getFirmwareVersion());
+                dto.setHardwareVersion(device.getHardwareVersion());
+                return dto;
         }
 
         private DeviceResponseDTO mapToDTO(Device device) {
@@ -681,6 +1453,43 @@ public class DeviceServiceImpl implements DeviceService {
 
                 String trimmed = value.trim();
                 return trimmed.isEmpty() ? null : trimmed;
+        }
+
+        private record ActivationPlan(
+                        DeviceKit kit,
+                        Map<String, Device> devicesByRole) {
+        }
+
+        private static class ActivationFailureException extends ApiException {
+
+                private final DeviceActivationFailureCategory failureCategory;
+                private final Long kitId;
+
+                ActivationFailureException(
+                                HttpStatus status,
+                                String errorCode,
+                                String message,
+                                DeviceActivationFailureCategory failureCategory,
+                                Long kitId) {
+                        super(status, errorCode, message);
+                        this.failureCategory = failureCategory;
+                        this.kitId = kitId;
+                }
+
+                DeviceActivationFailureCategory getFailureCategory() {
+                        return failureCategory;
+                }
+
+                Long getKitId() {
+                        return kitId;
+                }
+        }
+
+        private record KitDeviceDefinition(
+                        String role,
+                        String deviceType,
+                        String deviceName,
+                        String communicationType) {
         }
 
         @FunctionalInterface

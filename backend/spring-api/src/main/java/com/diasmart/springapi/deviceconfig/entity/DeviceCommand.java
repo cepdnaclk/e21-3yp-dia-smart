@@ -21,6 +21,12 @@ public class DeviceCommand {
     @Column(name = "patient_id")
     private Long patientId;
 
+    @Column(name = "device_configuration_id")
+    private Long deviceConfigurationId;
+
+    @Column(name = "configuration_version")
+    private Integer configurationVersion;
+
     @Column(name = "command_type", nullable = false, length = 40)
     private String commandType;
 
@@ -40,8 +46,20 @@ public class DeviceCommand {
     @Column(name = "published_at")
     private OffsetDateTime publishedAt;
 
+    @Column(name = "last_attempt_at")
+    private OffsetDateTime lastAttemptAt;
+
+    @Column(name = "next_retry_at")
+    private OffsetDateTime nextRetryAt;
+
     @Column(name = "acknowledged_at")
     private OffsetDateTime acknowledgedAt;
+
+    @Column(name = "timeout_at")
+    private OffsetDateTime timeoutAt;
+
+    @Column(name = "completed_at")
+    private OffsetDateTime completedAt;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
@@ -92,6 +110,22 @@ public class DeviceCommand {
         this.patientId = patientId;
     }
 
+    public Long getDeviceConfigurationId() {
+        return deviceConfigurationId;
+    }
+
+    public void setDeviceConfigurationId(Long deviceConfigurationId) {
+        this.deviceConfigurationId = deviceConfigurationId;
+    }
+
+    public Integer getConfigurationVersion() {
+        return configurationVersion;
+    }
+
+    public void setConfigurationVersion(Integer configurationVersion) {
+        this.configurationVersion = configurationVersion;
+    }
+
     public String getCommandType() {
         return commandType;
     }
@@ -140,12 +174,44 @@ public class DeviceCommand {
         this.publishedAt = publishedAt;
     }
 
+    public OffsetDateTime getLastAttemptAt() {
+        return lastAttemptAt;
+    }
+
+    public void setLastAttemptAt(OffsetDateTime lastAttemptAt) {
+        this.lastAttemptAt = lastAttemptAt;
+    }
+
+    public OffsetDateTime getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    public void setNextRetryAt(OffsetDateTime nextRetryAt) {
+        this.nextRetryAt = nextRetryAt;
+    }
+
     public OffsetDateTime getAcknowledgedAt() {
         return acknowledgedAt;
     }
 
     public void setAcknowledgedAt(OffsetDateTime acknowledgedAt) {
         this.acknowledgedAt = acknowledgedAt;
+    }
+
+    public OffsetDateTime getTimeoutAt() {
+        return timeoutAt;
+    }
+
+    public void setTimeoutAt(OffsetDateTime timeoutAt) {
+        this.timeoutAt = timeoutAt;
+    }
+
+    public OffsetDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(OffsetDateTime completedAt) {
+        this.completedAt = completedAt;
     }
 
     public OffsetDateTime getCreatedAt() {

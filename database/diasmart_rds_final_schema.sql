@@ -932,6 +932,125 @@ FOREIGN KEY (buyer_id)
 REFERENCES buyers(buyer_id)
 ON DELETE SET NULL;
 
+CREATE TABLE IF NOT EXISTS device_kits (
+    device_kit_id BIGSERIAL PRIMARY KEY,
+    kit_uid VARCHAR(80) NOT NULL,
+    buyer_id BIGINT NOT NULL,
+    patient_id BIGINT,
+    purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activated_at TIMESTAMPTZ,
+    CONSTRAINT chk_device_kits_status
+        CHECK (status IN ('ACTIVE', 'INACTIVE', 'DEACTIVATED')),
+    CONSTRAINT fk_device_kits_buyer
+        FOREIGN KEY (buyer_id)
+        REFERENCES buyers(buyer_id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_device_kits_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES patients(patient_id)
+        ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kits_kit_uid
+ON device_kits (kit_uid);
+
+CREATE INDEX IF NOT EXISTS ix_device_kits_buyer_id
+ON device_kits (buyer_id);
+
+CREATE INDEX IF NOT EXISTS ix_device_kits_patient_id
+ON device_kits (patient_id);
+
+CREATE TABLE IF NOT EXISTS device_kit_devices (
+    device_kit_device_id BIGSERIAL PRIMARY KEY,
+    device_kit_id BIGINT NOT NULL,
+    device_id BIGINT NOT NULL,
+    kit_device_role VARCHAR(30) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_device_kit_devices_role
+        CHECK (kit_device_role IN (
+            'OUTER_GATEWAY',
+            'INNER_UNIT',
+            'DOSE_CAP',
+            'GLUCOMETER'
+        )),
+    CONSTRAINT fk_device_kit_devices_kit
+        FOREIGN KEY (device_kit_id)
+        REFERENCES device_kits(device_kit_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_device_kit_devices_device
+        FOREIGN KEY (device_id)
+        REFERENCES devices(device_id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kit_devices_device
+ON device_kit_devices (device_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kit_devices_role
+ON device_kit_devices (device_kit_id, kit_device_role);
+
+CREATE INDEX IF NOT EXISTS ix_device_kit_devices_kit_id
+ON device_kit_devices (device_kit_id);
+
+CREATE INDEX IF NOT EXISTS ix_device_kit_devices_device_id
+ON device_kit_devices (device_id);
+
+CREATE TABLE IF NOT EXISTS device_activation_attempts (
+    activation_attempt_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT
+        REFERENCES app_users(user_id) ON DELETE SET NULL,
+    patient_id BIGINT
+        REFERENCES patients(patient_id) ON DELETE SET NULL,
+    kit_id BIGINT
+        REFERENCES device_kits(device_kit_id) ON DELETE SET NULL,
+    ip_address VARCHAR(64),
+    success BOOLEAN NOT NULL DEFAULT FALSE,
+    failure_category VARCHAR(40),
+    request_fingerprint VARCHAR(64),
+    attempted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    blocked_until TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_device_activation_attempts_failure_category
+        CHECK (
+            failure_category IS NULL OR failure_category IN (
+                'INVALID_KIT',
+                'UNAUTHORIZED_PATIENT',
+                'DEVICE_CONFLICT',
+                'INACTIVE_DEVICE',
+                'TYPE_MISMATCH',
+                'RATE_LIMITED',
+                'INTEGRITY_ERROR'
+            )
+        ),
+    CONSTRAINT chk_device_activation_attempts_success_category
+        CHECK (
+            (success = TRUE AND failure_category IS NULL)
+            OR (success = FALSE AND failure_category IS NOT NULL)
+        )
+);
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_user_time
+ON device_activation_attempts (user_id, attempted_at DESC);
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_ip_time
+ON device_activation_attempts (ip_address, attempted_at DESC)
+WHERE ip_address IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_user_failed_time
+ON device_activation_attempts (user_id, attempted_at DESC)
+WHERE success = FALSE;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_ip_failed_time
+ON device_activation_attempts (ip_address, attempted_at DESC)
+WHERE success = FALSE AND ip_address IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_device_activation_attempts_blocked_until
+ON device_activation_attempts (blocked_until)
+WHERE blocked_until IS NOT NULL;
+
 INSERT INTO buyers (
     full_name,
     nic,
@@ -985,8 +1104,16 @@ CREATE TABLE IF NOT EXISTS device_configurations (
             'PENDING',
             'SENT',
             'PUBLISHED',
+            'RECEIVED',
+            'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'FAILED',
+            'TIMED_OUT',
+            'ROLLED_BACK',
+            'SUPERSEDED',
+            'STALE',
             'OUTDATED'
         )),
 
@@ -996,15 +1123,49 @@ CREATE TABLE IF NOT EXISTS device_configurations (
             'NOT_CONFIGURED',
             'PAIRING',
             'CREDENTIALS_SENT',
+            'WAITING_FOR_CONFIGURATION',
+            'STAGED',
             'CONNECTING',
             'CONNECTED',
-            'FAILED'
+            'FAILED',
+            'ROLLED_BACK',
+            'RECOVERY_CHANNEL'
         )),
     inner_unit_ip_address VARCHAR(64),
     inner_unit_message TEXT,
     last_inner_unit_status_at TIMESTAMPTZ,
 
     configuration_version INTEGER NOT NULL DEFAULT 1,
+
+    last_successful_configuration_id BIGINT,
+    last_successful_configuration_version INTEGER,
+    last_successful_at TIMESTAMPTZ,
+    previous_configuration_id BIGINT,
+    previous_configuration_version INTEGER,
+    provisioning_started_at TIMESTAMPTZ,
+    provisioning_completed_at TIMESTAMPTZ,
+    provisioning_timeout_at TIMESTAMPTZ,
+    provisioning_failure_code VARCHAR(60),
+    provisioning_failure_message TEXT,
+    rollback_status VARCHAR(30) DEFAULT 'NOT_REQUIRED'
+        CHECK (rollback_status IS NULL OR rollback_status IN (
+            'NOT_REQUIRED',
+            'ROLLBACK_STARTED',
+            'ROLLED_BACK',
+            'RECOVERY_CHANNEL_ACTIVE'
+        )),
+    mqtt_status VARCHAR(30) DEFAULT 'PENDING'
+        CHECK (mqtt_status IS NULL OR mqtt_status IN (
+            'PENDING',
+            'PUBLISHED',
+            'RECONNECTING',
+            'CONNECTED',
+            'FAILED',
+            'PUBLISH_FAILED',
+            'TIMED_OUT'
+        )),
+    last_provisioning_command_id BIGINT,
+    last_provisioning_command_uid VARCHAR(80),
 
     last_synced_at TIMESTAMPTZ,
 
@@ -1032,6 +1193,12 @@ CREATE TABLE IF NOT EXISTS device_commands (
     patient_id BIGINT
         REFERENCES patients(patient_id) ON DELETE SET NULL,
 
+    device_configuration_id BIGINT
+        REFERENCES device_configurations(configuration_id) ON DELETE SET NULL,
+
+    configuration_version INTEGER
+        CHECK (configuration_version IS NULL OR configuration_version > 0),
+
     command_type VARCHAR(40) NOT NULL
         CHECK (command_type IN (
             'WIFI_CONFIGURATION',
@@ -1056,14 +1223,26 @@ CREATE TABLE IF NOT EXISTS device_commands (
             'PUBLISHED',
             'RECEIVED',
             'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'FAILED',
+            'ROLLED_BACK',
+            'TIMED_OUT',
             'EXPIRED'
         )),
 
     published_at TIMESTAMPTZ,
 
+    last_attempt_at TIMESTAMPTZ,
+
+    next_retry_at TIMESTAMPTZ,
+
     acknowledged_at TIMESTAMPTZ,
+
+    timeout_at TIMESTAMPTZ,
+
+    completed_at TIMESTAMPTZ,
 
     retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
     last_error TEXT,
@@ -1076,6 +1255,18 @@ ON device_commands(device_id);
 
 CREATE INDEX idx_device_commands_status
 ON device_commands(command_status);
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_config
+ON device_commands(device_configuration_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_wifi_recovery
+ON device_commands(command_type, command_status, next_retry_at, last_attempt_at)
+WHERE command_type = 'WIFI_CONFIGURATION';
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_wifi_timeout
+ON device_commands(command_type, command_status, timeout_at)
+WHERE command_type = 'WIFI_CONFIGURATION'
+  AND completed_at IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_device_commands_command_uid
 ON device_commands(command_uid)
@@ -1094,16 +1285,46 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
         REFERENCES devices(device_id)
         ON DELETE CASCADE,
 
+    configuration_version INTEGER,
+    reporting_outer_device_uid VARCHAR(80),
+    payload_outer_device_uid VARCHAR(80),
+    ack_uid VARCHAR(120),
+    ack_deduplication_key VARCHAR(200) NOT NULL,
+
     ack_status VARCHAR(20)
         CHECK (ack_status IN (
+            'PENDING',
+            'PUBLISHED',
             'RECEIVED',
             'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'REJECTED',
-            'FAILED'
+            'FAILED',
+            'ROLLED_BACK'
+        )),
+
+    processing_result VARCHAR(60)
+        CHECK (processing_result IS NULL OR processing_result IN (
+            'ACCEPTED',
+            'COMMAND_TYPE_MISMATCH',
+            'ACK_COMMAND_TYPE_MISMATCH',
+            'REPORTING_OUTER_UID_MISSING',
+            'REPORTING_OUTER_UID_MISMATCH',
+            'PAYLOAD_OUTER_UID_MISMATCH',
+            'COMMAND_CONFIGURATION_REFERENCE_MISSING',
+            'CONFIGURATION_NOT_FOUND',
+            'CONFIGURATION_DEVICE_MISMATCH',
+            'ACK_CONFIGURATION_VERSION_MISSING',
+            'ACK_CONFIGURATION_VERSION_MISMATCH',
+            'COMMAND_SUPERSEDED',
+            'STALE_STATUS_TRANSITION'
         )),
 
     response_message TEXT,
+
+    device_timestamp TIMESTAMPTZ,
 
     acknowledged_at TIMESTAMPTZ
         DEFAULT CURRENT_TIMESTAMP
@@ -1111,6 +1332,15 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
 
 CREATE INDEX idx_device_ack_command
 ON device_command_acknowledgements(command_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_command_ack_dedup
+ON device_command_acknowledgements(ack_deduplication_key);
+
+CREATE INDEX IF NOT EXISTS idx_device_ack_command_version
+ON device_command_acknowledgements(command_id, configuration_version);
+
+CREATE INDEX IF NOT EXISTS idx_device_ack_reporting_outer
+ON device_command_acknowledgements(reporting_outer_device_uid);
 
 CREATE TABLE IF NOT EXISTS care_plan_snapshots (
     snapshot_id BIGSERIAL PRIMARY KEY,
@@ -1207,6 +1437,12 @@ CREATE TABLE IF NOT EXISTS device_telemetry_events (
     patient_id BIGINT REFERENCES patients(patient_id) ON DELETE SET NULL,
     care_plan_version INTEGER,
     schedule_external_id VARCHAR(80),
+    command_id BIGINT REFERENCES device_commands(command_id) ON DELETE SET NULL,
+    command_uid VARCHAR(80),
+    device_configuration_id BIGINT REFERENCES device_configurations(configuration_id) ON DELETE SET NULL,
+    configuration_version INTEGER,
+    inner_device_id BIGINT REFERENCES devices(device_id) ON DELETE SET NULL,
+    inner_device_uid VARCHAR(80),
     event_timestamp TIMESTAMPTZ,
     mqtt_topic VARCHAR(255),
     payload JSONB NOT NULL,
@@ -1215,6 +1451,35 @@ CREATE TABLE IF NOT EXISTS device_telemetry_events (
     ack_status VARCHAR(20) NOT NULL DEFAULT 'REJECTED'
         CHECK (ack_status IN ('ACCEPTED', 'DUPLICATE', 'REJECTED')),
     processing_error TEXT,
+    processing_result VARCHAR(60)
+        CHECK (processing_result IS NULL OR processing_result IN (
+            'ACCEPTED',
+            'COMMAND_ID_MISSING',
+            'COMMAND_NOT_FOUND',
+            'COMMAND_TYPE_MISMATCH',
+            'TOPIC_OUTER_UID_MISSING',
+            'REPORTING_OUTER_UID_MISMATCH',
+            'PAYLOAD_OUTER_UID_MISMATCH',
+            'COMMAND_CONFIGURATION_REFERENCE_MISSING',
+            'CONFIGURATION_NOT_FOUND',
+            'CONFIGURATION_DEVICE_MISMATCH',
+            'COMMAND_SUPERSEDED',
+            'RESULT_CONFIGURATION_VERSION_MISSING',
+            'RESULT_CONFIGURATION_VERSION_MISMATCH',
+            'INNER_DEVICE_UID_MISSING',
+            'INNER_DEVICE_NOT_FOUND',
+            'INNER_DEVICE_TYPE_MISMATCH',
+            'CONFIGURATION_INNER_DEVICE_MISMATCH',
+            'DEVICE_PATIENT_MISMATCH',
+            'INNER_DEVICE_PATIENT_MISMATCH',
+            'OUTER_DEVICE_TYPE_MISMATCH',
+            'OUTER_KIT_NOT_FOUND',
+            'INNER_KIT_NOT_FOUND',
+            'KIT_DEVICE_ROLE_MISMATCH',
+            'KIT_MISMATCH',
+            'KIT_PATIENT_MISMATCH',
+            'FAILED'
+        )),
     received_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMPTZ
 );
@@ -1224,6 +1489,12 @@ ON device_telemetry_events(patient_id, event_timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_device_telemetry_outer_time
 ON device_telemetry_events(outer_device_uid, received_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_device_telemetry_command
+ON device_telemetry_events(command_id, configuration_version);
+
+CREATE INDEX IF NOT EXISTS idx_device_telemetry_inner
+ON device_telemetry_events(inner_device_uid, received_at DESC);
 
 CREATE TABLE IF NOT EXISTS reminder_events (
     reminder_event_id BIGSERIAL PRIMARY KEY,

@@ -2,6 +2,7 @@ package com.diasmart.springapi.relationships.service;
 
 import com.diasmart.springapi.relationships.entity.UserPatientAccess;
 import com.diasmart.springapi.relationships.repository.UserPatientAccessRepository;
+import com.diasmart.springapi.shared.enums.AccessRole;
 import com.diasmart.springapi.shared.enums.AccessStatus;
 import com.diasmart.springapi.shared.enums.UserRole;
 import com.diasmart.springapi.shared.security.CurrentUserService;
@@ -80,6 +81,30 @@ public class PatientAccessService {
     }
 
     @Transactional(readOnly = true)
+    public boolean canManagePatientDevices(Long patientId) {
+        AppUser currentUser = currentUserService.getCurrentUser();
+
+        if (!currentUser.isActive()) {
+            return false;
+        }
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+
+        if (currentUser.getRole() != UserRole.PATIENT) {
+            return false;
+        }
+
+        return userPatientAccessRepository
+                .existsByUserIdAndPatientIdAndAccessRoleAndStatus(
+                        currentUser.getUserId(),
+                        patientId,
+                        AccessRole.SELF,
+                        AccessStatus.ACTIVE);
+    }
+
+    @Transactional(readOnly = true)
     public void requireCanViewPatient(Long patientId) {
         if (!canViewPatient(patientId)) {
             throw new AccessDeniedException("You do not have access to this patient");
@@ -97,6 +122,13 @@ public class PatientAccessService {
     public void requireCanEditPrescriptions(Long patientId) {
         if (!canEditPrescriptions(patientId)) {
             throw new AccessDeniedException("You cannot edit prescriptions for this patient");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void requireCanManagePatientDevices(Long patientId) {
+        if (!canManagePatientDevices(patientId)) {
+            throw new AccessDeniedException("You cannot manage device activation for this patient");
         }
     }
 

@@ -34,6 +34,24 @@ public class DeviceTelemetryEvent {
     @Column(name = "schedule_external_id", length = 80)
     private String scheduleExternalId;
 
+    @Column(name = "command_id")
+    private Long commandId;
+
+    @Column(name = "command_uid", length = 80)
+    private String commandUid;
+
+    @Column(name = "device_configuration_id")
+    private Long deviceConfigurationId;
+
+    @Column(name = "configuration_version")
+    private Integer configurationVersion;
+
+    @Column(name = "inner_device_id")
+    private Long innerDeviceId;
+
+    @Column(name = "inner_device_uid", length = 80)
+    private String innerDeviceUid;
+
     @Column(name = "event_timestamp")
     private OffsetDateTime eventTimestamp;
 
@@ -52,6 +70,9 @@ public class DeviceTelemetryEvent {
 
     @Column(name = "processing_error", columnDefinition = "TEXT")
     private String processingError;
+
+    @Column(name = "processing_result", length = 60)
+    private String processingResult;
 
     @Column(name = "received_at", nullable = false)
     private OffsetDateTime receivedAt;
@@ -136,6 +157,54 @@ public class DeviceTelemetryEvent {
         this.scheduleExternalId = scheduleExternalId;
     }
 
+    public Long getCommandId() {
+        return commandId;
+    }
+
+    public void setCommandId(Long commandId) {
+        this.commandId = commandId;
+    }
+
+    public String getCommandUid() {
+        return commandUid;
+    }
+
+    public void setCommandUid(String commandUid) {
+        this.commandUid = commandUid;
+    }
+
+    public Long getDeviceConfigurationId() {
+        return deviceConfigurationId;
+    }
+
+    public void setDeviceConfigurationId(Long deviceConfigurationId) {
+        this.deviceConfigurationId = deviceConfigurationId;
+    }
+
+    public Integer getConfigurationVersion() {
+        return configurationVersion;
+    }
+
+    public void setConfigurationVersion(Integer configurationVersion) {
+        this.configurationVersion = configurationVersion;
+    }
+
+    public Long getInnerDeviceId() {
+        return innerDeviceId;
+    }
+
+    public void setInnerDeviceId(Long innerDeviceId) {
+        this.innerDeviceId = innerDeviceId;
+    }
+
+    public String getInnerDeviceUid() {
+        return innerDeviceUid;
+    }
+
+    public void setInnerDeviceUid(String innerDeviceUid) {
+        this.innerDeviceUid = innerDeviceUid;
+    }
+
     public OffsetDateTime getEventTimestamp() {
         return eventTimestamp;
     }
@@ -182,6 +251,14 @@ public class DeviceTelemetryEvent {
 
     public void setProcessingError(String processingError) {
         this.processingError = processingError;
+    }
+
+    public String getProcessingResult() {
+        return processingResult;
+    }
+
+    public void setProcessingResult(String processingResult) {
+        this.processingResult = processingResult;
     }
 
     public OffsetDateTime getReceivedAt() {

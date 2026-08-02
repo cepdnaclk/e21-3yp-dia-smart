@@ -36,4 +36,7 @@ public enum Permission {
 
     // Dashboard permissions
     READ_DASHBOARD,
+
+    // Device setup permissions
+    MANAGE_PATIENT_DEVICES,
 }

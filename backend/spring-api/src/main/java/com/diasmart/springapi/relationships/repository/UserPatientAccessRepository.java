@@ -34,6 +34,12 @@ public interface UserPatientAccessRepository extends JpaRepository<UserPatientAc
                         Long patientId,
                         AccessStatus status);
 
+        boolean existsByUserIdAndPatientIdAndAccessRoleAndStatus(
+                        Long userId,
+                        Long patientId,
+                        AccessRole accessRole,
+                        AccessStatus status);
+
         List<UserPatientAccess> findByUserIdAndStatusAndCanViewTrue(
                         Long userId,
                         AccessStatus status);

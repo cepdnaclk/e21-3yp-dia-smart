@@ -53,6 +53,10 @@ public class AuthorizationService {
                 patientAccessService.requireCanEditPrescriptions(patientId);
                 break;
 
+            case MANAGE_PATIENT_DEVICES:
+                patientAccessService.requireCanManagePatientDevices(patientId);
+                break;
+
             default:
                 throw new org.springframework.security.access.AccessDeniedException(
                         "Permission validation not implemented for: " + permission);

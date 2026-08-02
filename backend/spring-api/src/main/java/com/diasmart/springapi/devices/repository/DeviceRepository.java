@@ -26,4 +26,6 @@ public interface DeviceRepository
     Optional<Device> findFirstByPatientIdAndDeviceTypeAndActiveTrue(Long patientId, String deviceType);
 
     List<Device> findByPatientIdAndDeviceTypeAndActiveTrue(Long patientId, String deviceType);
+
+    List<Device> findByPatientIdOrderByDeviceIdAsc(Long patientId);
 }

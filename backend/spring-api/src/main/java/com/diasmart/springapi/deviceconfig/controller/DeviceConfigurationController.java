@@ -99,7 +99,7 @@ public class DeviceConfigurationController {
     public ResponseEntity<ApiResponse<DeviceConfigurationResponseDTO>> getConfigurationStatus(
             @PathVariable Long outerDeviceId) {
 
-        DeviceConfigurationResponseDTO response = configurationService.getConfiguration(outerDeviceId);
+        DeviceConfigurationResponseDTO response = configurationService.getConfigurationStatus(outerDeviceId);
 
         return ResponseEntity.ok(
                 ApiResponse.success(

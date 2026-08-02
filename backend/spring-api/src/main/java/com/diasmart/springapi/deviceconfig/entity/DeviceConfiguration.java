@@ -63,6 +63,48 @@ public class DeviceConfiguration {
     @Column(name = "configuration_version", nullable = false)
     private Integer configurationVersion;
 
+    @Column(name = "last_successful_configuration_id")
+    private Long lastSuccessfulConfigurationId;
+
+    @Column(name = "last_successful_configuration_version")
+    private Integer lastSuccessfulConfigurationVersion;
+
+    @Column(name = "last_successful_at")
+    private OffsetDateTime lastSuccessfulAt;
+
+    @Column(name = "previous_configuration_id")
+    private Long previousConfigurationId;
+
+    @Column(name = "previous_configuration_version")
+    private Integer previousConfigurationVersion;
+
+    @Column(name = "provisioning_started_at")
+    private OffsetDateTime provisioningStartedAt;
+
+    @Column(name = "provisioning_completed_at")
+    private OffsetDateTime provisioningCompletedAt;
+
+    @Column(name = "provisioning_timeout_at")
+    private OffsetDateTime provisioningTimeoutAt;
+
+    @Column(name = "provisioning_failure_code", length = 60)
+    private String provisioningFailureCode;
+
+    @Column(name = "provisioning_failure_message", columnDefinition = "TEXT")
+    private String provisioningFailureMessage;
+
+    @Column(name = "rollback_status", length = 30)
+    private String rollbackStatus;
+
+    @Column(name = "mqtt_status", length = 30)
+    private String mqttStatus;
+
+    @Column(name = "last_provisioning_command_id")
+    private Long lastProvisioningCommandId;
+
+    @Column(name = "last_provisioning_command_uid", length = 80)
+    private String lastProvisioningCommandUid;
+
     @Column(name = "last_synced_at")
     private OffsetDateTime lastSyncedAt;
 
@@ -84,6 +126,12 @@ public class DeviceConfiguration {
         }
         if (configurationVersion == null) {
             configurationVersion = 1;
+        }
+        if (rollbackStatus == null) {
+            rollbackStatus = "NOT_REQUIRED";
+        }
+        if (mqttStatus == null) {
+            mqttStatus = "PENDING";
         }
     }
 
@@ -234,6 +282,118 @@ public class DeviceConfiguration {
 
     public void setConfigurationVersion(Integer configurationVersion) {
         this.configurationVersion = configurationVersion;
+    }
+
+    public Long getLastSuccessfulConfigurationId() {
+        return lastSuccessfulConfigurationId;
+    }
+
+    public void setLastSuccessfulConfigurationId(Long lastSuccessfulConfigurationId) {
+        this.lastSuccessfulConfigurationId = lastSuccessfulConfigurationId;
+    }
+
+    public Integer getLastSuccessfulConfigurationVersion() {
+        return lastSuccessfulConfigurationVersion;
+    }
+
+    public void setLastSuccessfulConfigurationVersion(Integer lastSuccessfulConfigurationVersion) {
+        this.lastSuccessfulConfigurationVersion = lastSuccessfulConfigurationVersion;
+    }
+
+    public OffsetDateTime getLastSuccessfulAt() {
+        return lastSuccessfulAt;
+    }
+
+    public void setLastSuccessfulAt(OffsetDateTime lastSuccessfulAt) {
+        this.lastSuccessfulAt = lastSuccessfulAt;
+    }
+
+    public Long getPreviousConfigurationId() {
+        return previousConfigurationId;
+    }
+
+    public void setPreviousConfigurationId(Long previousConfigurationId) {
+        this.previousConfigurationId = previousConfigurationId;
+    }
+
+    public Integer getPreviousConfigurationVersion() {
+        return previousConfigurationVersion;
+    }
+
+    public void setPreviousConfigurationVersion(Integer previousConfigurationVersion) {
+        this.previousConfigurationVersion = previousConfigurationVersion;
+    }
+
+    public OffsetDateTime getProvisioningStartedAt() {
+        return provisioningStartedAt;
+    }
+
+    public void setProvisioningStartedAt(OffsetDateTime provisioningStartedAt) {
+        this.provisioningStartedAt = provisioningStartedAt;
+    }
+
+    public OffsetDateTime getProvisioningCompletedAt() {
+        return provisioningCompletedAt;
+    }
+
+    public void setProvisioningCompletedAt(OffsetDateTime provisioningCompletedAt) {
+        this.provisioningCompletedAt = provisioningCompletedAt;
+    }
+
+    public OffsetDateTime getProvisioningTimeoutAt() {
+        return provisioningTimeoutAt;
+    }
+
+    public void setProvisioningTimeoutAt(OffsetDateTime provisioningTimeoutAt) {
+        this.provisioningTimeoutAt = provisioningTimeoutAt;
+    }
+
+    public String getProvisioningFailureCode() {
+        return provisioningFailureCode;
+    }
+
+    public void setProvisioningFailureCode(String provisioningFailureCode) {
+        this.provisioningFailureCode = provisioningFailureCode;
+    }
+
+    public String getProvisioningFailureMessage() {
+        return provisioningFailureMessage;
+    }
+
+    public void setProvisioningFailureMessage(String provisioningFailureMessage) {
+        this.provisioningFailureMessage = provisioningFailureMessage;
+    }
+
+    public String getRollbackStatus() {
+        return rollbackStatus;
+    }
+
+    public void setRollbackStatus(String rollbackStatus) {
+        this.rollbackStatus = rollbackStatus;
+    }
+
+    public String getMqttStatus() {
+        return mqttStatus;
+    }
+
+    public void setMqttStatus(String mqttStatus) {
+        this.mqttStatus = mqttStatus;
+    }
+
+    public Long getLastProvisioningCommandId() {
+        return lastProvisioningCommandId;
+    }
+
+    public void setLastProvisioningCommandId(Long lastProvisioningCommandId) {
+        this.lastProvisioningCommandId = lastProvisioningCommandId;
+    }
+
+    public String getLastProvisioningCommandUid() {
+        return lastProvisioningCommandUid;
+    }
+
+    public void setLastProvisioningCommandUid(String lastProvisioningCommandUid) {
+        this.lastProvisioningCommandUid = lastProvisioningCommandUid;
     }
 
     public OffsetDateTime getLastSyncedAt() {

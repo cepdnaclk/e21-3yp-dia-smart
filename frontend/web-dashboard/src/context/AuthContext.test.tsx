@@ -39,16 +39,16 @@ const TestComponent = () => {
 
 describe("AuthContext", () => {
   beforeEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
-  it("should initialize from localStorage", () => {
-    localStorage.setItem(
+  it("should initialize from sessionStorage", () => {
+    sessionStorage.setItem(
       "token",
       "existing-token"
     );
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "role",
       UserRole.PATIENT
     );
@@ -78,7 +78,7 @@ describe("AuthContext", () => {
     );
 
     expect(
-      localStorage.getItem("token")
+      sessionStorage.getItem("token")
     ).toBe("jwt-token");
 
     expect(
@@ -104,7 +104,7 @@ describe("AuthContext", () => {
     );
 
     expect(
-      localStorage.getItem("token")
+      sessionStorage.getItem("token")
     ).toBeNull();
 
     expect(

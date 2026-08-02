@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -13,7 +14,6 @@ import {
   DialogTitle,
   Grid,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 
@@ -25,6 +25,7 @@ import type {
   Device,
   DeviceDiagnostics,
 } from "../../types/device";
+import { ProvisioningWizard } from "../../components/devices/ProvisioningWizard";
 
 const requiredDeviceTypes = [
   {
@@ -214,8 +215,7 @@ const DevicesPage = () => {
     useState<DeviceDiagnostics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [setupValues, setSetupValues] = useState<Record<string, string>>({});
-  const [setupStatuses, setSetupStatuses] = useState<Record<string, { status: "idle" | "connecting" | "success" | "error"; message: string }>>({});
+
   const [disconnectTarget, setDisconnectTarget] =
     useState<Device | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -302,61 +302,7 @@ const DevicesPage = () => {
     };
   }, [devices]);
 
-  const handleSetupChange = (deviceKey: string, value: string) => {
-    setSetupValues((current) => ({
-      ...current,
-      [deviceKey]: value,
-    }));
-  };
 
-  const handleConnectDevice = async (
-    deviceKey: string,
-    label: string
-  ) => {
-    const reference = setupValues[deviceKey]?.trim();
-
-    if (!reference) {
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "error",
-          message: "Please enter a device ID before connecting.",
-        },
-      }));
-      return;
-    }
-
-    setSetupStatuses((current) => ({
-      ...current,
-      [deviceKey]: {
-        status: "connecting",
-        message: `Connecting ${label}...`,
-      },
-    }));
-
-    try {
-      await deviceService.connectDevice(reference);
-      await loadDevices(true);
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "success",
-          message: `${label} connected successfully.`,
-        },
-      }));
-    } catch (err) {
-      setSetupStatuses((current) => ({
-        ...current,
-        [deviceKey]: {
-          status: "error",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Unable to connect the device.",
-        },
-      }));
-    }
-  };
 
   const handleDisconnectConfirm = async () => {
     if (!disconnectTarget) {
@@ -369,7 +315,7 @@ const DevicesPage = () => {
       await deviceService.disconnectDevice(disconnectTarget.deviceId);
       await loadDevices(true);
       setDisconnectTarget(null);
-      setSetupStatuses({});
+
     } catch (err) {
       setError(
         err instanceof Error
@@ -399,143 +345,11 @@ const DevicesPage = () => {
             No devices are connected to your account. Please connect your Dia-Smart devices to begin monitoring.
           </Alert>
 
-          <Grid container spacing={3}>
-            {requiredDeviceTypes.map((deviceType) => {
-              const setupStatus = setupStatuses[deviceType.key];
-              const connectedDevice = devices.find(
-                (device) =>
-                  normalizeDeviceType(device.deviceType) ===
-                  deviceType.key
-              );
-
-              return (
-                <Grid
-                  key={deviceType.key}
-                  size={{ xs: 12, md: 6 }}
-                >
-                  <Card
-                    sx={{
-                      cursor: connectedDevice ? "pointer" : "default",
-                      transition: "box-shadow 0.2s",
-                      "&:hover": {
-                        boxShadow: connectedDevice ? 3 : 1,
-                      },
-                    }}
-                    onClick={() => {
-                      if (connectedDevice) {
-                        setSelectedDevice(connectedDevice);
-                        void loadDiagnostics(connectedDevice.deviceId);
-                        setDetailsDialogOpen(true);
-                      }
-                    }}
-                  >
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Typography variant="h6">
-                            {deviceType.label}
-                          </Typography>
-                          {!connectedDevice && (
-                            <Typography color="text.secondary" variant="body2">
-                              Enter the device ID to connect this component to your account.
-                            </Typography>
-                          )}
-                        </Box>
-
-                        {connectedDevice ? (
-                          <Box>
-                            <Grid container spacing={1} sx={{ mb: 2 }}>
-                              <Grid size={{ xs: 4 }}>
-                                <Typography color="text.secondary" variant="body2">Device ID</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 8 }}>
-                                <Typography variant="body2">{connectedDevice.deviceUid}</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 4 }}>
-                                <Typography color="text.secondary" variant="body2">Status</Typography>
-                              </Grid>
-                              <Grid size={{ xs: 8 }}>
-                                <Typography variant="body2">{connectedDevice.status ?? "UNKNOWN"}</Typography>
-                              </Grid>
-                            </Grid>
-                            <Stack direction="row" spacing={2}>
-                              <Button
-                                variant="outlined"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setSelectedDevice(connectedDevice);
-                                  void loadDiagnostics(connectedDevice.deviceId);
-                                  setDetailsDialogOpen(true);
-                                }}
-                              >
-                                View Details
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setDisconnectTarget(connectedDevice);
-                                }}
-                              >
-                                Disconnect
-                              </Button>
-                            </Stack>
-                          </Box>
-                        ) : (
-                          <>
-                            <TextField
-                              label="Device ID"
-                              value={setupValues[deviceType.key] ?? ""}
-                              onChange={(event) =>
-                                handleSetupChange(
-                                  deviceType.key,
-                                  event.target.value
-                                )
-                              }
-                              onClick={(event) => event.stopPropagation()}
-                              fullWidth
-                              size="small"
-                            />
-
-                            <Button
-                              variant="contained"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleConnectDevice(
-                                  deviceType.key,
-                                  deviceType.label
-                                );
-                              }}
-                            >
-                              Connect
-                            </Button>
-                          </>
-                        )}
-
-                        <Box>
-                          <Typography sx={{ fontWeight: 600 }} variant="body2">
-                            Connection status
-                          </Typography>
-                          {connectedDevice ? (
-                            <Chip label="Connected" color="success" size="small" />
-                          ) : (
-                            <Chip label="Pending" size="small" />
-                          )}
-                        </Box>
-
-                        {setupStatus && !connectedDevice && (
-                          <Alert severity={setupStatus.status === "success" ? "success" : setupStatus.status === "error" ? "error" : "info"}>
-                            {setupStatus.message}
-                          </Alert>
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              );
-            })}
-          </Grid>
+          <ProvisioningWizard
+            onComplete={async () => {
+              await loadDevices();
+            }}
+          />
         </Stack>
       ) : (
         <Stack spacing={3}>

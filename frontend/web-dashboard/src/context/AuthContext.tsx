@@ -31,43 +31,43 @@ export const AuthProvider = ({
 }) => {
   const [token, setToken] =
     useState<string | null>(
-      localStorage.getItem("token")
+      sessionStorage.getItem("token")
     );
 
   const [userId, setUserId] = useState<number | null>(
-    localStorage.getItem("userId")
-      ? Number(localStorage.getItem("userId"))
+    sessionStorage.getItem("userId")
+      ? Number(sessionStorage.getItem("userId"))
       : null
   );
 
   // TODO: Extend role handling for Milestone 4 when doctor, caregiver, and admin sessions need role-specific capabilities.
   const [role, setRole] =
     useState<UserRole>(
-      (localStorage.getItem(
+      (sessionStorage.getItem(
         "role"
       ) as UserRole) ||
         UserRole.PATIENT
     );
 
   const [isAuthenticated, setIsAuthenticated] =
-    useState(!!localStorage.getItem("token"));
+    useState(!!sessionStorage.getItem("token"));
 
   const login = (
     jwtToken: string,
     userRole: UserRole,
     userNumericId: number
   ) => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "token",
       jwtToken
     );
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "role",
       userRole
     );
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "userId",
       userNumericId.toString()
     );
@@ -79,9 +79,9 @@ export const AuthProvider = ({
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("userId");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
+    sessionStorage.removeItem("userId");
 
     setToken(null);
     setUserId(null);

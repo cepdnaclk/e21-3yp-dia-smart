@@ -13,6 +13,16 @@ vi.mock("../../services/deviceService", () => ({
   },
 }));
 
+vi.mock("@mui/icons-material", () => ({
+  Visibility: () => null,
+  VisibilityOff: () => null,
+  Smartphone: () => null,
+  CheckCircle: () => null,
+  Wifi: () => null,
+  Autorenew: () => null,
+  ErrorOutlined: () => null,
+}));
+
 describe("DevicesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

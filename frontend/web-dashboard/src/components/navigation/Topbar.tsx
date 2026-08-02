@@ -36,6 +36,7 @@ const titleStyles = {
   flexGrow: 1,
   fontWeight: 700,
   letterSpacing: "0.5px",
+  whiteSpace: "nowrap",
 };
 
 const homeButtonStyles = {
@@ -139,7 +140,7 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
         </Box>
 
         <Tooltip title="View notifications">
-          <IconButton color="inherit" sx={{ mr: 1 }}>
+          <IconButton color="inherit" sx={{ ml: 3, mr: 0.25 }}>
             <NotificationsIcon />
           </IconButton>
         </Tooltip>
@@ -160,9 +161,11 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
             color="inherit"
             startIcon={<LogoutIcon />}
             onClick={handleLogout}
-            sx={logoutButtonStyles}
+            sx={{ ...logoutButtonStyles, ml: 0.5, mr: 0.25 }}
           >
-            Logout
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Logout
+            </Box>
           </Button>
         </Tooltip>
 
@@ -182,7 +185,7 @@ const Topbar = ({ onDrawerToggle }: TopbarProps) => {
             color="inherit"
             aria-label="Profile"
             onClick={handleProfile}
-            sx={{ ml: 1 }}
+            sx={{ ml: 0.25 }}
           >
             <Avatar sx={{ bgcolor: "#3ec1fa", color: "#12233b", fontWeight: "bold", width: 32, height: 32, fontSize: "0.9rem" }}>
               {getRoleInitial(role)}

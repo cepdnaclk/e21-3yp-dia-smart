@@ -33,9 +33,13 @@ bool connectUsingWifiConfiguration(
         return false;
     }
 
+    const wifi_mode_t currentMode = WiFi.getMode();
+    const bool preserveSoftAp =
+        currentMode == WIFI_AP ||
+        currentMode == WIFI_AP_STA;
     WiFi.setAutoReconnect(false);
     WiFi.disconnect(false);
-    WiFi.mode(WIFI_STA);
+    WiFi.mode(preserveSoftAp ? WIFI_AP_STA : WIFI_STA);
     WiFi.setHostname("Dia-Smart-Outer-Unit");
 
     if (configuration.openNetwork != 0) {

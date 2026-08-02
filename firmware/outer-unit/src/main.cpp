@@ -8,6 +8,7 @@
 #include "include/system_queues.h"
 #include "managers/wifi_manager.h"
 #include "services/care_plan_service.h"
+#include "services/local_provisioning_service.h"
 #include "services/wifi_provisioning_coordinator.h"
 #include "../../common/protocols/wifi_config_packets.h"
 
@@ -140,6 +141,9 @@ void setup() {
         while (true) {
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
+    }
+    if (!setupLocalProvisioningService()) {
+        Serial.println("[Main] Local provisioning service unavailable");
     }
 
     // eventAggregatorTask — reads sensor + dose + glucose queues → builds TelemetryEvent

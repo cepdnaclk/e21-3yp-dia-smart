@@ -134,6 +134,16 @@ bool sameCommand(
                sizeof(configuration.commandId)) == 0;
 }
 
+bool sameCredentials(
+    const WifiConfiguration& configuration,
+    const char* ssid,
+    const char* password
+) {
+    return configuration.openNetwork == 0 &&
+           strcmp(configuration.ssid, ssid) == 0 &&
+           strcmp(configuration.password, password) == 0;
+}
+
 void rejectCommand(
     const char* commandId,
     uint32_t configurationVersion,
@@ -214,10 +224,14 @@ void handleWifiCommand(const WifiCommandMessage& message) {
         return;
     }
 
+    const char* ssid = payload["wifiSsid"];
+    const char* password = payload["wifiPassword"];
     WifiCredentialStore& store = wifiCredentialStore();
     WifiConfiguration current = {};
     if (store.loadCurrent(current)) {
-        if (sameCommand(current, commandId, configurationVersion)) {
+        if (sameCommand(current, commandId, configurationVersion) ||
+            (current.configurationVersion == configurationVersion &&
+             sameCredentials(current, ssid, password))) {
             clearWifiConfiguration(current);
             publishWifiCommandAck(
                 commandId,
@@ -239,7 +253,9 @@ void handleWifiCommand(const WifiCommandMessage& message) {
 
     WifiConfiguration pending = {};
     if (store.loadPending(pending)) {
-        if (sameCommand(pending, commandId, configurationVersion)) {
+        if (sameCommand(pending, commandId, configurationVersion) ||
+            (pending.configurationVersion == configurationVersion &&
+             sameCredentials(pending, ssid, password))) {
             clearWifiConfiguration(pending);
             publishWifiCommandAck(
                 commandId,
@@ -260,8 +276,6 @@ void handleWifiCommand(const WifiCommandMessage& message) {
     clearWifiConfiguration(pending);
 
     WifiConfiguration configuration = {};
-    const char* ssid = payload["wifiSsid"];
-    const char* password = payload["wifiPassword"];
     const WifiValidationResult validation =
         initializeWifiConfiguration(
             configuration,

@@ -18,9 +18,19 @@
 #define DIASMART_USING_DEVELOPMENT_ESPNOW_KEYS 1
 #endif
 
+#ifndef DIASMART_SETUP_AP_PASSWORD
+#define DIASMART_SETUP_AP_PASSWORD "DiaSmartSetup0001"
+#define DIASMART_USING_DEVELOPMENT_SETUP_PASSWORD 1
+#endif
+
 #if defined(DIASMART_PRODUCTION_BUILD) && \
     !defined(DIASMART_ESPNOW_KEYS_PROVISIONED)
 #error "Production firmware requires unique provisioned ESP-NOW PMK/LMK keys"
+#endif
+
+#if defined(DIASMART_PRODUCTION_BUILD) && \
+    !defined(DIASMART_SETUP_PASSWORD_PROVISIONED)
+#error "Production firmware requires a unique provisioned setup AP password"
 #endif
 
 static const uint8_t DIASMART_ESPNOW_PMK[16] = {

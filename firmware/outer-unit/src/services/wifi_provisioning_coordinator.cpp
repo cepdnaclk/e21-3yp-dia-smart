@@ -496,3 +496,12 @@ void getWifiProvisioningRuntimeStatus(
     status = runtimeStatus;
     portEXIT_CRITICAL(&statusMux);
 }
+
+void notifyWifiProvisioningStaged(uint32_t configurationVersion) {
+    setRuntimeStatus(
+        WifiProvisioningRuntimeState::WAITING_FOR_INNER,
+        "PENDING",
+        "PENDING",
+        "WAITING_FOR_INNER",
+        configurationVersion);
+}

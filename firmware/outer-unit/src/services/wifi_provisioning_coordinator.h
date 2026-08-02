@@ -28,3 +28,4 @@ void handleOuterWifiProvisioningPacket(
     size_t length);
 void getWifiProvisioningRuntimeStatus(
     WifiProvisioningRuntimeStatus& status);
+void notifyWifiProvisioningStaged(uint32_t configurationVersion);

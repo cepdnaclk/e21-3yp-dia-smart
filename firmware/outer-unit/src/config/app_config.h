@@ -44,6 +44,9 @@
 #define WIFI_STAGE_ACK_TIMEOUT_MS      3000
 #define WIFI_INNER_RESULT_TIMEOUT_MS   15000
 #define WIFI_CONFIG_SEND_ATTEMPTS      3
+#define LOCAL_PROVISION_MAX_BODY_BYTES 256
+#define LOCAL_PROVISIONING_TASK_STACK  6144
+#define LOCAL_PROVISION_SUCCESS_GRACE_MS 30000
 
 // ---- Pen Unit BLE (central scans for this peripheral) -------------------- //
 #define PEN_BLE_DEVICE_NAME          "Dose_ESP32_C3"

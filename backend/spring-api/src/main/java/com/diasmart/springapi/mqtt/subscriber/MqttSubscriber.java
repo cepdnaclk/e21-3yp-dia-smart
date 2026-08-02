@@ -132,10 +132,25 @@ public class MqttSubscriber {
             }
 
             CommandAckDTO dto = mapper.treeToValue(jsonNode, CommandAckDTO.class);
-            commandAckProcessingService.processAck(dto);
+            commandAckProcessingService.processAck(dto, extractDeviceUidFromTopic(topic));
         } catch (Exception e) {
             System.out.println("MQTT Command ACK processing error");
             e.printStackTrace();
         }
+    }
+
+    private String extractDeviceUidFromTopic(String topic) {
+        if (topic == null || topic.isBlank()) {
+            return null;
+        }
+
+        String[] parts = topic.split("/");
+        for (int index = 0; index < parts.length - 1; index++) {
+            if ("devices".equals(parts[index])) {
+                return parts[index + 1];
+            }
+        }
+
+        return null;
     }
 }

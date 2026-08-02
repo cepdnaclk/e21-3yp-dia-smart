@@ -2,34 +2,49 @@ package com.diasmart.springapi.mqtt.service;
 
 import com.diasmart.springapi.deviceconfig.entity.DeviceCommand;
 import com.diasmart.springapi.deviceconfig.entity.DeviceCommandAcknowledgement;
+import com.diasmart.springapi.deviceconfig.entity.DeviceConfiguration;
 import com.diasmart.springapi.deviceconfig.repository.DeviceCommandAcknowledgementRepository;
 import com.diasmart.springapi.deviceconfig.repository.DeviceCommandRepository;
 import com.diasmart.springapi.deviceconfig.repository.DeviceConfigurationRepository;
+import com.diasmart.springapi.devices.entity.Device;
+import com.diasmart.springapi.devices.repository.DeviceRepository;
 import com.diasmart.springapi.mqtt.dto.CommandAckDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 
 @Service
 public class CommandAckProcessingService {
 
+    private static final String COMMAND_TYPE_WIFI_CONFIGURATION = "WIFI_CONFIGURATION";
+    private static final int MAX_ACK_MESSAGE_LENGTH = 500;
+
     private final DeviceCommandRepository commandRepository;
     private final DeviceCommandAcknowledgementRepository ackRepository;
     private final DeviceConfigurationRepository configRepository;
+    private final DeviceRepository deviceRepository;
 
     public CommandAckProcessingService(
             DeviceCommandRepository commandRepository,
             DeviceCommandAcknowledgementRepository ackRepository,
-            DeviceConfigurationRepository configRepository) {
+            DeviceConfigurationRepository configRepository,
+            DeviceRepository deviceRepository) {
         this.commandRepository = commandRepository;
         this.ackRepository = ackRepository;
         this.configRepository = configRepository;
+        this.deviceRepository = deviceRepository;
     }
 
     @Transactional
     public void processAck(CommandAckDTO ackDto) {
+        processAck(ackDto, null);
+    }
+
+    @Transactional
+    public void processAck(CommandAckDTO ackDto, String topicOuterDeviceUid) {
         if (ackDto.getCommandId() == null || ackDto.getCommandId().isBlank()) {
             System.out.println("Command ACK received without commandId. Ignoring.");
             return;
@@ -43,44 +58,144 @@ public class CommandAckProcessingService {
             return;
         }
 
-        String status = normalizeStatus(ackDto.getStatus());
-        command.setCommandStatus("REJECTED".equals(status) ? "FAILED" : status);
-        command.setAcknowledgedAt(ackDto.getTimestamp() != null 
-                ? ackDto.getTimestamp().atOffset(ZoneOffset.UTC) 
-                : OffsetDateTime.now());
-        commandRepository.save(command);
+        String reportingOuterUid = normalizeBlank(topicOuterDeviceUid);
+        String payloadOuterUid = firstNonBlank(ackDto.getOuterDeviceUid(), ackDto.getOuterDeviceId());
+        CommandAckStatus ackStatus = CommandAckStatus.fromFirmware(ackDto.getStatus());
+        OffsetDateTime deviceTimestamp = ackDto.getTimestamp() != null
+                ? ackDto.getTimestamp().atOffset(ZoneOffset.UTC)
+                : null;
+        String dedupKey = buildDeduplicationKey(command, ackDto, ackStatus, reportingOuterUid, deviceTimestamp);
 
+        if (ackRepository.existsByAckDeduplicationKey(dedupKey)) {
+            return;
+        }
+
+        AckValidation validation = validateWifiAck(command, ackDto, ackStatus, reportingOuterUid, payloadOuterUid);
+        saveAcknowledgement(command, ackDto, ackStatus, reportingOuterUid, payloadOuterUid, deviceTimestamp, dedupKey, validation);
+
+        if (!validation.accepted()) {
+            System.out.println("WiFi command ACK ignored: " + validation.processingResult());
+            return;
+        }
+
+        applyAcceptedAck(command, validation.configuration(), ackStatus, deviceTimestamp);
+    }
+
+    private AckValidation validateWifiAck(
+            DeviceCommand command,
+            CommandAckDTO ackDto,
+            CommandAckStatus ackStatus,
+            String reportingOuterUid,
+            String payloadOuterUid
+    ) {
+        if (!COMMAND_TYPE_WIFI_CONFIGURATION.equals(command.getCommandType())) {
+            return AckValidation.rejected("COMMAND_TYPE_MISMATCH", null);
+        }
+
+        String ackCommandType = normalizeBlank(ackDto.getCommandType());
+        if (ackCommandType != null && !COMMAND_TYPE_WIFI_CONFIGURATION.equals(ackCommandType)) {
+            return AckValidation.rejected("ACK_COMMAND_TYPE_MISMATCH", null);
+        }
+
+        if (reportingOuterUid == null) {
+            return AckValidation.rejected("REPORTING_OUTER_UID_MISSING", null);
+        }
+
+        Device outerDevice = deviceRepository.findById(command.getDeviceId()).orElse(null);
+        if (outerDevice == null || outerDevice.getDeviceUid() == null || !outerDevice.getDeviceUid().equals(reportingOuterUid)) {
+            return AckValidation.rejected("REPORTING_OUTER_UID_MISMATCH", null);
+        }
+
+        if (payloadOuterUid != null && !payloadOuterUid.equals(reportingOuterUid)) {
+            return AckValidation.rejected("PAYLOAD_OUTER_UID_MISMATCH", null);
+        }
+
+        if (command.getDeviceConfigurationId() == null || command.getConfigurationVersion() == null) {
+            return AckValidation.rejected("COMMAND_CONFIGURATION_REFERENCE_MISSING", null);
+        }
+
+        Optional<DeviceConfiguration> configOptional = configRepository.findByConfigurationId(command.getDeviceConfigurationId());
+        if (configOptional.isEmpty()) {
+            return AckValidation.rejected("CONFIGURATION_NOT_FOUND", null);
+        }
+
+        DeviceConfiguration config = configOptional.get();
+        if (!command.getDeviceId().equals(config.getOuterDeviceId())) {
+            return AckValidation.rejected("CONFIGURATION_DEVICE_MISMATCH", config);
+        }
+
+        if (ackDto.getConfigurationVersion() == null) {
+            return AckValidation.rejected("ACK_CONFIGURATION_VERSION_MISSING", config);
+        }
+
+        if (!ackDto.getConfigurationVersion().equals(command.getConfigurationVersion())) {
+            return AckValidation.rejected("ACK_CONFIGURATION_VERSION_MISMATCH", config);
+        }
+
+        if (!command.getConfigurationVersion().equals(config.getConfigurationVersion())) {
+            return AckValidation.rejected("COMMAND_SUPERSEDED", config);
+        }
+
+        if ("EXPIRED".equals(normalizeStatus(command.getCommandStatus()))) {
+            return AckValidation.rejected("COMMAND_SUPERSEDED", config);
+        }
+
+        if (!ackStatus.canTransitionFrom(command.getCommandStatus())) {
+            return AckValidation.rejected("STALE_STATUS_TRANSITION", config);
+        }
+
+        return AckValidation.accepted(config);
+    }
+
+    private void saveAcknowledgement(
+            DeviceCommand command,
+            CommandAckDTO ackDto,
+            CommandAckStatus ackStatus,
+            String reportingOuterUid,
+            String payloadOuterUid,
+            OffsetDateTime deviceTimestamp,
+            String dedupKey,
+            AckValidation validation
+    ) {
         DeviceCommandAcknowledgement ack = new DeviceCommandAcknowledgement();
         ack.setCommandId(command.getCommandId());
         ack.setCommandUid(command.getCommandUid());
         ack.setDeviceId(command.getDeviceId());
-        ack.setAckStatus(status);
-        ack.setResponseMessage(ackDto.getMessage());
+        ack.setConfigurationVersion(ackDto.getConfigurationVersion());
+        ack.setReportingOuterDeviceUid(reportingOuterUid);
+        ack.setPayloadOuterDeviceUid(payloadOuterUid);
+        ack.setAckUid(firstNonBlank(ackDto.getAcknowledgementId(), ackDto.getAckId()));
+        ack.setAckDeduplicationKey(dedupKey);
+        ack.setAckStatus(ackStatus.name());
+        ack.setProcessingResult(validation.processingResult());
+        ack.setResponseMessage(truncate(ackDto.getMessage(), MAX_ACK_MESSAGE_LENGTH));
+        ack.setDeviceTimestamp(deviceTimestamp);
         ackRepository.save(ack);
+    }
 
-        if (isWifiConfigurationCommand(command.getCommandType())) {
-            configRepository.findByOuterDeviceId(command.getDeviceId()).ifPresent(config -> {
-                if (ackDto.getConfigurationVersion() != null
-                        && !ackDto.getConfigurationVersion().equals(config.getConfigurationVersion())) {
-                    System.out.println("ACK configuration version mismatch. Expected " + config.getConfigurationVersion() + " but got " + ackDto.getConfigurationVersion());
-                    return;
-                }
+    private void applyAcceptedAck(
+            DeviceCommand command,
+            DeviceConfiguration config,
+            CommandAckStatus ackStatus,
+            OffsetDateTime deviceTimestamp
+    ) {
+        OffsetDateTime acknowledgedAt = deviceTimestamp != null ? deviceTimestamp : OffsetDateTime.now(ZoneOffset.UTC);
+        command.setCommandStatus(ackStatus.commandStatus());
+        command.setAcknowledgedAt(acknowledgedAt);
+        commandRepository.save(command);
 
-                config.setOuterUnitStatus(status);
-                if ("APPLIED".equals(status)) {
-                    config.setConfigurationStatus("APPLIED");
-                    config.setLastSyncedAt(OffsetDateTime.now());
-                    configRepository.save(config);
-                    System.out.println("DeviceConfiguration status updated to APPLIED for deviceId: " + command.getDeviceId());
-                } else if ("FAILED".equals(status) || "REJECTED".equals(status)) {
-                    config.setConfigurationStatus("FAILED");
-                    configRepository.save(config);
-                } else {
-                    config.setConfigurationStatus(status);
-                    configRepository.save(config);
-                }
-            });
+        config.setOuterUnitStatus(ackStatus.name());
+        if (ackStatus == CommandAckStatus.APPLIED) {
+            config.setConfigurationStatus("APPLIED");
+            config.setLastSyncedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        } else if (ackStatus == CommandAckStatus.FAILED
+                || ackStatus == CommandAckStatus.REJECTED
+                || ackStatus == CommandAckStatus.ROLLED_BACK) {
+            config.setConfigurationStatus("FAILED");
+        } else {
+            config.setConfigurationStatus(ackStatus.name());
         }
+        configRepository.save(config);
     }
 
     private java.util.Optional<DeviceCommand> findCommand(String commandId) {
@@ -99,14 +214,63 @@ public class CommandAckProcessingService {
         }
     }
 
-    private boolean isWifiConfigurationCommand(String commandType) {
-        return "WIFI_CONFIGURATION".equals(commandType) || "CONFIG_UPDATE".equals(commandType);
+    private String buildDeduplicationKey(
+            DeviceCommand command,
+            CommandAckDTO ackDto,
+            CommandAckStatus ackStatus,
+            String reportingOuterUid,
+            OffsetDateTime deviceTimestamp
+    ) {
+        String firmwareAckId = firstNonBlank(ackDto.getAcknowledgementId(), ackDto.getAckId());
+        if (firmwareAckId != null) {
+            return "FW|" + command.getCommandUid() + "|" + firmwareAckId;
+        }
+
+        return "AUTO|"
+                + command.getCommandUid() + "|"
+                + ackStatus.name() + "|"
+                + nullSafe(ackDto.getConfigurationVersion()) + "|"
+                + nullSafe(reportingOuterUid) + "|"
+                + nullSafe(deviceTimestamp);
     }
 
     private String normalizeStatus(String status) {
         if (status == null || status.isBlank()) {
-            return "FAILED";
+            return null;
         }
         return status.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String normalizeBlank(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        String firstValue = normalizeBlank(first);
+        return firstValue != null ? firstValue : normalizeBlank(second);
+    }
+
+    private String nullSafe(Object value) {
+        return value == null ? "null" : value.toString();
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
+    private record AckValidation(boolean accepted, String processingResult, DeviceConfiguration configuration) {
+        static AckValidation accepted(DeviceConfiguration configuration) {
+            return new AckValidation(true, "ACCEPTED", configuration);
+        }
+
+        static AckValidation rejected(String processingResult, DeviceConfiguration configuration) {
+            return new AckValidation(false, processingResult, configuration);
+        }
     }
 }

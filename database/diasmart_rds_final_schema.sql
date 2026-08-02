@@ -1104,8 +1104,13 @@ CREATE TABLE IF NOT EXISTS device_configurations (
             'PENDING',
             'SENT',
             'PUBLISHED',
+            'RECEIVED',
+            'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'FAILED',
+            'ROLLED_BACK',
             'OUTDATED'
         )),
 
@@ -1181,8 +1186,11 @@ CREATE TABLE IF NOT EXISTS device_commands (
             'PUBLISHED',
             'RECEIVED',
             'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'FAILED',
+            'ROLLED_BACK',
             'EXPIRED'
         )),
 
@@ -1230,16 +1238,46 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
         REFERENCES devices(device_id)
         ON DELETE CASCADE,
 
+    configuration_version INTEGER,
+    reporting_outer_device_uid VARCHAR(80),
+    payload_outer_device_uid VARCHAR(80),
+    ack_uid VARCHAR(120),
+    ack_deduplication_key VARCHAR(200) NOT NULL,
+
     ack_status VARCHAR(20)
         CHECK (ack_status IN (
+            'PENDING',
+            'PUBLISHED',
             'RECEIVED',
             'VALIDATED',
+            'STAGED',
+            'APPLYING',
             'APPLIED',
             'REJECTED',
-            'FAILED'
+            'FAILED',
+            'ROLLED_BACK'
+        )),
+
+    processing_result VARCHAR(60)
+        CHECK (processing_result IS NULL OR processing_result IN (
+            'ACCEPTED',
+            'COMMAND_TYPE_MISMATCH',
+            'ACK_COMMAND_TYPE_MISMATCH',
+            'REPORTING_OUTER_UID_MISSING',
+            'REPORTING_OUTER_UID_MISMATCH',
+            'PAYLOAD_OUTER_UID_MISMATCH',
+            'COMMAND_CONFIGURATION_REFERENCE_MISSING',
+            'CONFIGURATION_NOT_FOUND',
+            'CONFIGURATION_DEVICE_MISMATCH',
+            'ACK_CONFIGURATION_VERSION_MISSING',
+            'ACK_CONFIGURATION_VERSION_MISMATCH',
+            'COMMAND_SUPERSEDED',
+            'STALE_STATUS_TRANSITION'
         )),
 
     response_message TEXT,
+
+    device_timestamp TIMESTAMPTZ,
 
     acknowledged_at TIMESTAMPTZ
         DEFAULT CURRENT_TIMESTAMP
@@ -1247,6 +1285,15 @@ CREATE TABLE IF NOT EXISTS device_command_acknowledgements (
 
 CREATE INDEX idx_device_ack_command
 ON device_command_acknowledgements(command_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_command_ack_dedup
+ON device_command_acknowledgements(ack_deduplication_key);
+
+CREATE INDEX IF NOT EXISTS idx_device_ack_command_version
+ON device_command_acknowledgements(command_id, configuration_version);
+
+CREATE INDEX IF NOT EXISTS idx_device_ack_reporting_outer
+ON device_command_acknowledgements(reporting_outer_device_uid);
 
 CREATE TABLE IF NOT EXISTS care_plan_snapshots (
     snapshot_id BIGSERIAL PRIMARY KEY,

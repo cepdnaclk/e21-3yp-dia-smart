@@ -5,8 +5,11 @@ import java.time.Instant;
 public class CommandAckDTO {
 
     private String commandId;
+    private String acknowledgementId;
+    private String ackId;
     private String commandType;
     private String outerDeviceId;
+    private String outerDeviceUid;
     private String status;
     private String message;
     private Integer configurationVersion;
@@ -23,6 +26,22 @@ public class CommandAckDTO {
         this.commandId = commandId;
     }
 
+    public String getAcknowledgementId() {
+        return acknowledgementId;
+    }
+
+    public void setAcknowledgementId(String acknowledgementId) {
+        this.acknowledgementId = acknowledgementId;
+    }
+
+    public String getAckId() {
+        return ackId;
+    }
+
+    public void setAckId(String ackId) {
+        this.ackId = ackId;
+    }
+
     public String getCommandType() {
         return commandType;
     }
@@ -37,6 +56,14 @@ public class CommandAckDTO {
 
     public void setOuterDeviceId(String outerDeviceId) {
         this.outerDeviceId = outerDeviceId;
+    }
+
+    public String getOuterDeviceUid() {
+        return outerDeviceUid;
+    }
+
+    public void setOuterDeviceUid(String outerDeviceUid) {
+        this.outerDeviceUid = outerDeviceUid;
     }
 
     public String getStatus() {

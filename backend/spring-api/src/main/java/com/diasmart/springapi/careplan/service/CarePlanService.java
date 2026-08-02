@@ -101,12 +101,18 @@ public class CarePlanService {
             return;
         }
 
-        snapshotRepository.findTopByPatientIdOrderByVersionDesc(outerDevice.getPatientId())
+        CarePlanSnapshot currentSnapshot = snapshotRepository
+                .findTopByPatientIdOrderByVersionDesc(outerDevice.getPatientId())
                 .filter(snapshot -> outerDevice.getDeviceId().equals(snapshot.getOuterDeviceId()))
-                .ifPresent(snapshot -> {
-                    snapshot.setStatus("PENDING");
-                    publisherService.publish(snapshotRepository.save(snapshot));
-                });
+                .orElse(null);
+
+        if (currentSnapshot != null) {
+            currentSnapshot.setStatus("PENDING");
+            publisherService.publish(snapshotRepository.save(currentSnapshot));
+            return;
+        }
+
+        generateAndPublishInternal(outerDevice.getPatientId(), DEFAULT_TIMEZONE, LocalDate.now());
     }
 
     public void regenerateAfterPrescriptionChange(Long patientId) {

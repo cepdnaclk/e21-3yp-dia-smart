@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -128,5 +129,64 @@ class CarePlanServiceTest {
         assertEquals("07:30", payload.get("schedules").get(0).get("windowStart").asText());
         assertEquals("08:00", payload.get("schedules").get(0).get("targetTime").asText());
         assertEquals("08:30", payload.get("schedules").get(0).get("windowEnd").asText());
+    }
+
+    @Test
+    void resendCurrentForDeviceShouldRepublishMatchingSnapshot() {
+        Device outer = outerDevice();
+
+        CarePlanSnapshot snapshot = new CarePlanSnapshot();
+        snapshot.setSnapshotId(77L);
+        snapshot.setPatientId(10L);
+        snapshot.setOuterDeviceId(1L);
+        snapshot.setStatus("PUBLISHED");
+
+        when(snapshotRepository.findTopByPatientIdOrderByVersionDesc(10L))
+                .thenReturn(Optional.of(snapshot));
+        when(snapshotRepository.save(snapshot)).thenReturn(snapshot);
+
+        service.resendCurrentForDevice(outer);
+
+        assertEquals("PENDING", snapshot.getStatus());
+        verify(publisherService).publish(snapshot);
+        verify(deviceRepository, never())
+                .findFirstByPatientIdAndDeviceTypeAndActiveTrue(any(), any());
+    }
+
+    @Test
+    void resendCurrentForDeviceShouldGenerateWhenSnapshotIsMissing() {
+        Device outer = outerDevice();
+
+        when(snapshotRepository.findTopByPatientIdOrderByVersionDesc(10L))
+                .thenReturn(Optional.empty());
+        when(deviceRepository.findFirstByPatientIdAndDeviceTypeAndActiveTrue(10L, "OUTER_GATEWAY"))
+                .thenReturn(Optional.of(outer));
+        when(doseScheduleRepository.findByPatientIdAndActiveTrue(10L)).thenReturn(List.of());
+        when(snapshotRepository.save(any(CarePlanSnapshot.class))).thenAnswer(invocation -> {
+            CarePlanSnapshot snapshot = invocation.getArgument(0);
+            if (snapshot.getSnapshotId() == null) {
+                snapshot.setSnapshotId(78L);
+            }
+            return snapshot;
+        });
+        when(publisherService.publish(any(CarePlanSnapshot.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.resendCurrentForDevice(outer);
+
+        ArgumentCaptor<CarePlanSnapshot> snapshotCaptor = ArgumentCaptor.forClass(CarePlanSnapshot.class);
+        verify(publisherService).publish(snapshotCaptor.capture());
+        assertEquals("CP-10-1", snapshotCaptor.getValue().getCarePlanUid());
+        assertEquals(1L, snapshotCaptor.getValue().getOuterDeviceId());
+    }
+
+    private Device outerDevice() {
+        Device outer = new Device();
+        outer.setDeviceId(1L);
+        outer.setPatientId(10L);
+        outer.setDeviceUid("OUTER-001");
+        outer.setDeviceType("OUTER_GATEWAY");
+        outer.setActive(true);
+        return outer;
     }
 }

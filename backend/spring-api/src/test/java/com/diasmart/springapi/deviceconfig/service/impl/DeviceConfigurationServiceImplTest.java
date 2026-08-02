@@ -310,6 +310,55 @@ class DeviceConfigurationServiceImplTest {
     }
 
     @Test
+    void sendConfigurationShouldCreateManualResendCommandForCurrentVersion() throws Exception {
+        Device device = createOuterGateway();
+        DeviceConfiguration config = createConfiguration();
+        config.setConfigurationVersion(3);
+        config.setWifiPasswordCiphertext(encoded("stored-cipher"));
+        config.setWifiPasswordNonce(encoded("stored-nonce"));
+        config.setWifiPasswordTag(encoded("stored-tag"));
+
+        when(deviceRepository.findById(1L)).thenReturn(Optional.of(device));
+        when(configRepository.findByOuterDeviceId(1L)).thenReturn(Optional.of(config));
+        when(configRepository.save(any(DeviceConfiguration.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(configRepository.findByConfigurationId(11L)).thenReturn(Optional.of(config));
+        stubCommandSaveAndFind(31L);
+        when(encryptionService.decryptStructured(
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        )).thenReturn("stored-pass123");
+
+        DeviceConfigurationResponseDTO response = service.sendConfiguration(1L);
+
+        assertEquals(3, response.getConfigurationVersion());
+        assertEquals("PUBLISHED", response.getConfigurationStatus());
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService).publish(eq("diasmart/devices/OUT-001/commands"), payloadCaptor.capture(), eq(1), eq(false));
+
+        JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
+        assertEquals("CMD-31", payload.get("commandId").asText());
+        assertEquals(3, payload.get("payload").get("configurationVersion").asInt());
+        assertEquals("stored-pass123", payload.get("payload").get("wifiPassword").asText());
+
+        ArgumentCaptor<DeviceCommand> commandCaptor = ArgumentCaptor.forClass(DeviceCommand.class);
+        verify(commandRepository, atLeast(2)).save(commandCaptor.capture());
+        DeviceCommand persistedCommand = lastCapturedCommand(commandCaptor);
+        assertEquals(11L, persistedCommand.getDeviceConfigurationId());
+        assertEquals(3, persistedCommand.getConfigurationVersion());
+        assertPersistedWifiCommandPayloadSafe(
+                persistedCommand,
+                "stored-pass123",
+                11L,
+                3,
+                encoded("stored-cipher"),
+                encoded("stored-nonce"),
+                encoded("stored-tag")
+        );
+    }
+
+    @Test
     void publishWifiCommandShouldBuildPayloadFromStoredConfiguration() throws Exception {
         Device outerDevice = createOuterGateway();
         Device innerDevice = createInnerUnit();
@@ -506,6 +555,17 @@ class DeviceConfigurationServiceImplTest {
         command.setPayload("{\"carePlanId\":\"CP-1\",\"schedules\":[]}");
 
         assertEquals("{\"carePlanId\":\"CP-1\",\"schedules\":[]}", command.getPayload());
+    }
+
+    @Test
+    void requestDtoToStringShouldNotExposePassword() {
+        CreateDeviceConfigurationRequestDTO createDto = new CreateDeviceConfigurationRequestDTO();
+        createDto.setWifiPassword("secret123");
+        UpdateDeviceConfigurationRequestDTO updateDto = new UpdateDeviceConfigurationRequestDTO();
+        updateDto.setWifiPassword("secret456");
+
+        assertFalse(createDto.toString().contains("secret123"));
+        assertFalse(updateDto.toString().contains("secret456"));
     }
 
     private Device createOuterGateway() {

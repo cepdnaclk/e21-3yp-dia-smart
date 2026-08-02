@@ -1151,6 +1151,12 @@ CREATE TABLE IF NOT EXISTS device_commands (
     patient_id BIGINT
         REFERENCES patients(patient_id) ON DELETE SET NULL,
 
+    device_configuration_id BIGINT
+        REFERENCES device_configurations(configuration_id) ON DELETE SET NULL,
+
+    configuration_version INTEGER
+        CHECK (configuration_version IS NULL OR configuration_version > 0),
+
     command_type VARCHAR(40) NOT NULL
         CHECK (command_type IN (
             'WIFI_CONFIGURATION',
@@ -1182,6 +1188,10 @@ CREATE TABLE IF NOT EXISTS device_commands (
 
     published_at TIMESTAMPTZ,
 
+    last_attempt_at TIMESTAMPTZ,
+
+    next_retry_at TIMESTAMPTZ,
+
     acknowledged_at TIMESTAMPTZ,
 
     retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
@@ -1195,6 +1205,13 @@ ON device_commands(device_id);
 
 CREATE INDEX idx_device_commands_status
 ON device_commands(command_status);
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_config
+ON device_commands(device_configuration_id);
+
+CREATE INDEX IF NOT EXISTS idx_device_commands_wifi_recovery
+ON device_commands(command_type, command_status, next_retry_at, last_attempt_at)
+WHERE command_type = 'WIFI_CONFIGURATION';
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_device_commands_command_uid
 ON device_commands(command_uid)

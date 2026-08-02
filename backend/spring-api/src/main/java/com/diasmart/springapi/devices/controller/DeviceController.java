@@ -6,17 +6,18 @@ import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
-import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 import com.diasmart.springapi.devices.service.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/devices")
+@PreAuthorize("hasRole('ADMIN')")
 public class DeviceController {
 
         private final DeviceService deviceService;

@@ -1,6 +1,7 @@
 package com.diasmart.springapi.admin.service;
 
 import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.BuyerDeviceKitsDTO;
 import com.diasmart.springapi.devices.service.DeviceService;
@@ -35,9 +36,9 @@ public class AdminDeviceService {
         return deviceService.getDeviceKits();
     }
 
-    public void registerDeviceKit(DeviceKitRegistrationRequestDTO request) {
+    public DeviceKitDTO registerDeviceKit(DeviceKitRegistrationRequestDTO request) {
         requireAdmin();
-        deviceService.registerDeviceKit(request);
+        return deviceService.registerDeviceKit(request);
     }
 
     private void requireAdmin() {

@@ -2,8 +2,10 @@ package com.diasmart.springapi.devices.service;
 
 import com.diasmart.springapi.devices.dto.AssignDeviceRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceDiagnosticsDTO;
+import com.diasmart.springapi.devices.dto.DeviceKitDTO;
 import com.diasmart.springapi.devices.dto.DeviceResponseDTO;
 import com.diasmart.springapi.devices.dto.DeviceSummaryDTO;
+import com.diasmart.springapi.devices.dto.PatientDeviceSummaryDTO;
 import com.diasmart.springapi.devices.dto.RegisterDeviceRequestDTO;
 import com.diasmart.springapi.devices.dto.DeviceKitRegistrationRequestDTO;
 
@@ -14,6 +16,8 @@ import java.util.List;
 public interface DeviceService {
 
     List<DeviceSummaryDTO> getAllDevices();
+
+    List<PatientDeviceSummaryDTO> getPatientDevices(Long patientId);
     
     List<BuyerDeviceKitsDTO> getDeviceKits();
 
@@ -29,5 +33,5 @@ public interface DeviceService {
 
     DeviceDiagnosticsDTO getDeviceDiagnostics(Long id);
 
-    void registerDeviceKit(DeviceKitRegistrationRequestDTO dto);
+    DeviceKitDTO registerDeviceKit(DeviceKitRegistrationRequestDTO dto);
 }

@@ -15,6 +15,7 @@ public class DeviceSummaryDTO {
     private Double batteryPercent;
     private OffsetDateTime lastSeenAt;
     private Boolean active;
+    private String kitDeviceRole;
 
     private com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO buyer;
 
@@ -104,6 +105,14 @@ public class DeviceSummaryDTO {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public String getKitDeviceRole() {
+        return kitDeviceRole;
+    }
+
+    public void setKitDeviceRole(String kitDeviceRole) {
+        this.kitDeviceRole = kitDeviceRole;
     }
 
     public com.diasmart.springapi.devices.dto.DeviceResponseDTO.BuyerDTO getBuyer() {

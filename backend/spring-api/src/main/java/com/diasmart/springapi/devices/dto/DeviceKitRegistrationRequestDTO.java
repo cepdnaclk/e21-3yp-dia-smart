@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public class DeviceKitRegistrationRequestDTO {
 
+    private String kitUid;
     private String buyerFullName;
     private String nic;
     private String contactNumber;
@@ -14,6 +15,14 @@ public class DeviceKitRegistrationRequestDTO {
     private String innerUnitId;
     private String penUnitId;
     private String glucoseMeterId;
+
+    public String getKitUid() {
+        return kitUid;
+    }
+
+    public void setKitUid(String kitUid) {
+        this.kitUid = kitUid;
+    }
 
     public String getBuyerFullName() {
         return buyerFullName;

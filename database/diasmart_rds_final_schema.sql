@@ -932,6 +932,63 @@ FOREIGN KEY (buyer_id)
 REFERENCES buyers(buyer_id)
 ON DELETE SET NULL;
 
+CREATE TABLE IF NOT EXISTS device_kits (
+    device_kit_id BIGSERIAL PRIMARY KEY,
+    kit_uid VARCHAR(80) NOT NULL,
+    buyer_id BIGINT NOT NULL,
+    purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_device_kits_status
+        CHECK (status IN ('ACTIVE', 'INACTIVE', 'DEACTIVATED')),
+    CONSTRAINT fk_device_kits_buyer
+        FOREIGN KEY (buyer_id)
+        REFERENCES buyers(buyer_id)
+        ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kits_kit_uid
+ON device_kits (kit_uid);
+
+CREATE INDEX IF NOT EXISTS ix_device_kits_buyer_id
+ON device_kits (buyer_id);
+
+CREATE TABLE IF NOT EXISTS device_kit_devices (
+    device_kit_device_id BIGSERIAL PRIMARY KEY,
+    device_kit_id BIGINT NOT NULL,
+    device_id BIGINT NOT NULL,
+    kit_device_role VARCHAR(30) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_device_kit_devices_role
+        CHECK (kit_device_role IN (
+            'OUTER_GATEWAY',
+            'INNER_UNIT',
+            'DOSE_CAP',
+            'GLUCOMETER'
+        )),
+    CONSTRAINT fk_device_kit_devices_kit
+        FOREIGN KEY (device_kit_id)
+        REFERENCES device_kits(device_kit_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_device_kit_devices_device
+        FOREIGN KEY (device_id)
+        REFERENCES devices(device_id)
+        ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kit_devices_device
+ON device_kit_devices (device_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_kit_devices_role
+ON device_kit_devices (device_kit_id, kit_device_role);
+
+CREATE INDEX IF NOT EXISTS ix_device_kit_devices_kit_id
+ON device_kit_devices (device_kit_id);
+
+CREATE INDEX IF NOT EXISTS ix_device_kit_devices_device_id
+ON device_kit_devices (device_id);
+
 INSERT INTO buyers (
     full_name,
     nic,

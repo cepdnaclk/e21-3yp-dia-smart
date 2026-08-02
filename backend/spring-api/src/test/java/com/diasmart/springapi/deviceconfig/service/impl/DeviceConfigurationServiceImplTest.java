@@ -114,6 +114,21 @@ class DeviceConfigurationServiceImplTest {
         assertEquals("CMD-25", payload.get("commandId").asText());
         assertEquals("Dialog Home", payload.get("payload").get("wifiSsid").asText());
         assertEquals("12345678", payload.get("payload").get("wifiPassword").asText());
+
+        ArgumentCaptor<DeviceCommand> commandCaptor = ArgumentCaptor.forClass(DeviceCommand.class);
+        verify(commandRepository, atLeast(2)).save(commandCaptor.capture());
+        DeviceCommand persistedCommand = lastCapturedCommand(commandCaptor);
+        assertEquals(11L, persistedCommand.getDeviceConfigurationId());
+        assertEquals(1, persistedCommand.getConfigurationVersion());
+        assertPersistedWifiCommandPayloadSafe(
+                persistedCommand,
+                "12345678",
+                11L,
+                1,
+                encoded("cipher-one"),
+                encoded("nonce-123456"),
+                encoded("tag-123456789012")
+        );
     }
 
     @Test
@@ -199,6 +214,21 @@ class DeviceConfigurationServiceImplTest {
         assertEquals(2, payload.get("payload").get("configurationVersion").asInt());
         assertEquals("Fiber Home", payload.get("payload").get("wifiSsid").asText());
         assertEquals("newpass123", payload.get("payload").get("wifiPassword").asText());
+
+        ArgumentCaptor<DeviceCommand> commandCaptor = ArgumentCaptor.forClass(DeviceCommand.class);
+        verify(commandRepository, atLeast(2)).save(commandCaptor.capture());
+        DeviceCommand persistedCommand = lastCapturedCommand(commandCaptor);
+        assertEquals(11L, persistedCommand.getDeviceConfigurationId());
+        assertEquals(2, persistedCommand.getConfigurationVersion());
+        assertPersistedWifiCommandPayloadSafe(
+                persistedCommand,
+                "newpass123",
+                11L,
+                2,
+                encoded("cipher-two"),
+                encoded("nonce-123456"),
+                encoded("tag-123456789012")
+        );
     }
 
     @Test
@@ -218,6 +248,15 @@ class DeviceConfigurationServiceImplTest {
         verify(configRepository, never()).save(any());
         verify(commandRepository, never()).save(any());
         verify(mqttService, never()).publish(any(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    void nonWifiCommandShouldRetainGenericPayloadBehavior() {
+        DeviceCommand command = new DeviceCommand();
+        command.setCommandType("CARE_PLAN");
+        command.setPayload("{\"carePlanId\":\"CP-1\",\"schedules\":[]}");
+
+        assertEquals("{\"carePlanId\":\"CP-1\",\"schedules\":[]}", command.getPayload());
     }
 
     private Device createOuterGateway() {
@@ -257,5 +296,32 @@ class DeviceConfigurationServiceImplTest {
     private void assertResponseDoesNotExposePassword() {
         assertFalse(Arrays.stream(DeviceConfigurationResponseDTO.class.getDeclaredFields())
                 .anyMatch(field -> field.getName().equals("wifiPassword")));
+    }
+
+    private DeviceCommand lastCapturedCommand(ArgumentCaptor<DeviceCommand> commandCaptor) {
+        return commandCaptor.getAllValues().get(commandCaptor.getAllValues().size() - 1);
+    }
+
+    private void assertPersistedWifiCommandPayloadSafe(
+            DeviceCommand command,
+            String plainTextPassword,
+            Long configurationId,
+            int configurationVersion,
+            String... encryptedPasswordParts
+    ) throws Exception {
+        assertNotNull(command.getPayload());
+        assertFalse(command.getPayload().contains(plainTextPassword));
+        assertFalse(command.getPayload().contains("wifiPassword"));
+        assertFalse(command.getPayload().contains("wifiPasswordCiphertext"));
+        assertFalse(command.getPayload().contains("wifiPasswordNonce"));
+        assertFalse(command.getPayload().contains("wifiPasswordTag"));
+        for (String encryptedPart : encryptedPasswordParts) {
+            assertFalse(command.getPayload().contains(encryptedPart));
+        }
+
+        JsonNode storedPayload = objectMapper.readTree(command.getPayload());
+        assertEquals(configurationId, storedPayload.get("configurationId").asLong());
+        assertEquals(configurationVersion, storedPayload.get("configurationVersion").asInt());
+        assertFalse(storedPayload.has("wifiPassword"));
     }
 }

@@ -291,6 +291,8 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         DeviceCommand command = new DeviceCommand();
         command.setDeviceId(device.getDeviceId());
         command.setPatientId(device.getPatientId());
+        command.setDeviceConfigurationId(config.getConfigurationId());
+        command.setConfigurationVersion(config.getConfigurationVersion());
         command.setCommandType(COMMAND_TYPE_WIFI_CONFIGURATION);
         command.setCommandStatus("PENDING");
         command.setPayload("{}");
@@ -300,7 +302,7 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
 
         try {
             String payloadJson = buildWifiCommandPayload(command, device, config, plainTextPassword);
-            command.setPayload(payloadJson);
+            command.setPayload(buildSafeWifiCommandMetadata(config));
             command = commandRepository.save(command);
 
             publishWithRetry(command, config, "diasmart/devices/" + device.getDeviceUid() + "/commands", payloadJson, false);
@@ -333,6 +335,17 @@ public class DeviceConfigurationServiceImpl implements DeviceConfigurationServic
         commandEnvelope.put("payload", payload);
 
         return objectMapper.writeValueAsString(commandEnvelope);
+    }
+
+    private String buildSafeWifiCommandMetadata(DeviceConfiguration config) throws JsonProcessingException {
+        Map<String, Object> safeMetadata = new HashMap<>();
+        safeMetadata.put("configurationId", config.getConfigurationId());
+        safeMetadata.put("configurationVersion", config.getConfigurationVersion());
+        safeMetadata.put("innerDeviceId", config.getInnerDeviceId());
+        safeMetadata.put("penDeviceId", config.getPenDeviceId());
+        safeMetadata.put("glucometerDeviceId", config.getGlucometerDeviceId());
+
+        return objectMapper.writeValueAsString(safeMetadata);
     }
 
     private void publishWithRetry(

@@ -21,6 +21,12 @@ public class DeviceCommand {
     @Column(name = "patient_id")
     private Long patientId;
 
+    @Column(name = "device_configuration_id")
+    private Long deviceConfigurationId;
+
+    @Column(name = "configuration_version")
+    private Integer configurationVersion;
+
     @Column(name = "command_type", nullable = false, length = 40)
     private String commandType;
 
@@ -90,6 +96,22 @@ public class DeviceCommand {
 
     public void setPatientId(Long patientId) {
         this.patientId = patientId;
+    }
+
+    public Long getDeviceConfigurationId() {
+        return deviceConfigurationId;
+    }
+
+    public void setDeviceConfigurationId(Long deviceConfigurationId) {
+        this.deviceConfigurationId = deviceConfigurationId;
+    }
+
+    public Integer getConfigurationVersion() {
+        return configurationVersion;
+    }
+
+    public void setConfigurationVersion(Integer configurationVersion) {
+        this.configurationVersion = configurationVersion;
     }
 
     public String getCommandType() {

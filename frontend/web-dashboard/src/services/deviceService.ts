@@ -35,21 +35,15 @@ const findDeviceMatch = (
 export const deviceService = {
   getPatientDevices: async (): Promise<Device[]> => {
     const patientId = getPatientId();
-    const response = await api.get("/devices");
-    const devices = response.data?.data ?? [];
-
-    return devices.filter(
-      (device: Device) =>
-        String(device.patientId ?? "") ===
-        String(patientId)
-    );
+    const response = await api.get(`/patients/${patientId}/devices`);
+    return response.data?.data ?? [];
   },
 
   connectDevice: async (
     deviceReference: string
   ): Promise<Device> => {
     const patientId = getPatientId();
-    const response = await api.get("/devices");
+    const response = await api.get(`/patients/${patientId}/devices`);
     const devices = response.data?.data ?? [];
     const matchingDevice = findDeviceMatch(
       devices,

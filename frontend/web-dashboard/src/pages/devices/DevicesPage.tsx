@@ -262,11 +262,7 @@ const DevicesPage = () => {
       setDeviceDiagnostics(diagnostics);
     } catch (err) {
       setDeviceDiagnostics(null);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load device diagnostics."
-      );
+      console.warn("Unable to load device diagnostics:", err);
     }
   };
 

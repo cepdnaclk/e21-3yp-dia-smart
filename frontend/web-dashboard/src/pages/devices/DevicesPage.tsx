@@ -26,6 +26,7 @@ import type {
   DeviceDiagnostics,
 } from "../../types/device";
 import { ProvisioningWizard } from "../../components/devices/ProvisioningWizard";
+import { useAuth } from "../../context/AuthContext";
 
 const requiredDeviceTypes = [
   {
@@ -208,6 +209,7 @@ const DeviceDetailsContent = ({
 import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 
 const DevicesPage = () => {
+  const { role } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] =
     useState<Device | null>(null);
@@ -238,7 +240,9 @@ const DevicesPage = () => {
           if (stillExists) nextSelected = stillExists;
         }
         setSelectedDevice(nextSelected);
-        await loadDiagnostics(nextSelected.deviceId);
+        if (role === "ADMIN") {
+          await loadDiagnostics(nextSelected.deviceId);
+        }
       } else {
         setSelectedDevice(null);
         setDeviceDiagnostics(null);
@@ -262,11 +266,7 @@ const DevicesPage = () => {
       setDeviceDiagnostics(diagnostics);
     } catch (err) {
       setDeviceDiagnostics(null);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load device diagnostics."
-      );
+      console.warn("Unable to load device diagnostics:", err);
     }
   };
 
@@ -407,7 +407,9 @@ const DevicesPage = () => {
                         sx={{ cursor: "pointer" }}
                         onClick={() => {
                           setSelectedDevice(device);
-                          void loadDiagnostics(device.deviceId);
+                          if (role === "ADMIN") {
+                            void loadDiagnostics(device.deviceId);
+                          }
                         }}
                       >
                         <CardContent>

@@ -23,6 +23,12 @@ vi.mock("@mui/icons-material", () => ({
   ErrorOutlined: () => null,
 }));
 
+vi.mock("../../context/AuthContext", () => ({
+  useAuth: () => ({
+    role: "PATIENT",
+  }),
+}));
+
 describe("DevicesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

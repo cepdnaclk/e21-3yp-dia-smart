@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.models.errors import ErrorDetailResponse
 from app.models.requests import ClinicalSummaryRequest
@@ -20,11 +20,16 @@ router = APIRouter()
     },
     tags=["Insights"],
 )
-async def generate_clinical_summary(request: ClinicalSummaryRequest, _token: str = Depends(verify_internal_token)) -> ClinicalSummaryResponse:
+async def generate_clinical_summary(
+    clinical_request: ClinicalSummaryRequest,
+    request: Request,
+    _token: str = Depends(verify_internal_token),
+) -> ClinicalSummaryResponse:
     """
     Protected endpoint to generate structured clinical insights from raw patient telemetry.
     Requires Bearer Token authentication via internal service-to-service handshake.
     """
+    request.state.request_id = clinical_request.request_id
     service = ClinicalSummaryService()
-    response = await service.generate_summary(request)
+    response = await service.generate_summary(clinical_request)
     return response

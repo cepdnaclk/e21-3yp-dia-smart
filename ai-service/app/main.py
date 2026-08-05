@@ -1,9 +1,7 @@
-import json
 import logging
-from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from app.api.clinical_summary import router as clinical_summary_router
@@ -33,10 +31,7 @@ app = FastAPI(
 )
 
 # Add request body size limit protection middleware
-app.add_middleware(
-    RequestSizeLimitMiddleware,
-    max_size=settings.AI_MAX_REQUEST_BODY_BYTES
-)
+app.add_middleware(RequestSizeLimitMiddleware, max_size=settings.AI_MAX_REQUEST_BODY_BYTES)
 
 # Register endpoints
 app.include_router(health_router)
@@ -46,41 +41,6 @@ app.include_router(clinical_summary_router)
 app.add_exception_handler(AiBaseException, cast(Any, ai_base_exception_handler))
 app.add_exception_handler(RequestValidationError, cast(Any, fastapi_validation_exception_handler))
 app.add_exception_handler(Exception, cast(Any, generic_exception_handler))
-
-
-@app.middleware("http")
-async def extract_request_id_middleware(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    """
-    Middleware that intercept POST/PUT request bodies to pre-parse the request_id.
-    This ensures that validation failures or internal exceptions are logged
-    and returned with the matching client request_id.
-    """
-    request.state.request_id = None
-    content_type = request.headers.get("content-type", "")
-
-    if request.method in ("POST", "PUT", "PATCH") and "application/json" in content_type:
-        try:
-            body = await request.body()
-
-            # Reset body read pointer for downstream route binding
-            async def receive() -> dict[str, Any]:
-                return {"type": "http.request", "body": body, "more_body": False}
-
-            request._receive = receive
-
-            # Attempt to extract request_id safely
-            data = json.loads(body)
-            if isinstance(data, dict) and "request_id" in data:
-                request.state.request_id = data["request_id"]
-        except Exception:
-            # Let route validators handle JSON/structural parsing errors
-            pass
-
-    response = await call_next(request)
-    return response
 
 
 @app.on_event("startup")

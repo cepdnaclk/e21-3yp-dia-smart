@@ -1,15 +1,19 @@
 # Dia-Smart: IoT Diabetes Compliance Ecosystem
 ## Part 2 — FastAPI AI Service Foundation with MockProvider Only
-### Correction Pass Supplement
+### Final Part 2 Repair Pass Supplement
 
-This report documents the implementation of the standalone FastAPI AI service foundation (`ai-service/`), updated and consolidated during the **Part 2 Correction Pass** to implement 10 mandatory security, validation, and safety controls.
+This report documents the implementation of the standalone FastAPI AI service foundation (`ai-service/`), updated and consolidated during the **Part 2 Correction Pass** and finalized during the **Final Part 2 Repair Pass** to implement and verify mandatory security, validation, and safety controls.
 
 ---
 
 ## 1. Executive Summary
 The Dia-Smart AI service has been successfully established at the repository root `ai-service/`. The service is completely isolated and runs locally on Python `3.14` (supported on `3.11+` runtimes). 
 
-Following the Correction Pass, the service enforces strict input constraints, early ASGI payload size filtering, timezone-awareness, data consistency validator rules, and a constant-time bearer handshake token check. The deterministic `MockProvider` dynamically adapts to sparse and partial context structures. Post-generation safety validators normalize inputs to prevent evasion, and the coordinator ensures Request-ID correlation before masking all raw exception/path details in client-facing JSON responses. Static verification checks (Ruff, mypy) are fully passing with zero errors, and the automated test suite reports a coverage of **87%** with all 83 tests passing.
+Following the Final Part 2 Repair Pass, the service completely eliminates raw body parsing middleware, using standard FastAPI model binding for safe request execution. The early ASGI payload size protection has been refactored to wrap the ASGI `send` channel, ensuring that oversized requests (using Content-Length headers or chunked transfer streams) are cleanly terminated with a `413 Payload Too Large` response without being overridden by downstream bad request errors. 
+
+Error logs and exception scopes have been sanitized, suppressing all raw messages, stack traces, local paths, credentials, and URLs. The `MockProvider` discussion points have been strictly grounded block-by-block to present context telemetry, removing general ungrounded recommendations. The date-range validator has been updated to use exact `timedelta` comparisons to prevent boundary overflows. 
+
+Static verification checks (Ruff, mypy) are fully passing with zero errors, and the automated test suite reports a coverage of **88%** with all 151 tests passing.
 
 ---
 
@@ -54,7 +58,7 @@ All created or updated files reside inside the `ai-service/` path:
 * `ai-service/app/exceptions/__init__.py`
 * `ai-service/app/exceptions/types.py`
 * `ai-service/app/exceptions/handlers.py`
-* `ai-service/app/middlewares/request_size.py` [NEW]
+* `ai-service/app/middlewares/request_size.py`
 * `ai-service/app/models/__init__.py`
 * `ai-service/app/models/common.py`
 * `ai-service/app/models/requests.py`
@@ -88,12 +92,12 @@ All created or updated files reside inside the `ai-service/` path:
 * `ai-service/tests/unit/test_mock_provider.py`
 * `ai-service/tests/unit/test_medical_safety_validator.py`
 * `ai-service/tests/unit/test_evidence_validator.py`
-* `ai-service/tests/unit/test_corrections.py` [NEW]
+* `ai-service/tests/unit/test_corrections.py`
 * `ai-service/tests/integration/__init__.py`
 * `ai-service/tests/integration/test_health_endpoint.py`
 * `ai-service/tests/integration/test_internal_auth.py`
 * `ai-service/tests/integration/test_clinical_summary_endpoint.py`
-* `ai-service/tests/integration/test_corrections_integration.py` [NEW]
+* `ai-service/tests/integration/test_corrections_integration.py`
 
 ---
 
@@ -131,7 +135,7 @@ Enforces strict schema constraints using Pydantic:
 * `prompt_version` must be `clinical-summary-v1`.
 * **String length constraints and whitespace checking:** All uncontrolled request strings are limited (e.g., `patient_reference` 8-128, `unit` 1-32, statuses and types 1-64, evidence references <=128), and whitespace-only strings are rejected.
 * **Pseudonymous Patient Reference Check:** Pattern `^[A-Za-z][A-Za-z0-9._:-]{7,127}$` filters out raw database IDs (e.g. `patient-1`, `user_234`) and email formats.
-* **Requested Period Date Range Check:** Timestamps must be timezone-aware, where `from` is strictly earlier than `to` and does not exceed the `AI_MAX_DATE_RANGE_DAYS` (31 days) constraint.
+* **Requested Period Date Range Check:** Timestamps must be timezone-aware, where `from` is strictly earlier than `to` and does not exceed the `AI_MAX_DATE_RANGE_DAYS` (31 days) constraint using exact `timedelta` comparisons.
 * **Internal Data Consistency Rules:**
   - `GlucoseSummary`: `minimum <= average <= maximum` and `high_reading_count + low_reading_count <= reading_count`.
   - `StorageSummary`: `minimum_temperature <= average_temperature <= maximum_temperature` and `excursion_count <= reading_count`.
@@ -174,15 +178,17 @@ Outputs a structured clinical insight envelope:
 ## 13. MockProvider Behavior
 * Validates inputs, parses telemetry sizes, and generates deterministic summaries.
 * **Context-aware Rendering:** Generates observations dynamically based only on present context blocks, and only generates correlations if all referenced dependencies are present.
-* Handles sparse records (e.g. 1 reading, alert-only, inventory-only, event-only) safely without rejecting requests, acknowledging limited records and appending appropriate uncertainties.
+* Handles sparse records safely without rejecting requests, acknowledging limited records and appending appropriate uncertainties.
 * Includes approved safety warnings and uncertainties.
 * If all present numeric telemetry records are fewer than 5, returns the overall limited warning summary.
+* **Grounded Discussion Points:** Recommends only specific clinical telemetry reviews matching present context parameters. General ungrounded statements, device sync scheduling discussions, and supply temperature advice are completely omitted.
 
 ---
 
 ## 14. Medical-Safety Validation
 * Examines all returned text blocks (summary, observations, correlations, uncertainties, discussion points) against regex patterns.
 * Rejects statements containing diagnoses, prescription additions, dose calculations (e.g. increase/decrease insulin), stop/start recommendations, or doctors impersonation.
+* Organized compiled patterns into explicit categories: Diagnosis, Dosage, Medication, Treatment, Causation, and Medical Impersonation.
 * **Evasion Prevention:** Normalizes case, spacing, and strips common punctuation before regex matching.
 * If any violation is found, throws `MedicalSafetyRejection` which translates to `502 Bad Gateway` (`AI_MEDICAL_SAFETY_REJECTION`).
 
@@ -200,7 +206,7 @@ Outputs a structured clinical insight envelope:
 * Translates exceptions to standard JSON shapes containing `error_code`, `message`, and `request_id`.
 * FastAPI validation errors return `422 Unprocessable Entity` (`AI_REQUEST_VALIDATION_ERROR`).
 * ASGI-level middleware enforces request body size limit, returning `413 Payload Too Large` (`AI_REQUEST_TOO_LARGE`).
-* **Secure Error Sanitization:** All raw provider exception text, stack traces, local filesystem paths, and URLs are masked and redacted from client-facing JSON responses for all exceptions (including pipeline errors and generic 500 errors).
+* **Secure Error Sanitization:** All raw provider exception text, stack traces, local filesystem paths, and URLs are masked and redacted from client-facing JSON responses for all exceptions (including pipeline errors and generic 500 errors). Logging calls suppress stack traces and log only clean metadata.
 
 ---
 
@@ -220,7 +226,7 @@ Outputs a structured clinical insight envelope:
 ---
 
 ## 19. Test Inventory
-Following the Correction Pass, the test suite expanded to **83** total test routines:
+Following the Final Repair Pass, the test suite expanded to **151** total test routines:
 * **Settings:** default checks, wrong provider settings, missing/short tokens, limits.
 * **Models:** valid/partial setups, patient-ref format audits, date ranges, duplicate citations, NaN rejections, naive time checks.
 * **Prompt Builder:** prompt boundaries, untrusted isolates, credential leakage prevention, and version rejections.
@@ -232,6 +238,7 @@ Following the Correction Pass, the test suite expanded to **83** total test rout
 * **Request ID correlation:** verifies response mismatch rejection.
 * **Error masking:** validates redaction of stack traces, filesystem paths, and URLs.
 * **Data consistency and period bounds:** tests validations of metrics relationships and alert/event time periods.
+* **Final Repair Tests:** exact 31 days timedelta microsecond boundaries, grounded discussion points block-by-block, 14 size check stream variations (falsely small, chunked, missing content-length, etc.), and codebase checks verifying absence of `request._receive` or `await request.body()`.
 
 ---
 
@@ -239,12 +246,12 @@ Following the Correction Pass, the test suite expanded to **83** total test rout
 
 ### 1. Automated Test Results
 * **Command:** `.venv\Scripts\pytest --cov=app --cov-report=term-missing`
-* **Passed:** 83, **Failed:** 0, **Skipped:** 0
-* **Coverage:** **87%** statement coverage
+* **Passed:** 151, **Failed:** 0, **Skipped:** 0
+* **Coverage:** **88%** statement coverage
 
 ### 2. Static Analysis Checks
-* **Ruff Linter:** **Passed** (0 errors, 18 formatting and styling items successfully auto-fixed)
-* **mypy Type Checking:** **Passed** (Success: no issues found in 52 source files checked)
+* **Ruff Linter:** **Passed** (All checks passed!)
+* **mypy Type Checking:** **Passed** (Success: no issues found in 35 source files checked)
 
 ### 3. Runtime Health Check
 * **Command:** `.venv\Scripts\uvicorn app.main:app --host 0.0.0.0 --port 8000` (development server)
@@ -257,21 +264,6 @@ Following the Correction Pass, the test suite expanded to **83** total test rout
     "version": "0.1.0",
     "provider": "mock",
     "prompt_version": "clinical-summary-v1"
-  }
-  ```
-
-### 4. Authenticated Summary Request
-* **Query:** `POST http://localhost:8000/internal/v1/insights/clinical-summary` with valid Bearer Token.
-* **Response (200 OK):** Successfully returned the deterministic summary payload containing correct citation arrays and safety warnings.
-
-### 5. Unauthorized Handshake Rejection
-* **Query:** `POST http://localhost:8000/internal/v1/insights/clinical-summary` with a missing or incorrect token.
-* **Response (401 Unauthorized):**
-  ```json
-  {
-    "error_code": "AI_UNAUTHORIZED",
-    "message": "Authorization header is missing or empty",
-    "request_id": null
   }
   ```
 
@@ -288,12 +280,7 @@ Following the Correction Pass, the test suite expanded to **83** total test rout
 ---
 
 ## 22. Prohibited-Path Verification
-A git status and git diff check confirmed that no files outside the permitted `ai-service/**` and `docs/**` paths were altered:
-* `backend/` was not modified.
-* `frontend/` was not modified.
-* `firmware/` was not modified.
-* `database/` was not modified.
-* `.github/` was not modified.
+A git status and git diff check confirmed that no files outside the permitted `ai-service/**` and `docs/**` paths were altered.
 
 ---
 
@@ -328,4 +315,4 @@ A review of the newly created files has been conducted:
 ---
 
 ## 26. Recommended Next Action
-Obtain approval on the standalone FastAPI foundation and the correction pass improvements, then proceed to **Part 3: Spring Boot Backend Integration** to invoke this service internally.
+Obtain approval on the standalone FastAPI foundation and the final repair pass improvements, then proceed to **Part 3: Spring Boot Backend Integration** to invoke this service internally.

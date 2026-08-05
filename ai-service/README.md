@@ -63,7 +63,6 @@ ai-service/
 ├── .gitignore                # Git ignore configurations
 ├── .env.example              # Development configuration template
 ├── pyproject.toml            # Project configurations and lints
-├── pytest.ini                # Pytest runner variables
 └── README.md                 # [This documentation]
 ```
 
@@ -169,7 +168,7 @@ curl -X GET http://localhost:8000/health
 ```json
 {
   "request_id": "7a7d950f-270f-4903-a57f-528449634a51",
-  "summary": "The selected period contains glucose, administration, storage, inventory, and alert information suitable for review.",
+  "summary": "The selected period contains glucose and recorded-adherence information suitable for review.",
   "observations": [
     {
       "statement": "A total of 84 glucose readings were processed with an average value of 142.7 mg/dL.",
@@ -192,8 +191,8 @@ curl -X GET http://localhost:8000/health
     "Telemetry does not capture external context such as patient diet, stress, physical exercise, or device calibration issues."
   ],
   "discussion_points": [
-    "A healthcare professional may review the recorded timing of elevated readings and delayed administrations.",
-    "Discuss regular tracking habits and check if device sync schedules are operating correctly."
+    "A healthcare professional may review the supplied glucose summary and recorded threshold counts.",
+    "A healthcare professional may review the supplied administration and adherence summary."
   ],
   "safety_notice": "This AI-generated information is intended for review and does not provide a diagnosis, prescription, insulin-dosage recommendation, or treatment recommendation.",
   "provider_metadata": {
@@ -237,7 +236,7 @@ Ensure your virtual environment is active before running these quality checks:
 .venv\Scripts\ruff format --check .
 
 # Run mypy type checking
-.venv\Scripts\mypy app tests
+.venv\Scripts\mypy app
 ```
 
 ---
@@ -259,19 +258,14 @@ docker run -d -p 8000:8000 \
 
 ---
 
-## 10. Safety Controls & Validation Filters (Part 2 Correction Pass)
-* **Maximum Request Body Size Limit:** Enforces `AI_MAX_REQUEST_BODY_BYTES` (default 1 MiB) early in the ASGI request stream, rejecting oversized payloads with `413 Payload Too Large` and a controlled `AI_REQUEST_TOO_LARGE` JSON body before memory exhaustion.
+## 10. Safety Controls & Validation Filters (Part 2 Repair Pass)
+* **Maximum Request Body Size Limit:** Enforces `AI_MAX_REQUEST_BODY_BYTES` (default 1 MiB) early in the ASGI request stream via raw ASGI interception. It checks the `Content-Length` header upfront and streams chunked payloads, raising `RequestSizeLimitExceeded` and returning a standardized `AI_REQUEST_TOO_LARGE` JSON body with a 413 Payload Too Large code before downstream request validation, routing, or authentication dependencies can run.
 * **String Length & Whitespace Constraints:** Limits string properties (e.g., `patient_reference`: 8-128 chars; `unit`: 1-32; `evidence_reference`: <=128; others: 1-64) and rejects empty/whitespace-only strings.
 * **Pseudonymous Patient Reference Check:** Pattern `^[A-Za-z][A-Za-z0-9._:-]{7,127}$` filters out raw database IDs (e.g. `patient-1`, `user_234`) and email formats.
 * **Telemetry Data Consistency Rules:** Model-level validation ensures mathematical rules (e.g., `minimum <= average <= maximum` for glucose and storage, and logical reading/administration counts bounds).
 * **Time Period Boundaries Alignment:** Rejects requests if any associated alert or selected event falls outside `requested_period.from` to `requested_period.to`.
+* **Exact Time Period Duration Check:** Uses exact `timedelta` comparisons (down to the microsecond level) to reject periods longer than `AI_MAX_DATE_RANGE_DAYS` (31 days), protecting against sub-day boundary overflows.
 * **Request-ID Correlation Validator:** Asserts `response.request_id == request.request_id` in the pipeline and returns a controlled `AI_RESPONSE_VALIDATION_ERROR` (502 status) on mismatch.
-* **Medical Safety Regex Checks:** Checks all response blocks against expanded phrase lists (diagnoses, dose recommendations, prescription changes, stop-medication instructions, causation claims, doctor impersonation) after case, space, and punctuation normalization.
-* **Secure Error Sanitization:** Exception handlers mask raw exception details, filesystems, URLs, and stack traces from API callers, returning safe, controlled error messages.
-* **Context-Aware Mock rendering:** MockProvider dynamically generates observations based only on present context blocks, handles sparse records (e.g., 1 reading), and verifies correlation dependencies.
-
----
-
-## 11. Troubleshooting
-* **NameError: name 're' is not defined:** Ensure you are using the updated `app/models/requests.py` which contains `import re` at the top of the module.
-* **401 errors on correct tokens:** Ensure your `.env` is loaded by uvicorn or specify environment variables directly on execution.
+* **Medical Safety Regex Checks:** Checks all response blocks against expanded phrase lists categorized into Diagnosis, Dosage, Medication, Treatment, Causation, and Medical Impersonation.
+* **Secure Error Sanitization:** Exception handlers mask raw exception details, filesystems, URLs, and stack traces from API callers and internal logging files, logging only safe metadata.
+* **Context-Aware Mock rendering:** Mock Provider generates summaries and discussion points based strictly on present telemetry context blocks, preventing ungrounded recommendations.

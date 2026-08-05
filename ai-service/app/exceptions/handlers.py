@@ -29,8 +29,13 @@ async def ai_base_exception_handler(request: Request, exc: AiBaseException) -> J
     request_id = getattr(request.state, "request_id", None)
     clean_id = safe_uuid(request_id)
 
-    # Log detailed message internally
-    logger.error(f"Dia-Smart AI controlled error: [{exc.error_code}] - {exc.message}. Request ID: {request_id}")
+    # Log only controlled metadata
+    logger.error(
+        "Dia-Smart AI controlled error error_code=%s request_id=%s exception_type=%s",
+        exc.error_code,
+        clean_id,
+        type(exc).__name__,
+    )
 
     # Enforce safe client messages by masking internal/raw exception messages
     if exc.error_code == "AI_PROVIDER_ERROR":
@@ -82,13 +87,17 @@ async def fastapi_validation_exception_handler(request: Request, exc: RequestVal
     )
 
 
-async def generic_exception_handler(request: Request, _exc: Exception) -> JSONResponse:
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler mapping unexpected python exceptions to AI_INTERNAL_ERROR."""
     request_id = getattr(request.state, "request_id", None)
     clean_id = safe_uuid(request_id)
 
-    # Secure logging contains complete exception info locally
-    logger.exception(f"Dia-Smart AI unhandled runtime exception. Request ID: {request_id}")
+    # Secure logging contains ONLY controlled metadata (no stack traces or messages)
+    logger.error(
+        "Dia-Smart AI internal error request_id=%s exception_type=%s",
+        clean_id,
+        type(exc).__name__,
+    )
 
     error_detail = ErrorDetailResponse(
         error_code="AI_INTERNAL_ERROR",

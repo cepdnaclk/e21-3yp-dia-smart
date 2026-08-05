@@ -36,11 +36,7 @@ class MockProvider:
             fallback_ref = request.selected_events[0].evidence_reference
 
         # Determine if overall context is limited
-        has_dense_context = (
-            request.inventory_summary is not None
-            or len(request.relevant_alerts) > 0
-            or len(request.selected_events) > 0
-        )
+        has_dense_context = request.inventory_summary is not None or len(request.relevant_alerts) > 0 or len(request.selected_events) > 0
         total_numeric_records = 0
         if request.glucose_summary:
             total_numeric_records += request.glucose_summary.reading_count
@@ -60,7 +56,6 @@ class MockProvider:
                 )
             )
             uncertainties.append("The records provided are insufficient to form a clinically meaningful observation.")
-            discussion_points.append("Consider collecting more frequent readings over a longer duration.")
         else:
             # 1. Build dynamic summary text matching present sections
             present_sections = []
@@ -260,17 +255,19 @@ class MockProvider:
                 uncertainties.append("The supplied records are not sufficient to determine the medical cause of the observed readings.")
             uncertainties.append("Telemetry does not capture external context such as patient diet, stress, physical exercise, or device calibration issues.")
 
-            # 10. Build Discussion Points
-            if request.glucose_summary:
-                discussion_points.append("Discuss glucose reading trends and target ranges with a healthcare professional.")
-            if request.adherence_summary:
-                discussion_points.append("Discuss regular tracking habits and check if device sync schedules are operating correctly.")
-            if request.glucose_summary and request.adherence_summary:
-                discussion_points.append("A healthcare professional may review the recorded timing of elevated readings and delayed administrations.")
-            if request.storage_summary:
-                discussion_points.append("Confirm that insulin supplies are stored within the recommended temperature range.")
-            if request.inventory_summary:
-                discussion_points.append("Check inventory levels and coordinate timely refills to avoid supply shortages.")
+        # 10. Build Discussion Points based only on present context blocks
+        if request.glucose_summary:
+            discussion_points.append("A healthcare professional may review the supplied glucose summary and recorded threshold counts.")
+        if request.adherence_summary:
+            discussion_points.append("A healthcare professional may review the supplied administration and adherence summary.")
+        if request.storage_summary:
+            discussion_points.append("Review the supplied storage-temperature summary and recorded excursion count.")
+        if request.inventory_summary:
+            discussion_points.append("Review the supplied inventory status and shortage-event count.")
+        if request.relevant_alerts:
+            discussion_points.append("Review the supplied alerts and their recorded statuses.")
+        if request.selected_events:
+            discussion_points.append("Review the supplied event timeline and associated evidence references.")
 
         return ClinicalSummaryResponse(
             request_id=request_id,

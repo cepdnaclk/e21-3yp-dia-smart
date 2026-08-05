@@ -38,8 +38,14 @@ class ClinicalSummaryService:
         provider = get_provider()
         try:
             provider_response = await provider.generate_clinical_summary(request)
-        except Exception as e:
-            raise AiProviderError(f"AI provider execution failed: {e}") from e
+        except Exception as exc:
+            logger.error(
+                "AI provider failed request_id=%s provider=%s exception_type=%s",
+                request.request_id,
+                "mock",
+                type(exc).__name__,
+            )
+            raise AiProviderError("The AI provider could not complete the request.") from exc
 
         # 3. Response-schema validation
         try:
@@ -49,9 +55,7 @@ class ClinicalSummaryService:
 
         # 3.5 Request-ID correlation validation
         if validated_response.request_id != request.request_id:
-            raise AiResponseValidationError(
-                "Provider response request_id does not match the incoming request"
-            )
+            raise AiResponseValidationError("Provider response request_id does not match the incoming request")
 
         # 4. Medical-safety validation
         try:

@@ -43,10 +43,12 @@ class Period(BaseModel):
             raise ValueError("requested_period.from must be earlier than requested_period.to")
 
         # Check range limit
+        from datetime import timedelta
+
         settings = get_settings()
-        diff = self.to - self.from_
-        if diff.days > settings.AI_MAX_DATE_RANGE_DAYS:
-            raise ValueError(f"Requested period duration ({diff.days} days) exceeds the maximum limit of {settings.AI_MAX_DATE_RANGE_DAYS} days")
+        maximum_duration = timedelta(days=settings.AI_MAX_DATE_RANGE_DAYS)
+        if self.to - self.from_ > maximum_duration:
+            raise ValueError(f"Requested period duration exceeds the maximum limit of {settings.AI_MAX_DATE_RANGE_DAYS} days")
         return self
 
 

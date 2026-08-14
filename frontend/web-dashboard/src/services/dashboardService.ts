@@ -13,21 +13,42 @@ export const dashboardService = {
     const data = response.data.data;
 
     return {
-  glucose:
-    data.latestGlucoseReading
-      ?.glucoseValueMgDl ?? 0,
+      glucose:
+        data.latestGlucoseReading
+          ?.glucoseValueMgDl ?? 0,
+      glucoseMeasuredAt:
+        data.latestGlucoseReading
+          ?.measuredAt,
 
-    temperature:
-      data.latestStorageReading
-        ?.temperatureC ?? 0,
+      temperature:
+        data.latestStorageReading
+          ?.temperatureC ?? 0,
+      temperatureStatus:
+        data.latestStorageReading
+          ?.temperatureStatus,
+      temperatureMeasuredAt:
+        data.latestStorageReading
+          ?.measuredAt,
 
-    inventory:
-      data.latestInventoryReading
-        ?.weightG ?? 0,
+      inventory:
+        data.latestInventoryReading
+          ?.weightG ?? 0,
+      inventoryStatus:
+        data.latestInventoryReading
+          ?.inventoryStatus,
+      inventoryMeasuredAt:
+        data.latestInventoryReading
+          ?.measuredAt,
+      estimatedRemainingPercent:
+        data.latestInventoryReading
+          ?.estimatedRemainingPercent,
 
-    lastDose:
-      data.latestDoseEvent
-        ?.doseUnits ?? 0,
-  };
+      lastDose:
+        data.latestDoseEvent
+          ?.doseUnits ?? 0,
+      lastDoseInjectedAt:
+        data.latestDoseEvent
+          ?.injectedAt,
+    };
   },
 };

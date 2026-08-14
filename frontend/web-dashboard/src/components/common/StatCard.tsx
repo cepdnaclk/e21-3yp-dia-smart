@@ -12,9 +12,11 @@ import VaccinesIcon from "@mui/icons-material/Vaccines";
 interface Props {
   title: string;
   value: string;
+  statusText?: string;
+  statusColor?: string;
 }
 
-const StatCard = ({ title, value }: Props) => {
+const StatCard = ({ title, value, statusText, statusColor }: Props) => {
   // Determine icon and theme color based on metric title
   const getCardTheme = () => {
     switch (title.toLowerCase()) {
@@ -31,7 +33,7 @@ const StatCard = ({ title, value }: Props) => {
           icon: <ThermostatIcon sx={{ fontSize: 24 }} />,
           color: "#3ec1fa", // Blue for temperature
           bgColor: "#e0f2fe",
-          statusText: "Normal (3.4°C)",
+          statusText: "Normal Range",
           statusColor: "#10b981",
         };
       case "inventory":
@@ -39,8 +41,8 @@ const StatCard = ({ title, value }: Props) => {
           icon: <InventoryIcon sx={{ fontSize: 24 }} />,
           color: "#f59e0b", // Amber for inventory levels
           bgColor: "#fffbeb",
-          statusText: "12 Days Left",
-          statusColor: "#f59e0b",
+          statusText: "Adequate Level",
+          statusColor: "#10b981",
         };
       case "last dose":
       case "lastdose":
@@ -48,7 +50,7 @@ const StatCard = ({ title, value }: Props) => {
           icon: <VaccinesIcon sx={{ fontSize: 24 }} />,
           color: "#10b981", // Emerald for insulin doses
           bgColor: "#e6f7ed",
-          statusText: "4 hrs ago",
+          statusText: "Recent",
           statusColor: "#64748b",
         };
       default:
@@ -56,13 +58,15 @@ const StatCard = ({ title, value }: Props) => {
           icon: <WaterDropIcon sx={{ fontSize: 24 }} />,
           color: "#3ec1fa",
           bgColor: "#f8f9fa",
-          statusText: "Updated Just Now",
+          statusText: "Updated",
           statusColor: "#64748b",
         };
     }
   };
 
   const themeConfig = getCardTheme();
+  const displayStatusText = statusText !== undefined ? statusText : themeConfig.statusText;
+  const displayStatusColor = statusColor !== undefined ? statusColor : themeConfig.statusColor;
 
   return (
     <Card
@@ -119,19 +123,21 @@ const StatCard = ({ title, value }: Props) => {
         </Typography>
 
         {/* Small Adherence status chip at the bottom */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              backgroundColor: themeConfig.statusColor,
-            }}
-          />
-          <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
-            {themeConfig.statusText}
-          </Typography>
-        </Box>
+        {displayStatusText && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                backgroundColor: displayStatusColor,
+              }}
+            />
+            <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+              {displayStatusText}
+            </Typography>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );

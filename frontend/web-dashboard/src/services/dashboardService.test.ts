@@ -42,9 +42,16 @@ describe("dashboardService", () => {
 
     expect(result).toEqual({
       glucose: 140,
+      glucoseMeasuredAt: undefined,
       temperature: 5,
+      temperatureStatus: undefined,
+      temperatureMeasuredAt: undefined,
       inventory: 80,
+      inventoryStatus: undefined,
+      inventoryMeasuredAt: undefined,
+      estimatedRemainingPercent: undefined,
       lastDose: 8,
+      lastDoseInjectedAt: undefined,
     });
   });
 
@@ -60,9 +67,16 @@ describe("dashboardService", () => {
 
     expect(result).toEqual({
       glucose: 0,
+      glucoseMeasuredAt: undefined,
       temperature: 0,
+      temperatureStatus: undefined,
+      temperatureMeasuredAt: undefined,
       inventory: 0,
+      inventoryStatus: undefined,
+      inventoryMeasuredAt: undefined,
+      estimatedRemainingPercent: undefined,
       lastDose: 0,
+      lastDoseInjectedAt: undefined,
     });
   });
 

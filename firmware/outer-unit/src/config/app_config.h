@@ -69,10 +69,11 @@
 #define GLUCOMETER_SCAN_WINDOW_SEC   10
 #define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
 
-// Keep requesting the Guide Me latest record while its BLE link is active.
-// Sequence-number deduplication prevents repeat backend events.
-#define GLUCOMETER_LIVE_SYNC_INTERVAL_MS 5000
-#define GLUCOMETER_RACP_TIMEOUT_MS       12000
+// Use one RACP request per glucometer connection. After the request completes
+// (or times out), disconnect and start a fresh session later. The Guide Me is
+// more reliable when each stored-record fetch has a clean BLE session.
+#define GLUCOMETER_SESSION_RETRY_DELAY_MS 5000
+#define GLUCOMETER_RACP_TIMEOUT_MS        12000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //
 #define TEMP_MIN_C                   2.0f

@@ -390,6 +390,15 @@ void clearGlucometerClient() {
     glucometerClient = nullptr;
 }
 
+void finishGlucometerSession(const char* reason) {
+    Serial.printf("[BLE] Glucometer session finished: %s\n", reason);
+    clearGlucometerClient();
+    glucometerFound = false;
+    nextGlucometerConnectMs =
+        millis() + GLUCOMETER_SESSION_RETRY_DELAY_MS;
+    lastScanMs = millis();
+}
+
 bool requestLatestGlucometerRecord() {
     if (!glucometerConnected ||
         glucometerClient == nullptr ||
@@ -498,7 +507,11 @@ bool connectGlucometer() {
     glucometerRacpChar->registerForNotify(onRacpIndicate, false);
     glucometerConnected = true;
     vTaskDelay(pdMS_TO_TICKS(1000));
-    requestLatestGlucometerRecord();
+    if (!requestLatestGlucometerRecord()) {
+        Serial.println("[BLE] Glucometer request failed; ending session");
+        clearGlucometerClient();
+        return false;
+    }
     Serial.println("[BLE] Glucometer connected in parallel");
     return true;
 }
@@ -586,6 +599,10 @@ void bleManagerTask(void* parameter) {
             glucometerDevice = nullptr;
         }
 
+        // BLE connection setup blocks for several seconds. Refresh the loop
+        // clock so a request sent during setup cannot appear already timed out.
+        now = millis();
+
         if (penConnected) {
             sendPendingPenAcks();
             if ((now - lastPenRssiMs) >= 5000) {
@@ -595,19 +612,12 @@ void bleManagerTask(void* parameter) {
         }
 
         if (glucometerConnected) {
-            if (racpRequestInFlight &&
+            if (racpDone) {
+                finishGlucometerSession("RACP complete");
+            } else if (racpRequestInFlight &&
                 (now - lastRacpRequestMs) >=
                     GLUCOMETER_RACP_TIMEOUT_MS) {
-                racpRequestInFlight = false;
-                racpDone = false;
-                Serial.println(
-                    "[BLE] RACP request timed out; live retry scheduled");
-            }
-
-            if (!racpRequestInFlight &&
-                (now - lastRacpRequestMs) >=
-                    GLUCOMETER_LIVE_SYNC_INTERVAL_MS) {
-                requestLatestGlucometerRecord();
+                finishGlucometerSession("RACP timeout");
             }
         }
 

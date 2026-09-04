@@ -592,5 +592,7 @@ bool sendInnerSensorPacket(const uint8_t* data, size_t length) {
     if (switchInProgress || data == nullptr || length == 0) {
         return false;
     }
-    return esp_now_send(BROADCAST_MAC, data, length) == ESP_OK;
+    const uint8_t* destination =
+        hasPairedOuter ? pairedOuterMac : BROADCAST_MAC;
+    return esp_now_send(destination, data, length) == ESP_OK;
 }

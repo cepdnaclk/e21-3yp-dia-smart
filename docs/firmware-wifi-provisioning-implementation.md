@@ -120,6 +120,9 @@ keeps its setup access point available whenever it is running on the fallback.
 
 The Inner sends its final Wi-Fi result three times over encrypted ESP-NOW so a
 single lost packet cannot leave the Outer waiting after a successful switch.
+The Inner provisioning service is the only owner of Wi-Fi connection attempts,
+fallback selection, and ESP-NOW channel changes; `main.cpp` only asks it to
+prepare the radio before starting the sensor task.
 
 ## Development and Production Keys
 

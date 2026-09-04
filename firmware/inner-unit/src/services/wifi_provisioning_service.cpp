@@ -42,6 +42,17 @@ bool sameMac(const uint8_t left[6], const uint8_t right[6]) {
     return memcmp(left, right, 6) == 0;
 }
 
+const char* credentialSourceName(WifiCredentialSource source) {
+    switch (source) {
+        case WifiCredentialSource::NVS_CURRENT:
+            return "saved";
+        case WifiCredentialSource::DEVELOPMENT_FALLBACK:
+            return "development fallback";
+        default:
+            return "unavailable";
+    }
+}
+
 bool configurePeer(const uint8_t peerMac[6], bool encrypted) {
     if (esp_now_is_peer_exist(peerMac)) {
         esp_now_del_peer(peerMac);
@@ -109,11 +120,6 @@ bool initializeEspNow() {
         return false;
     }
     return true;
-}
-
-bool reinitializeEspNow() {
-    esp_now_deinit();
-    return initializeEspNow();
 }
 
 void initializePairPacket(
@@ -197,14 +203,12 @@ void sendApplyResult(
     }
 }
 
-bool connectAndLockChannel(
+bool connectAndSelectChannel(
     const WifiConfiguration& configuration,
     uint32_t timeoutMs,
     uint8_t& channel,
     IPAddress& ipAddress
 ) {
-    switchInProgress = true;
-    esp_now_deinit();
     WiFi.setAutoReconnect(false);
     WiFi.disconnect(false);
     WiFi.mode(WIFI_STA);
@@ -227,9 +231,28 @@ bool connectAndLockChannel(
         ipAddress = WiFi.localIP();
     }
     WiFi.disconnect(false);
-    if (connected) {
-        esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-    } else {
+    if (!connected) {
+        return false;
+    }
+
+    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+    return true;
+}
+
+bool connectAndLockChannel(
+    const WifiConfiguration& configuration,
+    uint32_t timeoutMs,
+    uint8_t& channel,
+    IPAddress& ipAddress
+) {
+    switchInProgress = true;
+    esp_now_deinit();
+    const bool connected = connectAndSelectChannel(
+        configuration,
+        timeoutMs,
+        channel,
+        ipAddress);
+    if (!connected) {
         esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
     }
 
@@ -470,6 +493,61 @@ void provisioningTask(void* parameter) {
 }
 }
 
+void prepareInnerWifiChannel() {
+    WifiConfiguration configuration = {};
+    WifiCredentialSource source = WifiCredentialSource::NONE;
+    bool connected = credentialManager.loadActive(configuration, source);
+
+    if (connected) {
+        Serial.printf(
+            "[WiFi] Trying %s credentials (version=%lu)\n",
+            credentialSourceName(source),
+            static_cast<unsigned long>(
+                configuration.configurationVersion));
+        uint8_t channel = ESPNOW_CHANNEL;
+        IPAddress ipAddress;
+        connected = connectAndSelectChannel(
+            configuration,
+            WIFI_CONNECT_TIMEOUT_MS,
+            channel,
+            ipAddress);
+        if (connected) {
+            Serial.printf(
+                "[WiFi] ESP-NOW channel selected from router: %u\n",
+                channel);
+        }
+    }
+    clearWifiConfiguration(configuration);
+
+    if (!connected && source == WifiCredentialSource::NVS_CURRENT) {
+        Serial.println(
+            "[WiFi] Saved credentials failed; trying development fallback");
+        if (credentialManager.loadDevelopmentFallback(configuration)) {
+            uint8_t channel = ESPNOW_CHANNEL;
+            IPAddress ipAddress;
+            connected = connectAndSelectChannel(
+                configuration,
+                WIFI_CONNECT_TIMEOUT_MS,
+                channel,
+                ipAddress);
+            if (connected) {
+                Serial.printf(
+                    "[WiFi] ESP-NOW channel selected from fallback: %u\n",
+                    channel);
+            }
+        }
+        clearWifiConfiguration(configuration);
+    }
+
+    if (!connected) {
+        WiFi.mode(WIFI_STA);
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+        Serial.printf(
+            "[WiFi] Using ESP-NOW recovery channel: %u\n",
+            ESPNOW_CHANNEL);
+    }
+}
+
 bool setupInnerWifiProvisioningService() {
     if (receivedFrameQueue != nullptr) {
         return true;
@@ -515,8 +593,4 @@ bool sendInnerSensorPacket(const uint8_t* data, size_t length) {
         return false;
     }
     return esp_now_send(BROADCAST_MAC, data, length) == ESP_OK;
-}
-
-bool isInnerWifiSwitchInProgress() {
-    return switchInProgress;
 }

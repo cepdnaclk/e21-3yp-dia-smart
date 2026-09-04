@@ -71,7 +71,9 @@ The password is never printed or included in status messages.
 
 ## Outer-to-Inner Transfer
 
-The existing broadcast `InnerPacket` remains unchanged.
+The existing `InnerPacket` payload remains unchanged. Inner broadcasts it only
+until first pairing discovery. After pairing, normal sensor packets use the
+same encrypted unicast peer as provisioning traffic.
 
 Outer learns the Inner MAC from a valid sensor packet. The units exchange
 non-secret pairing frames, persist the peer MAC, and then replace the temporary

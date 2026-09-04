@@ -101,12 +101,15 @@ limit.
 6. Both try the new 2.4 GHz access point.
 7. Inner records the router channel, disconnects from normal Wi-Fi, and
    reinitializes ESP-NOW on that channel.
-8. Outer reconnects MQTT.
-9. Outer reports `APPLIED`.
-10. Inner reports `CONNECTED` or `FAILED` through Outer telemetry.
+8. Outer waits for the Inner Unit's `CONNECTED` result.
+9. Only after both units connect, Outer promotes the pending credentials and
+   reports `APPLIED`.
+10. If the Inner Unit is unavailable, Outer keeps the pending credentials and
+    retries discovery and encrypted staging without requiring the app to resend
+    them.
 
-Current credentials are promoted only after a successful connection. The prior
-working configuration remains available for rollback.
+Current credentials are promoted only after both units confirm a successful
+connection. The prior working configuration remains available for rollback.
 
 ## Development and Production Keys
 

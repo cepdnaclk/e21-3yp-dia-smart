@@ -28,6 +28,7 @@ TaskHandle_t coordinatorTaskHandle = nullptr;
 EspNowPeerStore peerStore("diasmart-peer");
 uint8_t pairedInnerMac[6] = {};
 bool hasPairedInner = false;
+volatile uint32_t nextProvisioningAttemptMs = 0;
 WifiProvisioningRuntimeStatus runtimeStatus = {
     WifiProvisioningRuntimeState::IDLE,
     "PENDING",
@@ -261,6 +262,22 @@ void queueFailure(
         reason);
 }
 
+void keepPendingForRetry(
+    const WifiConfiguration& pending,
+    const char* reason
+) {
+    setRuntimeStatus(
+        WifiProvisioningRuntimeState::WAITING_FOR_INNER,
+        isWiFiConnected() ? "CONNECTED" : "PENDING",
+        "PENDING",
+        reason,
+        pending.configurationVersion);
+    Serial.printf(
+        "[WiFiProvisioning] %s; retrying Inner in %lu ms\n",
+        reason,
+        static_cast<unsigned long>(WIFI_PROVISION_RETRY_DELAY_MS));
+}
+
 void restoreCurrentWifi() {
     WifiConfiguration current = {};
     WifiCredentialSource source = WifiCredentialSource::NONE;
@@ -308,15 +325,13 @@ void applyPendingConfiguration() {
         "CONFIGURING_INNER",
         pending.configurationVersion);
     if (!stageOnInner(pending, nonce)) {
-        queueFailure(pending, "INNER_STAGING_TIMEOUT");
-        store.clearPending();
+        keepPendingForRetry(pending, "WAITING_FOR_INNER");
         clearWifiConfiguration(pending);
         return;
     }
 
     if (!sendApply(pending, nonce)) {
-        queueFailure(pending, "INNER_APPLY_SEND_FAILED");
-        store.clearPending();
+        keepPendingForRetry(pending, "WAITING_FOR_INNER");
         clearWifiConfiguration(pending);
         return;
     }
@@ -333,10 +348,9 @@ void applyPendingConfiguration() {
         pending,
         WIFI_CONNECT_TIMEOUT_MS,
         false);
-    if (!outerConnected || !store.promotePending()) {
-        store.clearPending();
+    if (!outerConnected) {
         restoreCurrentWifi();
-        queueFailure(pending, "OUTER_WIFI_CONNECTION_FAILED");
+        keepPendingForRetry(pending, "OUTER_WIFI_RETRY");
         clearWifiConfiguration(pending);
         return;
     }
@@ -347,16 +361,9 @@ void applyPendingConfiguration() {
         "CONNECTING",
         "OUTER_CONNECTED",
         pending.configurationVersion);
-    queueWifiCommandStatus(
-        pending.commandId,
-        pending.configurationVersion,
-        "APPLIED",
-        "OUTER_WIFI_CONNECTED");
-
     ReceivedWifiFrame innerResultFrame = {};
     uint8_t innerIp[4] = {};
-    const char* innerStatus = "FAILED";
-    const char* innerMessage = "INNER_RESULT_TIMEOUT";
+    bool innerConnected = false;
     if (waitForPacket(
             WifiConfigPacketType::WIFI_CONFIG_RESULT,
             nonce,
@@ -375,25 +382,44 @@ void applyPendingConfiguration() {
         if (result->payload.status ==
             static_cast<uint8_t>(
                 WifiConfigResultStatus::CONNECTED)) {
-            innerStatus = "CONNECTED";
-            innerMessage = "INNER_WIFI_CONNECTED";
-        } else {
-            innerMessage = "INNER_WIFI_CONNECTION_FAILED";
+            innerConnected = true;
         }
     }
 
+    if (!innerConnected) {
+        queueInnerWifiConfigurationResult(
+            pending.commandId,
+            "PENDING",
+            innerIp,
+            "WAITING_FOR_INNER");
+        restoreCurrentWifi();
+        keepPendingForRetry(pending, "WAITING_FOR_INNER");
+        clearWifiConfiguration(pending);
+        return;
+    }
+
+    if (!store.promotePending()) {
+        restoreCurrentWifi();
+        queueFailure(pending, "CREDENTIAL_PROMOTION_FAILED");
+        clearWifiConfiguration(pending);
+        return;
+    }
+
+    queueWifiCommandStatus(
+        pending.commandId,
+        pending.configurationVersion,
+        "APPLIED",
+        "BOTH_UNITS_CONNECTED");
     queueInnerWifiConfigurationResult(
         pending.commandId,
-        innerStatus,
-        innerIp,
-        innerMessage);
-    setRuntimeStatus(
-        strcmp(innerStatus, "CONNECTED") == 0
-            ? WifiProvisioningRuntimeState::SUCCESS
-            : WifiProvisioningRuntimeState::FAILED,
         "CONNECTED",
-        innerStatus,
-        innerMessage,
+        innerIp,
+        "INNER_WIFI_CONNECTED");
+    setRuntimeStatus(
+        WifiProvisioningRuntimeState::SUCCESS,
+        "CONNECTED",
+        "CONNECTED",
+        "BOTH_UNITS_CONNECTED",
         pending.configurationVersion);
     clearWifiConfiguration(pending);
 }
@@ -414,8 +440,11 @@ void coordinatorTask(void* parameter) {
 
         if (hasPairedInner &&
             wifiCredentialStore().transactionState() ==
-                WifiTransactionState::STAGED) {
+                WifiTransactionState::STAGED &&
+            (int32_t)(millis() - nextProvisioningAttemptMs) >= 0) {
             applyPendingConfiguration();
+            nextProvisioningAttemptMs =
+                millis() + WIFI_PROVISION_RETRY_DELAY_MS;
         }
 
         vTaskDelay(pdMS_TO_TICKS(250));
@@ -498,6 +527,7 @@ void getWifiProvisioningRuntimeStatus(
 }
 
 void notifyWifiProvisioningStaged(uint32_t configurationVersion) {
+    nextProvisioningAttemptMs = 0;
     setRuntimeStatus(
         WifiProvisioningRuntimeState::WAITING_FOR_INNER,
         "PENDING",

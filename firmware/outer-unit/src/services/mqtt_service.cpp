@@ -8,6 +8,7 @@
 #include "config/app_config.h"
 #include "config/aws_certs.h"
 #include "services/care_plan_service.h"
+#include "services/wifi_command_service.h"
 
 // Secure Wi-Fi client for TLS 1.2
 WiFiClientSecure secureClient;
@@ -19,6 +20,7 @@ namespace {
 String pendingCarePlanAck;
 bool carePlanAckPending = false;
 bool carePlanSubscribed = false;
+bool commandSubscribed = false;
 String pendingDeviceSync;
 bool deviceSyncPending = false;
 
@@ -77,28 +79,39 @@ void queueDeviceSyncRequest()
 
 void mqttMessageCallback(char* topic, byte* payload, unsigned int length)
 {
-    if (strcmp(topic, AWS_IOT_CARE_PLAN_TOPIC) != 0) {
+    if (strcmp(topic, AWS_IOT_COMMAND_TOPIC) == 0) {
+        if (!enqueueWifiCommandPayload(payload, length)) {
+            Serial.printf(
+                "[MQTT] Wi-Fi command dropped. bytes=%u\n",
+                length);
+        }
         return;
     }
 
-    Serial.printf("[MQTT] Care Plan received. bytes=%u\n", length);
-    CarePlanApplyResult result = applyCarePlanPayload(payload, length);
-    Serial.printf("[MQTT] Care Plan %s: %s\n",
-                  result.accepted ? "accepted" : "rejected",
-                  result.message);
-    queueCarePlanAck(result);
+    if (strcmp(topic, AWS_IOT_CARE_PLAN_TOPIC) == 0) {
+        Serial.printf("[MQTT] Care Plan received. bytes=%u\n", length);
+        CarePlanApplyResult result = applyCarePlanPayload(payload, length);
+        Serial.printf("[MQTT] Care Plan %s: %s\n",
+                      result.accepted ? "accepted" : "rejected",
+                      result.message);
+        queueCarePlanAck(result);
+    }
 }
 
 bool subscribeDeviceTopics()
 {
     carePlanSubscribed = mqttClient.subscribe(AWS_IOT_CARE_PLAN_TOPIC, 1);
+    commandSubscribed = mqttClient.subscribe(AWS_IOT_COMMAND_TOPIC, 1);
     Serial.printf("[MQTT] Care Plan subscription %s: %s\n",
                   carePlanSubscribed ? "ready" : "failed",
                   AWS_IOT_CARE_PLAN_TOPIC);
-    if (carePlanSubscribed) {
+    Serial.printf("[MQTT] Command subscription %s: %s\n",
+                  commandSubscribed ? "ready" : "failed",
+                  AWS_IOT_COMMAND_TOPIC);
+    if (carePlanSubscribed && commandSubscribed) {
         queueDeviceSyncRequest();
     }
-    return carePlanSubscribed;
+    return carePlanSubscribed && commandSubscribed;
 }
 }
 
@@ -117,12 +130,17 @@ void setupMQTT()
     mqttClient.setBufferSize(MQTT_BUFFER_BYTES);
     mqttClient.setKeepAlive(30);
     mqttClient.setSocketTimeout(10);
+
+    if (!setupWifiCommandService()) {
+        Serial.println("[MQTT] Wi-Fi command service unavailable");
+    }
 }
 
 bool connectMQTT()
 {
     if (mqttClient.connected()) {
-        return carePlanSubscribed || subscribeDeviceTopics();
+        return (carePlanSubscribed && commandSubscribed) ||
+               subscribeDeviceTopics();
     }
 
     if (WiFi.status() != WL_CONNECTED) {
@@ -139,6 +157,7 @@ bool connectMQTT()
     Serial.print("FAILED, Return Code: ");
     Serial.println(mqttClient.state());
     carePlanSubscribed = false;
+    commandSubscribed = false;
     return false;
 }
 
@@ -188,6 +207,7 @@ void mqttLoop()
 {
     // This must be called frequently to maintain the MQTT keep-alive ping
     mqttClient.loop();
+    processPendingWifiCommand();
 
     // Publish outside the inbound callback to avoid re-entering PubSubClient.
     if (carePlanAckPending && mqttClient.connected()) {
@@ -212,6 +232,7 @@ void mqttLoop()
 
     if (!mqttClient.connected()) {
         carePlanSubscribed = false;
+        commandSubscribed = false;
     }
 }
 

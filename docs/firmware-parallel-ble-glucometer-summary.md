@@ -2,10 +2,10 @@
 
 ## Scope
 
-This firmware update changes the Outer Unit BLE manager so the insulin pen and
-Accu-Chek Guide Me can remain connected at the same time. It also polls the
-connected glucometer for its latest record so a new reading enters the existing
-backend telemetry path without requiring the meter to be switched off and on.
+This firmware update gives the insulin pen and Accu-Chek Guide Me independent
+BLE clients. The pen remains connected for notifications. The glucometer uses
+a short, clean connection for each latest-record request so subsequent readings
+can be received reliably.
 
 The measurement-time follow-up adds one backward-compatible backend DTO field
 and glucose persistence fallback. Database, IoT policy, web dashboard, and
@@ -17,6 +17,8 @@ mobile application code remain unchanged.
 - `0443bb3` - `Stream live glucometer readings over BLE`
 - `f6f89d1` - `Preserve glucometer measurement timestamps`
 - `60b3b87` - `Ingest glucometer source timestamps`
+- Current fix - end each glucometer session after its RACP request completes or
+  times out, then reconnect for the next request
 
 ## Firmware Changes
 
@@ -33,18 +35,20 @@ The Outer Unit now maintains separate client state for:
 - The Glucose Service Record Access Control Point (`0x2A52`).
 
 The manager scans only for a missing device. Connection attempts are serialized
-to avoid overlapping BLE setup operations, but established pen and glucometer
-links remain active concurrently. If one device disconnects, only that device
-is scheduled for discovery and reconnection.
+to avoid overlapping BLE setup operations. The pen connection remains active,
+while each glucometer connection performs one record request and then closes.
+A glucometer failure or timeout resets only the glucometer client.
 
 Existing pen dose parsing, buffered-dose acknowledgements, glucometer bonding,
 and the configured glucometer PIN are preserved.
 
 ### Live glucose delivery
 
-While the glucometer is connected, the Outer Unit requests its latest stored
-record every five seconds. A request that does not complete within twelve
-seconds is released so a later poll can retry.
+After connecting to the glucometer, the Outer Unit requests its latest stored
+record once. When the RACP response arrives, or when the request times out after
+twelve seconds, the Outer Unit disconnects only the glucometer. It scans and
+opens a fresh session later. This avoids relying on repeated RACP requests in a
+stale BLE session.
 
 The measurement callback:
 
@@ -71,21 +75,19 @@ confirm the Accu-Chek firmware's behavior while it remains powered on.
 ## Hardware Test Checklist
 
 1. Start the Outer Unit with both paired devices available.
-2. Confirm logs show `Pen connected in parallel` and
-   `Glucometer connected in parallel`.
-3. Take a pen dose and confirm its notification is received without dropping
-   the glucometer connection.
-4. Take a new glucose measurement while the meter stays on.
-5. Within the next polling cycle, confirm `Glucose queued immediately` appears
-   once for the new sequence number.
-6. Confirm the MQTT payload contains the new glucose value and sequence number.
-7. Confirm one database row appears without switching the meter off and on.
-8. Leave the meter on through several polling cycles and confirm no duplicate
-   database rows are created.
-9. Power off only the pen, then power it on and confirm it reconnects while the
-   glucometer stays connected.
-10. Power off only the glucometer, then power it on and confirm it reconnects
-    while the pen stays connected.
+2. Confirm logs show `Pen connected in parallel`, `RACP latest-record request
+   sent`, and `Glucometer session finished: RACP complete`.
+3. Take a pen dose and confirm its notification is received while glucometer
+   sessions open and close independently.
+4. Take three glucose measurements, allowing a fresh glucometer connection for
+   each one.
+5. Confirm `Glucose queued immediately` appears once for each new sequence
+   number.
+6. Confirm each MQTT payload contains the new glucose value and sequence number.
+7. Confirm exactly three database rows appear without rebooting either unit.
+8. Confirm old sequence numbers do not create duplicate database rows.
+9. Power-cycle only the pen and confirm it reconnects normally.
+10. Power-cycle only the glucometer and confirm later sessions still work.
 11. Disconnect Wi-Fi, take a glucose reading, restore Wi-Fi, and confirm the
     queued payload reaches the backend.
 

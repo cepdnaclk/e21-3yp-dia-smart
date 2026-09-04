@@ -10,20 +10,32 @@
 #if DISPLAY_ENABLED
 
 #include "soc/gpio_struct.h"
+#include "../../../common/config/wifi_provisioning_security.h"
 
 namespace {
-constexpr uint16_t COLOR_BG = 0x0000;
-constexpr uint16_t COLOR_PANEL = 0x18E3;
-constexpr uint16_t COLOR_PANEL_ALT = 0x2124;
+// Calm, high-contrast patient palette. Red and amber are reserved for states
+// that require attention; normal navigation never depends on colour alone.
+constexpr uint16_t COLOR_BG = 0x0843;
+constexpr uint16_t COLOR_HEADER = 0x1085;
+constexpr uint16_t COLOR_PANEL = 0x18E7;
+constexpr uint16_t COLOR_PANEL_ALT = 0x2129;
+constexpr uint16_t COLOR_BORDER = 0x31CB;
 constexpr uint16_t COLOR_TEXT = 0xFFFF;
-constexpr uint16_t COLOR_MUTED = 0xAD55;
-constexpr uint16_t COLOR_ACCENT = 0x07FF;
-constexpr uint16_t COLOR_OK = 0x07E0;
-constexpr uint16_t COLOR_WARN = 0xB145;
-constexpr uint16_t COLOR_BAD = 0xF800;
-constexpr uint16_t COLOR_COLD = 0x041F;
+constexpr uint16_t COLOR_MUTED = 0xA556;
+constexpr uint16_t COLOR_ACCENT = 0x2E9A;
+constexpr uint16_t COLOR_ACCENT_DARK = 0x1450;
+constexpr uint16_t COLOR_OK = 0x364D;
+constexpr uint16_t COLOR_OK_DARK = 0x1327;
+constexpr uint16_t COLOR_WARN = 0xFD20;
+constexpr uint16_t COLOR_WARN_DARK = 0x6200;
+constexpr uint16_t COLOR_BAD = 0xF9C7;
+constexpr uint16_t COLOR_BAD_DARK = 0x5804;
+constexpr uint16_t COLOR_COLD = 0x4D7F;
 
 bool forceFullRedraw = true;
+constexpr uint8_t DISPLAY_MODE_DOSE_PROMPT = 100;
+constexpr uint8_t DISPLAY_MODE_NOTICE = 101;
+constexpr uint32_t DISPLAY_NOTICE_DURATION_MS = 3500;
 
 constexpr uint32_t pinBit(uint8_t pin) {
     return 1UL << pin;
@@ -112,7 +124,14 @@ void rawFillScreen(uint16_t color) {
 }
 
 uint8_t visibleMode(const DisplayState& state) {
-    return state.dosePromptActive ? 100 : state.activePage;
+    if (state.dosePromptActive) {
+        return DISPLAY_MODE_DOSE_PROMPT;
+    }
+    if (state.noticeType != DISPLAY_NOTICE_NONE &&
+        (millis() - state.noticeStartedMs) < DISPLAY_NOTICE_DURATION_MS) {
+        return DISPLAY_MODE_NOTICE;
+    }
+    return state.activePage;
 }
 
 bool textChanged(const char* left, const char* right, size_t len) {
@@ -123,10 +142,12 @@ bool displayNeedsRedraw(const DisplayState& current,
                         const DisplayState& previous,
                         const CarePlanView& carePlan,
                         const CarePlanView& previousCarePlan,
+                        uint8_t currentMode,
+                        uint8_t previousMode,
                         uint32_t lastDrawMs,
                         bool hasPrevious) {
     if (!hasPrevious) return true;
-    if (visibleMode(current) != visibleMode(previous)) return true;
+    if (currentMode != previousMode) return true;
     if (carePlan.revision != previousCarePlan.revision &&
         (current.dosePromptActive ||
          current.activePage == DISPLAY_PAGE_DASHBOARD ||
@@ -147,6 +168,13 @@ bool displayNeedsRedraw(const DisplayState& current,
                current.pendingDoseUnits != previous.pendingDoseUnits ||
                current.dosePromptRemainingSec != previous.dosePromptRemainingSec ||
                textChanged(current.doseEditBuffer, previous.doseEditBuffer, sizeof(current.doseEditBuffer));
+    }
+
+    if (currentMode == DISPLAY_MODE_NOTICE) {
+        return current.noticeType != previous.noticeType ||
+               fabsf(current.noticeDoseUnits - previous.noticeDoseUnits) >= 0.05f ||
+               current.wifiConnected != previous.wifiConnected ||
+               current.mqttConnected != previous.mqttConnected;
     }
 
     if (current.hasTelemetry != previous.hasTelemetry ||
@@ -249,6 +277,76 @@ void drawText(int x, int y, const char* text, uint16_t color, uint16_t bg, uint8
     }
 }
 
+uint8_t caseSensitiveGlyphRow(char c, uint8_t row) {
+    switch (c) {
+        case 'a': { static const uint8_t g[7] = {0x00,0x0E,0x01,0x0F,0x11,0x13,0x0D}; return g[row]; }
+        case 'e': { static const uint8_t g[7] = {0x00,0x0E,0x11,0x1F,0x10,0x11,0x0E}; return g[row]; }
+        case 'i': { static const uint8_t g[7] = {0x04,0x00,0x0C,0x04,0x04,0x04,0x0E}; return g[row]; }
+        case 'm': { static const uint8_t g[7] = {0x00,0x00,0x1A,0x15,0x15,0x15,0x15}; return g[row]; }
+        case 'p': { static const uint8_t g[7] = {0x00,0x00,0x1E,0x11,0x1E,0x10,0x10}; return g[row]; }
+        case 'r': { static const uint8_t g[7] = {0x00,0x00,0x16,0x19,0x10,0x10,0x10}; return g[row]; }
+        case 't': { static const uint8_t g[7] = {0x08,0x08,0x1E,0x08,0x08,0x09,0x06}; return g[row]; }
+        case 'u': { static const uint8_t g[7] = {0x00,0x00,0x11,0x11,0x11,0x13,0x0D}; return g[row]; }
+        default: return glyphRow(c, row);
+    }
+}
+
+void drawCaseSensitiveText(int x, int y, const char* text,
+                           uint16_t color, uint16_t bg, uint8_t scale) {
+    int cursorX = x;
+    while (*text != '\0') {
+        for (uint8_t row = 0; row < 7; ++row) {
+            uint8_t bits = caseSensitiveGlyphRow(*text, row);
+            for (uint8_t col = 0; col < 5; ++col) {
+                uint16_t pixelColor =
+                    (bits & (1 << (4 - col))) ? color : bg;
+                rawFillRect(
+                    cursorX + col * scale,
+                    y + row * scale,
+                    scale,
+                    scale,
+                    pixelColor);
+            }
+        }
+        cursorX += 6 * scale;
+        ++text;
+    }
+}
+
+int textWidth(const char* text, uint8_t scale) {
+    return (int)strlen(text) * 6 * scale;
+}
+
+void drawCenteredText(int x, int y, int w, const char* text,
+                      uint16_t color, uint16_t bg, uint8_t scale) {
+    int textX = x + (w - textWidth(text, scale)) / 2;
+    if (textX < x) textX = x;
+    drawText(textX, y, text, color, bg, scale);
+}
+
+void drawOutline(int x, int y, int w, int h, uint16_t color, uint8_t thickness = 1) {
+    rawFillRect(x, y, w, thickness, color);
+    rawFillRect(x, y + h - thickness, w, thickness, color);
+    rawFillRect(x, y, thickness, h, color);
+    rawFillRect(x + w - thickness, y, thickness, h, color);
+}
+
+void drawPanel(int x, int y, int w, int h, uint16_t bg = COLOR_PANEL) {
+    rawFillRect(x, y, w, h, bg);
+    drawOutline(x, y, w, h, COLOR_BORDER);
+}
+
+void drawProgressBar(int x, int y, int w, int h, uint8_t percent,
+                     uint16_t fillColor, uint16_t trackColor) {
+    if (percent > 100) percent = 100;
+    rawFillRect(x, y, w, h, trackColor);
+    int filled = ((w - 4) * percent) / 100;
+    if (filled > 0) {
+        rawFillRect(x + 2, y + 2, filled, h - 4, fillColor);
+    }
+    drawOutline(x, y, w, h, COLOR_BORDER);
+}
+
 uint16_t tempColor(float tempC) {
     if (isnan(tempC)) return COLOR_MUTED;
     if (tempC < TEMP_MIN_C) return COLOR_COLD;
@@ -256,13 +354,13 @@ uint16_t tempColor(float tempC) {
     return COLOR_OK;
 }
 
-void drawCard(int x, int y, int w, int h, const char* label, const char* value,
-              uint16_t valueColor, bool alt = false) {
-    uint16_t bg = alt ? COLOR_PANEL_ALT : COLOR_PANEL;
-    rawFillRect(x, y, w, h, bg);
-    rawFillRect(x, y, w, 3, COLOR_ACCENT);
-    drawText(x + 8, y + 10, label, COLOR_MUTED, bg, 2);
-    drawText(x + 8, y + 36, value, valueColor, bg, 3);
+void drawMetricCard(int x, int y, int w, int h,
+                    const char* label, const char* value, const char* status,
+                    uint16_t valueColor, uint16_t bg = COLOR_PANEL) {
+    drawPanel(x, y, w, h, bg);
+    drawText(x + 8, y + 9, label, COLOR_MUTED, bg, 1);
+    drawCenteredText(x, y + 31, w, value, valueColor, bg, 2);
+    drawCenteredText(x, y + h - 20, w, status, valueColor, bg, 1);
 }
 
 bool recentMs(uint32_t timestampMs, uint32_t maxAgeMs) {
@@ -274,18 +372,14 @@ uint32_t ageSeconds(uint32_t timestampMs) {
     return (millis() - timestampMs) / 1000;
 }
 
-const char* okBad(bool ok) {
-    return ok ? "OK" : "BAD";
-}
-
 const char* carePlanStatusText(CarePlanScheduleStatus status) {
     switch (status) {
-        case CARE_PLAN_STATUS_DUE: return "DOSE DUE";
-        case CARE_PLAN_STATUS_TAKEN: return "TAKEN";
-        case CARE_PLAN_STATUS_MISSED: return "MISSED";
+        case CARE_PLAN_STATUS_DUE: return "DUE NOW";
+        case CARE_PLAN_STATUS_TAKEN: return "RECORDED";
+        case CARE_PLAN_STATUS_MISSED: return "DOSE MISSED";
         case CARE_PLAN_STATUS_UPCOMING: return "UPCOMING";
-        case CARE_PLAN_STATUS_NONE:
-        default: return "NO PLAN";
+        case CARE_PLAN_STATUS_NONE: return "NO MEDICATION PLAN";
+        default: return "WAITING";
     }
 }
 
@@ -317,133 +411,206 @@ bool innerOk(const DisplayState& state) {
 }
 
 void drawTopBar(const DisplayState& state) {
-    bool allOk = state.wifiConnected && mqttOk(state) && bleOk(state) && innerOk(state);
-    uint16_t bg = allOk ? 0x0320 : (state.offlineQueueCount > 0 || state.mqttRetrying ? 0x7BE0 : 0x7800);
-    rawFillRect(0, 0, DISPLAY_WIDTH, 24, bg);
+    rawFillRect(0, 0, DISPLAY_WIDTH, 28, COLOR_HEADER);
+    drawText(10, 8, "DIASMART", COLOR_ACCENT, COLOR_HEADER, 2);
 
-    char top[64];
-    snprintf(top, sizeof(top), "WIFI %s | MQTT %s | BLE %s | IN %s | Q:%u",
-             okBad(state.wifiConnected),
-             okBad(mqttOk(state)),
-             okBad(bleOk(state)),
-             okBad(innerOk(state)),
-             state.offlineQueueCount);
-    drawText(6, 8, top, COLOR_TEXT, bg, 1);
+    const bool connected = state.wifiConnected && mqttOk(state);
+    const bool retrying = state.wifiConnected && state.mqttRetrying;
+    const char* label = connected ? "CONNECTED" : (retrying ? "SYNCING" : "OFFLINE");
+    uint16_t chipColor = connected ? COLOR_OK_DARK : (retrying ? COLOR_WARN_DARK : COLOR_BAD_DARK);
+    int chipWidth = textWidth(label, 1) + 20;
+    int chipX = DISPLAY_WIDTH - chipWidth - 10;
+    rawFillRect(chipX, 5, chipWidth, 18, chipColor);
+    rawFillRect(chipX + 6, 11, 6, 6, connected ? COLOR_OK : (retrying ? COLOR_WARN : COLOR_BAD));
+    drawText(chipX + 16, 10, label, COLOR_TEXT, chipColor, 1);
 }
 
 void drawPageTitle(const DisplayState& state, const char* title) {
     drawTopBar(state);
-    rawFillRect(0, 24, DISPLAY_WIDTH, 36, COLOR_ACCENT);
-    drawText(12, 34, title, COLOR_BG, COLOR_ACCENT, 3);
+    rawFillRect(0, 28, DISPLAY_WIDTH, 32, COLOR_HEADER);
+    drawText(12, 36, title, COLOR_TEXT, COLOR_HEADER, 2);
+    rawFillRect(0, 58, DISPLAY_WIDTH, 2, COLOR_ACCENT);
 }
 
 void drawStatusRow(int y, const char* label, const char* value, uint16_t color) {
-    rawFillRect(12, y, 296, 36, COLOR_PANEL);
-    drawText(22, y + 10, label, COLOR_MUTED, COLOR_PANEL, 2);
-    drawText(168, y + 10, value, color, COLOR_PANEL, 2);
+    drawPanel(10, y, 300, 42);
+    drawText(20, y + 14, label, COLOR_MUTED, COLOR_PANEL, 1);
+    int valueX = 298 - textWidth(value, 2);
+    if (valueX < 128) valueX = 128;
+    drawText(valueX, y + 11, value, color, COLOR_PANEL, 2);
+}
+
+void drawNavigation(const char* first, const char* second) {
+    rawFillRect(0, 432, DISPLAY_WIDTH, 48, COLOR_HEADER);
+    rawFillRect(0, 432, DISPLAY_WIDTH, 2, COLOR_BORDER);
+    drawText(12, 442, first, COLOR_TEXT, COLOR_HEADER, 1);
+    drawText(12, 462, second, COLOR_MUTED, COLOR_HEADER, 1);
 }
 
 void drawDashboard(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "HOME");
 
-    char tempBuf[24];
+    // Primary task: the next medication is always the strongest visual group.
+    drawPanel(10, 70, 300, 92, COLOR_PANEL_ALT);
+    drawText(20, 80, "NEXT MEDICATION", COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    if (carePlan.available && carePlan.scheduleCount > 0) {
+        char doseText[16];
+        snprintf(doseText, sizeof(doseText), "%.0fU", carePlan.doseUnits);
+        drawText(20, 103, doseText,
+                 carePlanStatusColor(carePlan.status), COLOR_PANEL_ALT, 4);
+
+        char insulinText[24];
+        snprintf(insulinText, sizeof(insulinText), "%.18s", carePlan.insulinType);
+        drawText(104, 101, insulinText, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+
+        char timingText[40];
+        if (carePlan.status == CARE_PLAN_STATUS_UPCOMING && carePlan.timeAvailable) {
+            if (carePlan.minutesUntilTarget < 60) {
+                snprintf(timingText, sizeof(timingText), "%s  DUE IN %u MIN",
+                         carePlan.targetTime, carePlan.minutesUntilTarget);
+            } else {
+                snprintf(timingText, sizeof(timingText), "%s  DUE IN %uH %uM",
+                         carePlan.targetTime,
+                         carePlan.minutesUntilTarget / 60,
+                         carePlan.minutesUntilTarget % 60);
+            }
+        } else {
+            snprintf(timingText, sizeof(timingText), "%s  %s",
+                     carePlan.targetTime, carePlanStatusText(carePlan.status));
+        }
+        drawText(104, 130, timingText,
+                 carePlanStatusColor(carePlan.status), COLOR_PANEL_ALT, 1);
+    } else {
+        drawText(20, 105, "NO MEDICATION PLAN", COLOR_TEXT, COLOR_PANEL_ALT, 2);
+        drawText(20, 135,
+                 state.wifiConnected ? "CHECK THE DIASMART APP" : "CONNECT TO SYNC A PLAN",
+                 COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    }
+
+    drawText(12, 174, "INSULIN STORAGE", COLOR_MUTED, COLOR_BG, 1);
+
+    char tempBuf[16];
+    const char* tempStatus = "WAITING";
     if (!state.hasTelemetry || isnan(state.temperatureC)) {
         snprintf(tempBuf, sizeof(tempBuf), "--.- C");
     } else {
         snprintf(tempBuf, sizeof(tempBuf), "%.1f C", state.temperatureC);
+        tempStatus = state.temperatureC < TEMP_MIN_C
+            ? "TOO COLD"
+            : (state.temperatureC > TEMP_MAX_C ? "TOO WARM" : "SAFE");
     }
-    drawCard(10, 72, 145, 76, "TEMP", tempBuf, tempColor(state.temperatureC));
+    drawMetricCard(10, 190, 96, 90, "TEMP", tempBuf, tempStatus,
+                   tempColor(state.temperatureC));
 
-    const char* doorValue = state.hasTelemetry ? (state.doorOpen ? "OPEN" : "CLOSED") : "--";
-    drawCard(165, 72, 145, 76, "DOOR", doorValue, state.doorOpen ? COLOR_WARN : COLOR_OK, true);
+    const char* doorValue = state.hasTelemetry
+        ? (state.doorOpen ? "OPEN" : "CLOSED")
+        : "--";
+    const char* doorStatus = !state.hasTelemetry
+        ? "WAITING"
+        : (state.doorOpen ? "CLOSE DOOR" : "SECURE");
+    drawMetricCard(112, 190, 96, 90, "DOOR", doorValue, doorStatus,
+                   state.doorOpen ? COLOR_WARN : (state.hasTelemetry ? COLOR_OK : COLOR_MUTED),
+                   COLOR_PANEL_ALT);
 
-    char stockBuf[24];
+    char stockBuf[16];
+    const bool lowStock = state.hasTelemetry && state.estimatedPercent < 20.0f;
     if (state.hasTelemetry) {
         snprintf(stockBuf, sizeof(stockBuf), "%.0f%%", state.estimatedPercent);
     } else {
         snprintf(stockBuf, sizeof(stockBuf), "--%%");
     }
-    drawCard(10, 160, 145, 76, "STOCK", stockBuf,
-             state.estimatedPercent < 20.0f ? COLOR_WARN : COLOR_TEXT, true);
+    drawMetricCard(214, 190, 96, 90, "AVAILABLE", stockBuf,
+                   !state.hasTelemetry ? "WAITING" : (lowStock ? "LOW" : "GOOD"),
+                   lowStock ? COLOR_WARN : (state.hasTelemetry ? COLOR_OK : COLOR_MUTED));
+    if (state.hasTelemetry) {
+        uint8_t stockPercent = (uint8_t)lroundf(
+            state.estimatedPercent < 0.0f ? 0.0f :
+            (state.estimatedPercent > 100.0f ? 100.0f : state.estimatedPercent));
+        drawProgressBar(224, 250, 76, 8, stockPercent,
+                        lowStock ? COLOR_WARN : COLOR_OK, COLOR_HEADER);
+    }
 
-    char glucoseBuf[24];
+    char glucoseBuf[16];
     if (state.hasTelemetry && state.glucoseMgDl > 0) {
         snprintf(glucoseBuf, sizeof(glucoseBuf), "%d", state.glucoseMgDl);
     } else {
         snprintf(glucoseBuf, sizeof(glucoseBuf), "--");
     }
-    drawCard(165, 160, 145, 76, "GLUCOSE", glucoseBuf, COLOR_TEXT);
+    drawPanel(10, 292, 145, 78);
+    drawText(20, 302, "LATEST GLUCOSE", COLOR_MUTED, COLOR_PANEL, 1);
+    drawText(20, 326, glucoseBuf, COLOR_TEXT, COLOR_PANEL, 3);
+    drawText(88, 338, "MG/DL", COLOR_MUTED, COLOR_PANEL, 1);
 
-    char doseBuf[24];
+    char doseBuf[16];
     if (state.hasTelemetry && state.doseUnits > 0.0f) {
-        snprintf(doseBuf, sizeof(doseBuf), "%dU", (int)lroundf(state.doseUnits));
+        snprintf(doseBuf, sizeof(doseBuf), "%.0fU", state.doseUnits);
     } else {
         snprintf(doseBuf, sizeof(doseBuf), "--");
     }
-    drawCard(10, 248, 145, 76, "LAST DOSE", doseBuf, COLOR_TEXT);
+    drawPanel(165, 292, 145, 78, COLOR_PANEL_ALT);
+    drawText(175, 302, "LAST DOSE", COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    drawText(175, 326, doseBuf, COLOR_TEXT, COLOR_PANEL_ALT, 3);
 
-    char innerBatteryBuf[24];
-    if (state.hasTelemetry) {
-        snprintf(innerBatteryBuf, sizeof(innerBatteryBuf), "%d%%", state.innerBatteryPercent);
+    bool attention = state.doorOpen || lowStock ||
+                     (state.hasTelemetry && !isnan(state.temperatureC) &&
+                      (state.temperatureC < TEMP_MIN_C || state.temperatureC > TEMP_MAX_C)) ||
+                     (state.hasTelemetry &&
+                      state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT) ||
+                     !state.wifiConnected || !mqttOk(state) ||
+                     state.offlineQueueCount > 0;
+    uint16_t bannerBg = attention ? COLOR_WARN_DARK : COLOR_OK_DARK;
+    rawFillRect(10, 382, 300, 36, bannerBg);
+    if (!state.hasTelemetry) {
+        drawText(20, 395, "WAITING FOR STORAGE UNIT", COLOR_WARN, bannerBg, 1);
+    } else if (state.doorOpen) {
+        drawText(20, 395, "ACTION NEEDED  CLOSE STORAGE DOOR", COLOR_WARN, bannerBg, 1);
+    } else if (!isnan(state.temperatureC) &&
+               (state.temperatureC < TEMP_MIN_C || state.temperatureC > TEMP_MAX_C)) {
+        drawText(20, 395, "ACTION NEEDED  CHECK TEMPERATURE", COLOR_WARN, bannerBg, 1);
+    } else if (lowStock) {
+        drawText(20, 395, "ACTION NEEDED  INSULIN IS LOW", COLOR_WARN, bannerBg, 1);
+    } else if (state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT) {
+        drawText(20, 395, "ACTION NEEDED  STORAGE BATTERY LOW", COLOR_WARN, bannerBg, 1);
+    } else if (!state.wifiConnected || !mqttOk(state) ||
+               state.offlineQueueCount > 0) {
+        drawText(20, 395, "SYNC DELAYED  RECORDS ARE SAFE", COLOR_WARN, bannerBg, 1);
+    } else if (attention) {
+        drawText(20, 395, "CHECK INSULIN STORAGE", COLOR_WARN, bannerBg, 1);
     } else {
-        snprintf(innerBatteryBuf, sizeof(innerBatteryBuf), "--%%");
-    }
-    drawCard(165, 248, 145, 76, "INNER BAT", innerBatteryBuf,
-             state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT ? COLOR_BAD : COLOR_TEXT,
-             true);
-
-    rawFillRect(10, 336, 300, 72, COLOR_PANEL);
-    if (carePlan.available && carePlan.scheduleCount > 0) {
-        drawText(20,
-                 346,
-                 carePlanStatusText(carePlan.status),
-                 carePlanStatusColor(carePlan.status),
-                 COLOR_PANEL,
-                 2);
-        char prescriptionSummary[44];
-        snprintf(prescriptionSummary,
-                 sizeof(prescriptionSummary),
-                 "%s  %.0fU  %.18s",
-                 carePlan.targetTime,
-                 carePlan.doseUnits,
-                 carePlan.insulinType);
-        drawText(20, 378, prescriptionSummary, COLOR_TEXT, COLOR_PANEL, 1);
-    } else {
-        drawText(20, 346, "PRESCRIPTION", COLOR_MUTED, COLOR_PANEL, 2);
-        drawText(20, 378, "WAITING FOR CARE PLAN", COLOR_TEXT, COLOR_PANEL, 2);
+        drawText(20, 395, "ALL SYSTEMS READY", COLOR_OK, bannerBg, 1);
     }
 
-    rawFillRect(0, 424, DISPLAY_WIDTH, 56, COLOR_BG);
-    drawText(12, 442, "B RX  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
+    drawNavigation("A HOME    B MEDICATION",
+                   "C ALERTS  D DEVICE");
 }
 
 void drawSystemStatus(const DisplayState& state) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    drawPageTitle(state, "SYSTEM");
+    drawPageTitle(state, "DEVICE");
 
     char value[32];
-    drawStatusRow(76,
-                  "WIFI",
-                  state.wifiConnected ? "ONLINE" : "OFFLINE",
+    drawStatusRow(72,
+                  "INTERNET",
+                  state.wifiConnected ? "CONNECTED" : "UNAVAILABLE",
                   state.wifiConnected ? COLOR_OK : COLOR_BAD);
 
     const char* cloudStatus = state.mqttRetrying
-        ? "RETRYING"
-        : (state.mqttConnected ? "SYNCED" : "OFFLINE");
-    drawStatusRow(122,
-                  "CLOUD",
+        ? "WILL RETRY"
+        : (state.mqttConnected ? "SYNCED" : "UNAVAILABLE");
+    drawStatusRow(120,
+                  "DIASMART CLOUD",
                   cloudStatus,
                   mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
 
     drawStatusRow(168,
-                  "PEN",
-                  bleOk(state) ? "READY" : "WAITING",
+                  "SMART PEN",
+                  bleOk(state) ? "CONNECTED" : "WAITING",
                   bleOk(state) ? COLOR_OK : COLOR_WARN);
 
-    drawStatusRow(214,
-                  "STORAGE",
-                  innerOk(state) ? "READY" : "WAITING",
+    drawStatusRow(216,
+                  "STORAGE UNIT",
+                  innerOk(state) ? "CONNECTED" : "WAITING",
                   innerOk(state) ? COLOR_OK : COLOR_WARN);
 
     if (state.hasTelemetry) {
@@ -451,8 +618,8 @@ void drawSystemStatus(const DisplayState& state) {
     } else {
         snprintf(value, sizeof(value), "--");
     }
-    drawStatusRow(260,
-                  "BATTERY",
+    drawStatusRow(264,
+                  "STORAGE BATTERY",
                   value,
                   state.hasTelemetry &&
                           state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT
@@ -460,81 +627,164 @@ void drawSystemStatus(const DisplayState& state) {
                       : COLOR_TEXT);
 
     snprintf(value, sizeof(value), "%u", state.offlineQueueCount);
-    drawStatusRow(306,
-                  "PENDING SYNC",
+    drawStatusRow(312,
+                  "RECORDS TO SYNC",
                   value,
                   state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
 
-    drawText(12, 442, "A HOME  |  B RX  |  C ALERTS", COLOR_MUTED, COLOR_BG, 1);
+    drawPanel(10, 370, 300, 46, COLOR_ACCENT_DARK);
+    drawText(20, 383, "# SETUP AND DEVICE IDS",
+             COLOR_ACCENT, COLOR_ACCENT_DARK, 1);
+
+    drawNavigation("A HOME    B MEDICATION",
+                   "C ALERTS  # SETUP");
+}
+
+void drawDeviceSetup(const DisplayState& state) {
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
+    drawPageTitle(state, "DEVICE SETUP");
+
+    drawPanel(10, 72, 300, 170, COLOR_PANEL_ALT);
+    drawText(20, 84, "ENTER THESE IDS IN THE APP",
+             COLOR_ACCENT, COLOR_PANEL_ALT, 1);
+    char idLine[40];
+    snprintf(idLine, sizeof(idLine), "OUTER   %s", DEVICE_UID_OUTER);
+    drawText(20, 112, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "INNER   %s", DEVICE_UID_INNER);
+    drawText(20, 144, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "PEN     %s", DEVICE_UID_PEN);
+    drawText(20, 176, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    snprintf(idLine, sizeof(idLine), "METER   %s", DEVICE_UID_GLUCOMETER);
+    drawText(20, 208, idLine, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+
+    drawPanel(10, 254, 300, 158, COLOR_PANEL);
+    drawText(20, 266, "CONNECT PHONE TO SETUP WIFI",
+             COLOR_ACCENT, COLOR_PANEL, 1);
+
+    drawText(20, 292, "NETWORK", COLOR_MUTED, COLOR_PANEL, 1);
+    char setupSsid[40];
+    snprintf(setupSsid, sizeof(setupSsid), "DiaSmart-%s", DEVICE_UID_OUTER);
+    drawCaseSensitiveText(20, 310, setupSsid,
+                          COLOR_TEXT, COLOR_PANEL, 2);
+
+    drawText(20, 344, "PASSWORD", COLOR_MUTED, COLOR_PANEL, 1);
+    drawCaseSensitiveText(20, 364, DIASMART_SETUP_AP_PASSWORD,
+                          COLOR_WARN, COLOR_PANEL, 2);
+    drawText(20, 394, "THEN RETURN TO THE DIASMART APP",
+             COLOR_MUTED, COLOR_PANEL, 1);
+
+    drawNavigation("A HOME    D DEVICE",
+                   "USE THESE DETAILS IN SETUP");
+}
+
+void drawAlertItem(int y, const char* title, const char* action,
+                   uint16_t color, uint16_t bg) {
+    drawPanel(10, y, 300, 50, bg);
+    rawFillRect(10, y, 5, 50, color);
+    drawText(24, y + 8, title, color, bg, 2);
+    drawText(24, y + 32, action, COLOR_TEXT, bg, 1);
 }
 
 void drawAlerts(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
     drawPageTitle(state, "ALERTS");
 
-    const char* doseStatus = carePlan.available
-        ? carePlanStatusText(carePlan.status)
-        : "NO PLAN";
-    uint16_t doseColor = carePlan.available
-        ? carePlanStatusColor(carePlan.status)
-        : COLOR_MUTED;
-    drawStatusRow(76, "DOSE", doseStatus, doseColor);
+    int y = 72;
+    uint8_t alertCount = 0;
 
-    const char* tempStatus = "OK";
-    uint16_t tempStatusColor = COLOR_OK;
-    if (!state.hasTelemetry || isnan(state.temperatureC)) {
-        tempStatus = "WAITING";
-        tempStatusColor = COLOR_MUTED;
-    } else if (state.temperatureC < TEMP_MIN_C) {
-        tempStatus = "LOW";
-        tempStatusColor = COLOR_COLD;
-    } else if (state.temperatureC > TEMP_MAX_C) {
-        tempStatus = "HIGH";
-        tempStatusColor = COLOR_BAD;
+    if (carePlan.available && carePlan.status == CARE_PLAN_STATUS_MISSED) {
+        drawAlertItem(y, "DOSE MISSED", "CHECK YOUR MEDICATION PLAN",
+                      COLOR_BAD, COLOR_BAD_DARK);
+        y += 56;
+        alertCount++;
+    } else if (carePlan.available && carePlan.status == CARE_PLAN_STATUS_DUE) {
+        drawAlertItem(y, "MEDICATION DUE", "OPEN MEDICATION FOR DETAILS",
+                      COLOR_WARN, COLOR_WARN_DARK);
+        y += 56;
+        alertCount++;
     }
-    drawStatusRow(122, "TEMP", tempStatus, tempStatusColor);
 
-    drawStatusRow(168,
-                  "DOOR",
-                  state.hasTelemetry ? (state.doorOpen ? "OPEN" : "CLOSED") : "WAITING",
-                  state.doorOpen ? COLOR_WARN : (state.hasTelemetry ? COLOR_OK : COLOR_MUTED));
+    if (state.hasTelemetry && !isnan(state.temperatureC) &&
+        (state.temperatureC < TEMP_MIN_C || state.temperatureC > TEMP_MAX_C)) {
+        drawAlertItem(y,
+                      state.temperatureC < TEMP_MIN_C
+                          ? "STORAGE TOO COLD"
+                          : "STORAGE TOO WARM",
+                      "CHECK THE INSULIN STORAGE UNIT",
+                      state.temperatureC < TEMP_MIN_C ? COLOR_COLD : COLOR_BAD,
+                      COLOR_PANEL_ALT);
+        y += 56;
+        alertCount++;
+    }
 
-    bool lowStock = state.hasTelemetry && state.estimatedPercent < 20.0f;
-    drawStatusRow(214,
-                  "INSULIN",
-                  !state.hasTelemetry ? "WAITING" : (lowStock ? "LOW" : "OK"),
-                  !state.hasTelemetry ? COLOR_MUTED : (lowStock ? COLOR_WARN : COLOR_OK));
+    if (state.hasTelemetry && state.doorOpen) {
+        drawAlertItem(y, "STORAGE DOOR OPEN", "CLOSE THE STORAGE DOOR",
+                      COLOR_WARN, COLOR_WARN_DARK);
+        y += 56;
+        alertCount++;
+    }
 
-    bool offline = !state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0;
-    drawStatusRow(260,
-                  "SYSTEM",
-                  offline ? "CHECK" : "OK",
-                  offline ? COLOR_WARN : COLOR_OK);
+    if (state.hasTelemetry && state.estimatedPercent < 20.0f) {
+        drawAlertItem(y, "INSULIN SUPPLY LOW", "REFILL INSULIN SOON",
+                      COLOR_WARN, COLOR_WARN_DARK);
+        y += 56;
+        alertCount++;
+    }
 
-    bool lowBattery = state.hasTelemetry && state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT;
-    drawStatusRow(306,
-                  "BATTERY",
-                  !state.hasTelemetry ? "WAITING" : (lowBattery ? "LOW" : "OK"),
-                  !state.hasTelemetry ? COLOR_MUTED : (lowBattery ? COLOR_WARN : COLOR_OK));
+    if (state.hasTelemetry &&
+        state.innerBatteryPercent <= INNER_BATTERY_LOW_PERCENT) {
+        drawAlertItem(y, "STORAGE BATTERY LOW", "CHARGE THE STORAGE UNIT",
+                      COLOR_WARN, COLOR_WARN_DARK);
+        y += 56;
+        alertCount++;
+    }
 
-    drawText(12, 442, "A HOME  |  B RX  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
+    if (!state.wifiConnected || !mqttOk(state) || state.offlineQueueCount > 0) {
+        drawAlertItem(y, "SYNC IS DELAYED", "RECORDS WILL SYNC WHEN ONLINE",
+                      COLOR_WARN, COLOR_PANEL_ALT);
+        y += 56;
+        alertCount++;
+    }
+
+    if (!state.hasTelemetry && alertCount == 0) {
+        drawAlertItem(y, "STORAGE UNIT WAITING", "KEEP BOTH UNITS POWERED ON",
+                      COLOR_WARN, COLOR_PANEL_ALT);
+        alertCount++;
+    }
+
+    if (alertCount == 0) {
+        drawPanel(10, 96, 300, 176, COLOR_OK_DARK);
+        drawCenteredText(10, 126, 300, "EVERYTHING", COLOR_OK, COLOR_OK_DARK, 3);
+        drawCenteredText(10, 164, 300, "LOOKS GOOD", COLOR_OK, COLOR_OK_DARK, 3);
+        drawCenteredText(10, 226, 300, "NO ACTION IS NEEDED",
+                         COLOR_TEXT, COLOR_OK_DARK, 1);
+    }
+
+    drawNavigation("A HOME    B MEDICATION",
+                   "C ALERTS  D DEVICE");
 }
 
 void drawQueueStatus(const DisplayState& state) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    drawPageTitle(state, "QUEUE");
+    drawPageTitle(state, "SERVICE DIAGNOSTICS");
 
     char value[32];
     snprintf(value, sizeof(value), "%u", state.offlineQueueCount);
-    drawStatusRow(76, "QUEUED", value, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+    drawStatusRow(72, "QUEUED RECORDS", value,
+                  state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
 
-    drawStatusRow(122, "QUEUE FS", state.offlineQueueReady ? "READY" : "NOT READY",
+    drawStatusRow(120, "QUEUE STORAGE",
+                  state.offlineQueueReady ? "READY" : "NOT READY",
                   state.offlineQueueReady ? COLOR_OK : COLOR_BAD);
 
-    drawStatusRow(168, "LAST PUB", state.lastPublishOk ? "OK" : "FAIL",
+    drawStatusRow(168, "LAST PUBLISH",
+                  state.lastPublishOk ? "OK" : "FAILED",
                   state.lastPublishOk ? COLOR_OK : COLOR_BAD);
 
-    drawStatusRow(214, "MQTT", state.mqttRetrying ? "RETRYING" : (state.mqttConnected ? "CONNECTED" : "OFFLINE"),
+    drawStatusRow(216, "MQTT",
+                  state.mqttRetrying
+                      ? "RETRYING"
+                      : (state.mqttConnected ? "CONNECTED" : "OFFLINE"),
                   mqttOk(state) ? COLOR_OK : (state.mqttRetrying ? COLOR_WARN : COLOR_BAD));
 
     if (state.offlineQueueCount > 0 && state.offlineQueueOldestMs != 0) {
@@ -542,58 +792,90 @@ void drawQueueStatus(const DisplayState& state) {
     } else {
         snprintf(value, sizeof(value), "0S");
     }
-    drawStatusRow(260, "OLDEST AGE", value, state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
+    drawStatusRow(264, "OLDEST AGE", value,
+                  state.offlineQueueCount > 0 ? COLOR_WARN : COLOR_OK);
 
-    drawText(12, 442, "A HOME  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
+    drawPanel(10, 326, 300, 66, COLOR_PANEL_ALT);
+    drawText(20, 340, "TECHNICIAN VIEW", COLOR_ACCENT, COLOR_PANEL_ALT, 2);
+    drawText(20, 372, "PRESS A TO RETURN HOME", COLOR_MUTED, COLOR_PANEL_ALT, 1);
+
+    drawNavigation("A HOME",
+                   "0 SERVICE DIAGNOSTICS");
 }
 
 void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    drawPageTitle(state, "PRESCRIPTION");
+    drawPageTitle(state, "MEDICATION");
 
     if (!carePlan.available || carePlan.scheduleCount == 0) {
-        rawFillRect(12, 82, 296, 132, COLOR_PANEL);
-        drawText(30, 106, "NO ACTIVE CARE PLAN", COLOR_MUTED, COLOR_PANEL, 2);
-        drawText(30, 148, "WAITING FOR BACKEND", COLOR_TEXT, COLOR_PANEL, 2);
-        drawText(30, 180, "OR DEVICE SYNC", COLOR_TEXT, COLOR_PANEL, 2);
-        drawText(12, 442, "A HOME  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
+        drawPanel(10, 86, 300, 190, COLOR_PANEL_ALT);
+        drawCenteredText(10, 116, 300, "NO MEDICATION", COLOR_TEXT,
+                         COLOR_PANEL_ALT, 3);
+        drawCenteredText(10, 150, 300, "PLAN AVAILABLE", COLOR_TEXT,
+                         COLOR_PANEL_ALT, 3);
+        if (state.wifiConnected && mqttOk(state)) {
+            drawCenteredText(10, 210, 300, "CHECK THE DIASMART APP",
+                             COLOR_MUTED, COLOR_PANEL_ALT, 1);
+            drawCenteredText(10, 230, 300, "OR ASK YOUR CARE TEAM",
+                             COLOR_MUTED, COLOR_PANEL_ALT, 1);
+        } else {
+            drawCenteredText(10, 210, 300, "OFFLINE - CONNECT TO SYNC",
+                             COLOR_WARN, COLOR_PANEL_ALT, 1);
+            drawCenteredText(10, 230, 300, "A MEDICATION PLAN",
+                             COLOR_MUTED, COLOR_PANEL_ALT, 1);
+        }
+        drawPanel(10, 294, 300, 70, COLOR_PANEL);
+        drawText(20, 310, "WHAT TO DO", COLOR_ACCENT, COLOR_PANEL, 1);
+        drawText(20, 338, "KEEP THE DEVICE POWERED ON", COLOR_TEXT, COLOR_PANEL, 1);
+        drawNavigation("A HOME    B MEDICATION",
+                       "C ALERTS  D DEVICE");
         return;
     }
 
     uint16_t statusColor = carePlanStatusColor(carePlan.status);
-    rawFillRect(12, 72, 296, 42, COLOR_PANEL);
-    drawText(22, 86, carePlanStatusText(carePlan.status), statusColor, COLOR_PANEL, 2);
+    uint16_t statusBg = carePlan.status == CARE_PLAN_STATUS_MISSED
+        ? COLOR_BAD_DARK
+        : (carePlan.status == CARE_PLAN_STATUS_DUE
+            ? COLOR_WARN_DARK
+            : (carePlan.status == CARE_PLAN_STATUS_TAKEN
+                ? COLOR_OK_DARK
+                : COLOR_PANEL_ALT));
+    rawFillRect(10, 70, 300, 42, statusBg);
+    drawText(20, 84, carePlanStatusText(carePlan.status),
+             statusColor, statusBg, 2);
     char countText[16];
-    snprintf(countText, sizeof(countText), "%u/%u",
+    snprintf(countText, sizeof(countText), "DOSE %u/%u",
              carePlan.selectedScheduleIndex + 1,
              carePlan.scheduleCount);
-    drawText(258, 86, countText, COLOR_MUTED, COLOR_PANEL, 2);
+    int countX = 300 - textWidth(countText, 1);
+    drawText(countX, 88, countText, COLOR_MUTED, statusBg, 1);
 
-    rawFillRect(12, 126, 296, 82, COLOR_PANEL_ALT);
-    drawText(22, 138, carePlan.period, COLOR_MUTED, COLOR_PANEL_ALT, 2);
-    char insulinText[24];
-    snprintf(insulinText, sizeof(insulinText), "%.22s", carePlan.insulinType);
-    drawText(22, 172, insulinText, COLOR_TEXT, COLOR_PANEL_ALT, 2);
-
+    drawPanel(10, 124, 300, 100, COLOR_PANEL_ALT);
+    drawText(20, 136, "PRESCRIBED", COLOR_MUTED, COLOR_PANEL_ALT, 1);
     char doseText[20];
     snprintf(doseText, sizeof(doseText), "%.1fU", carePlan.doseUnits);
-    drawCard(12, 220, 142, 76, "DOSE", doseText, statusColor);
-    drawCard(166, 220, 142, 76, "TARGET", carePlan.targetTime, COLOR_TEXT, true);
+    drawText(20, 166, doseText, statusColor, COLOR_PANEL_ALT, 3);
 
-    rawFillRect(12, 308, 296, 50, COLOR_PANEL);
+    char insulinText[24];
+    snprintf(insulinText, sizeof(insulinText), "%.14s", carePlan.insulinType);
+    drawText(132, 158, insulinText, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+    drawText(132, 190, carePlan.period, COLOR_MUTED, COLOR_PANEL_ALT, 1);
+
+    drawPanel(10, 236, 145, 68, COLOR_PANEL);
+    drawText(20, 246, "TARGET TIME", COLOR_MUTED, COLOR_PANEL, 1);
+    drawCenteredText(10, 272, 145, carePlan.targetTime,
+                     COLOR_TEXT, COLOR_PANEL, 2);
+
+    drawPanel(165, 236, 145, 68, COLOR_PANEL_ALT);
+    drawText(175, 246, "ALLOWED WINDOW", COLOR_MUTED, COLOR_PANEL_ALT, 1);
     char windowText[32];
     snprintf(windowText, sizeof(windowText), "%s - %s",
              carePlan.windowStart,
              carePlan.windowEnd);
-    drawText(22, 318, "WINDOW", COLOR_MUTED, COLOR_PANEL, 2);
-    drawText(142, 318, windowText, COLOR_TEXT, COLOR_PANEL, 2);
+    drawCenteredText(165, 272, 145, windowText,
+                     COLOR_TEXT, COLOR_PANEL_ALT, 1);
 
-    rawFillRect(12, 370, 296, 54, COLOR_PANEL_ALT);
-    char planText[48];
-    snprintf(planText, sizeof(planText), "V%lu FROM %s",
-             (unsigned long)carePlan.version,
-             carePlan.effectiveFrom);
-    drawText(22, 380, planText, COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    drawPanel(10, 316, 300, 78, statusBg);
     char stateText[48];
     if (carePlan.status == CARE_PLAN_STATUS_UPCOMING &&
         carePlan.timeAvailable) {
@@ -611,103 +893,190 @@ void drawPrescription(const DisplayState& state, const CarePlanView& carePlan) {
         }
     } else if (carePlan.status == CARE_PLAN_STATUS_DUE &&
                carePlan.reminderSilenced) {
-        snprintf(stateText, sizeof(stateText), "REMINDER SILENCED");
+        snprintf(stateText, sizeof(stateText), "REMINDER PAUSED");
     } else if (carePlan.status == CARE_PLAN_STATUS_DUE) {
-        snprintf(stateText, sizeof(stateText), "REMINDER ACTIVE");
+        snprintf(stateText, sizeof(stateText), "TAKE YOUR MEDICATION NOW");
     } else if (carePlan.status == CARE_PLAN_STATUS_TAKEN) {
         snprintf(stateText, sizeof(stateText), "DOSE RECORDED TODAY");
     } else if (carePlan.status == CARE_PLAN_STATUS_MISSED) {
-        snprintf(stateText, sizeof(stateText), "MISSED - CHECK CARE PLAN");
+        snprintf(stateText, sizeof(stateText), "CHECK YOUR MEDICATION PLAN");
     } else {
         snprintf(stateText, sizeof(stateText), "WAITING FOR DEVICE TIME");
     }
-    drawText(22, 402, stateText, statusColor, COLOR_PANEL_ALT, 1);
+    drawCenteredText(10, 330, 300, stateText, statusColor, statusBg, 1);
 
-    rawFillRect(0, 432, DISPLAY_WIDTH, 48, COLOR_BG);
     if (carePlan.scheduleCount > 1) {
-        drawText(12, 438, "* PREV  # NEXT", COLOR_MUTED, COLOR_BG, 1);
+        drawCenteredText(10, 368, 300, "* PREVIOUS    # NEXT",
+                         COLOR_TEXT, statusBg, 1);
     } else {
-        drawText(12, 438, "PRESCRIPTION", COLOR_MUTED, COLOR_BG, 1);
+        drawCenteredText(10, 368, 300, "TODAYS MEDICATION",
+                         COLOR_MUTED, statusBg, 1);
     }
+
     if (carePlan.status == CARE_PLAN_STATUS_DUE &&
         carePlan.manualStopAllowed &&
         !carePlan.reminderSilenced) {
-        drawText(12, 458, "C SILENCE  |  A HOME  |  D SYSTEM", COLOR_WARN, COLOR_BG, 1);
+        drawNavigation("A HOME    C PAUSE REMINDER",
+                       "* PREVIOUS  # NEXT");
     } else {
-        drawText(12, 458, "A HOME  |  C ALERTS  |  D SYSTEM", COLOR_MUTED, COLOR_BG, 1);
+        drawNavigation("A HOME    B MEDICATION",
+                       "C ALERTS  D DEVICE");
     }
 }
 
 void drawDosePrompt(const DisplayState& state, const CarePlanView& carePlan) {
     if (forceFullRedraw) rawFillScreen(COLOR_BG);
-    rawFillRect(0, 0, DISPLAY_WIDTH, 54, COLOR_WARN);
-    drawText(12, 12, "CONFIRM DOSE", COLOR_BG, COLOR_WARN, 3);
+    uint16_t headerBg = state.dosePromptEditing ? COLOR_ACCENT_DARK : COLOR_WARN_DARK;
+    uint16_t headerColor = state.dosePromptEditing ? COLOR_ACCENT : COLOR_WARN;
+    rawFillRect(0, 0, DISPLAY_WIDTH, 60, headerBg);
+    drawText(12, 10,
+             state.dosePromptEditing ? "EDIT DOSE" : "CONFIRM DOSE",
+             headerColor, headerBg, 3);
+    drawText(12, 42,
+             state.dosePromptEditing
+                 ? "USE THE NUMBER KEYS"
+                 : "CHECK BEFORE RECORDING",
+             COLOR_TEXT, headerBg, 1);
 
-    rawFillRect(12, 72, 296, 126, COLOR_PANEL);
-    drawText(28, 92, "PEN", COLOR_MUTED, COLOR_PANEL, 2);
+    drawPanel(10, 72, 145, 92, COLOR_PANEL);
+    drawText(20, 82, "DETECTED BY PEN", COLOR_MUTED, COLOR_PANEL, 1);
+    char detectedBuf[16];
+    snprintf(detectedBuf, sizeof(detectedBuf), "%.1fU", state.promptPenDoseUnits);
+    drawCenteredText(10, 112, 145, detectedBuf, COLOR_TEXT, COLOR_PANEL, 3);
 
-    char penBuf[24];
-    snprintf(penBuf, sizeof(penBuf), "%.1fU", state.promptPenDoseUnits);
-    drawText(88, 86, penBuf, COLOR_TEXT, COLOR_PANEL, 4);
-
-    char sendBuf[24];
-    snprintf(sendBuf, sizeof(sendBuf), "SEND %dU", state.pendingDoseUnits);
-    drawText(28, 144, sendBuf, COLOR_OK, COLOR_PANEL, 4);
-
-    rawFillRect(12, 214, 296, 92, state.dosePromptEditing ? COLOR_PANEL_ALT : COLOR_PANEL);
-    if (state.dosePromptEditing) {
-        drawText(28, 230, "EDIT INTEGER UNITS", COLOR_MUTED, COLOR_PANEL_ALT, 2);
-        char editBuf[24];
-        if (state.doseEditBuffer[0] != '\0') {
-            snprintf(editBuf, sizeof(editBuf), "%sU", state.doseEditBuffer);
-        } else {
-            snprintf(editBuf, sizeof(editBuf), "_");
-        }
-        drawText(28, 260, editBuf, COLOR_TEXT, COLOR_PANEL_ALT, 4);
+    drawPanel(165, 72, 145, 92, COLOR_PANEL_ALT);
+    drawText(175, 82, "WILL RECORD", COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    char recordBuf[16];
+    if (state.dosePromptEditing && state.doseEditBuffer[0] != '\0') {
+        snprintf(recordBuf, sizeof(recordBuf), "%sU", state.doseEditBuffer);
+    } else if (state.dosePromptEditing) {
+        snprintf(recordBuf, sizeof(recordBuf), "_");
     } else {
-        if (carePlan.available && carePlan.scheduleCount > 0) {
-            char prescribedText[32];
-            snprintf(prescribedText, sizeof(prescribedText), "PRESCRIBED %.1fU",
-                     carePlan.doseUnits);
-            drawText(28, 226, prescribedText, COLOR_ACCENT, COLOR_PANEL, 2);
+        snprintf(recordBuf, sizeof(recordBuf), "%dU", state.pendingDoseUnits);
+    }
+    drawCenteredText(165, 112, 145, recordBuf,
+                     state.dosePromptEditing ? COLOR_ACCENT : COLOR_OK,
+                     COLOR_PANEL_ALT, 3);
 
-            char scheduleText[40];
-            snprintf(scheduleText, sizeof(scheduleText), "%.16s AT %s",
-                     carePlan.insulinType,
-                     carePlan.targetTime);
-            drawText(28, 254, scheduleText, COLOR_TEXT, COLOR_PANEL, 1);
-
-            float difference = fabsf(state.pendingDoseUnits - carePlan.doseUnits);
-            drawText(28, 278,
-                     difference <= 0.5f ? "MATCHES CARE PLAN" : "CHECK PRESCRIBED DOSE",
-                     difference <= 0.5f ? COLOR_OK : COLOR_WARN,
-                     COLOR_PANEL,
-                     1);
-        } else {
-            drawText(28, 232, "NO PRESCRIPTION LOADED", COLOR_MUTED, COLOR_PANEL, 2);
-            drawText(28, 270, "VERIFY PEN READING", COLOR_TEXT, COLOR_PANEL, 2);
-        }
+    drawPanel(10, 176, 300, 70, COLOR_PANEL_ALT);
+    drawText(20, 186, "MEDICATION PLAN", COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    bool hasPlan = carePlan.available && carePlan.scheduleCount > 0;
+    if (hasPlan) {
+        char prescribedText[24];
+        snprintf(prescribedText, sizeof(prescribedText), "%.1fU  %.14s",
+                 carePlan.doseUnits, carePlan.insulinType);
+        drawText(20, 207, prescribedText, COLOR_TEXT, COLOR_PANEL_ALT, 2);
+        char scheduleText[24];
+        snprintf(scheduleText, sizeof(scheduleText), "TARGET %s", carePlan.targetTime);
+        drawText(20, 230, scheduleText, COLOR_MUTED, COLOR_PANEL_ALT, 1);
+    } else {
+        drawText(20, 207, "NO PLAN IS LOADED", COLOR_WARN, COLOR_PANEL_ALT, 2);
+        drawText(20, 230, "VERIFY THE PEN READING", COLOR_MUTED, COLOR_PANEL_ALT, 1);
     }
 
-    rawFillRect(12, 322, 296, 74, COLOR_PANEL);
-    if (state.dosePromptEditing) {
-        if (state.doseEditBuffer[0] != '\0') {
-            drawText(22, 336, "D SUBMIT  * DELETE", COLOR_TEXT, COLOR_PANEL, 2);
-            drawText(22, 370, "# CLEAR  C BACK", COLOR_MUTED, COLOR_PANEL, 2);
-        } else {
-            drawText(22, 336, "ENTER DOSE WITH 0-9", COLOR_TEXT, COLOR_PANEL, 2);
-            drawText(22, 370, "C BACK", COLOR_MUTED, COLOR_PANEL, 2);
-        }
+    int selectedUnits = state.pendingDoseUnits;
+    if (state.dosePromptEditing && state.doseEditBuffer[0] != '\0') {
+        selectedUnits = atoi(state.doseEditBuffer);
+    }
+    bool matchesPlan = hasPlan &&
+        fabsf((float)selectedUnits - carePlan.doseUnits) <= 0.5f;
+    uint16_t matchBg = !hasPlan
+        ? COLOR_WARN_DARK
+        : (matchesPlan ? COLOR_OK_DARK : COLOR_BAD_DARK);
+    uint16_t matchColor = !hasPlan
+        ? COLOR_WARN
+        : (matchesPlan ? COLOR_OK : COLOR_BAD);
+    rawFillRect(10, 258, 300, 42, matchBg);
+    if (!hasPlan) {
+        drawCenteredText(10, 272, 300, "NO PLAN - CHECK THE DOSE",
+                         matchColor, matchBg, 1);
+    } else if (matchesPlan) {
+        drawCenteredText(10, 272, 300, "MATCHES MEDICATION PLAN",
+                         matchColor, matchBg, 1);
     } else {
-        drawText(28, 332, "A CONFIRM  B EDIT", COLOR_TEXT, COLOR_PANEL, 2);
-        char autoBuf[24];
-        snprintf(autoBuf, sizeof(autoBuf), "AUTO CONFIRM %uS", state.dosePromptRemainingSec);
-        drawText(28, 362, "C CANCEL", COLOR_BAD, COLOR_PANEL, 2);
-        drawText(166, 370, autoBuf, COLOR_WARN, COLOR_PANEL, 1);
+        drawCenteredText(10, 268, 300, "DOSE DIFFERS FROM PLAN",
+                         matchColor, matchBg, 1);
+        drawCenteredText(10, 284, 300, "CHECK BEFORE RECORDING",
+                         COLOR_TEXT, matchBg, 1);
     }
 
-    rawFillRect(0, 438, DISPLAY_WIDTH, 42, COLOR_BG);
-    drawText(10, 450, "CONFIRMED SEND VALUE GOES TO BACKEND", COLOR_MUTED, COLOR_BG, 1);
+    drawPanel(10, 312, 300, 66, COLOR_PANEL);
+    char autoBuf[32];
+    snprintf(autoBuf, sizeof(autoBuf), "AUTO RECORD IN %u SECONDS",
+             state.dosePromptRemainingSec);
+    drawCenteredText(10, 324, 300, autoBuf,
+                     state.dosePromptRemainingSec <= 10 ? COLOR_WARN : COLOR_TEXT,
+                     COLOR_PANEL, 1);
+    uint32_t timeoutSeconds = DOSE_CONFIRM_TIMEOUT_MS / 1000U;
+    uint8_t remainingPercent = timeoutSeconds == 0
+        ? 0
+        : (uint8_t)(((uint32_t)state.dosePromptRemainingSec * 100U) /
+                    timeoutSeconds);
+    drawProgressBar(24, 350, 272, 12, remainingPercent,
+                    state.dosePromptRemainingSec <= 10 ? COLOR_WARN : COLOR_ACCENT,
+                    COLOR_HEADER);
+
+    if (state.dosePromptEditing) {
+        drawPanel(10, 390, 300, 34, COLOR_ACCENT_DARK);
+        drawCenteredText(10, 401, 300,
+                         state.doseEditBuffer[0] != '\0'
+                             ? "D SAVE   * DELETE   # CLEAR"
+                             : "ENTER DOSE WITH 0-9",
+                         COLOR_TEXT, COLOR_ACCENT_DARK, 1);
+        drawNavigation("C BACK TO DETECTED DOSE",
+                       "AUTO RECORD REMAINS ACTIVE");
+    } else {
+        drawPanel(10, 390, 145, 34, COLOR_OK_DARK);
+        drawCenteredText(10, 401, 145, "A RECORD NOW",
+                         COLOR_OK, COLOR_OK_DARK, 1);
+        drawPanel(165, 390, 145, 34, COLOR_ACCENT_DARK);
+        drawCenteredText(165, 401, 145, "B EDIT DOSE",
+                         COLOR_ACCENT, COLOR_ACCENT_DARK, 1);
+        drawNavigation("A RECORD   B EDIT",
+                       "C CANCEL - DO NOT SEND");
+    }
+}
+
+void drawDoseNotice(const DisplayState& state) {
+    if (forceFullRedraw) rawFillScreen(COLOR_BG);
+    const bool cancelled = state.noticeType == DISPLAY_NOTICE_DOSE_CANCELLED;
+    const bool automatic = state.noticeType == DISPLAY_NOTICE_DOSE_AUTO_RECORDED;
+    uint16_t noticeColor = cancelled ? COLOR_WARN : COLOR_OK;
+    uint16_t noticeBg = cancelled ? COLOR_WARN_DARK : COLOR_OK_DARK;
+
+    rawFillRect(0, 0, DISPLAY_WIDTH, 60, COLOR_HEADER);
+    drawCenteredText(0, 18, DISPLAY_WIDTH, "DIASMART",
+                     COLOR_ACCENT, COLOR_HEADER, 2);
+
+    drawPanel(20, 92, 280, 220, noticeBg);
+    drawCenteredText(20, 126, 280, "DOSE",
+                     noticeColor, noticeBg, 3);
+    drawCenteredText(20, 162, 280,
+                     cancelled ? "CANCELLED" : "RECORDED",
+                     noticeColor, noticeBg, 3);
+
+    if (!cancelled) {
+        char doseText[20];
+        snprintf(doseText, sizeof(doseText), "%.0f UNITS", state.noticeDoseUnits);
+        drawCenteredText(20, 218, 280, doseText,
+                         COLOR_TEXT, noticeBg, 2);
+        drawCenteredText(20, 260, 280,
+                         automatic ? "RECORDED AUTOMATICALLY" : "CONFIRMED BY YOU",
+                         COLOR_MUTED, noticeBg, 1);
+    } else {
+        drawCenteredText(20, 230, 280, "NOT SENT OR RECORDED",
+                         COLOR_TEXT, noticeBg, 1);
+    }
+
+    drawPanel(20, 330, 280, 56, COLOR_PANEL);
+    drawCenteredText(20, 344, 280,
+                     cancelled
+                         ? "RETURNING TO HOME"
+                         : (state.mqttConnected
+                             ? "READY TO SYNC SECURELY"
+                             : "SAVED - WILL SYNC LATER"),
+                     state.mqttConnected ? COLOR_OK : COLOR_WARN,
+                     COLOR_PANEL, 1);
 }
 
 void rawBusInit() {
@@ -758,21 +1127,30 @@ void displayUiTask(void* parameter) {
     CarePlanView previousCarePlan = {};
     bool hasPreviousState = false;
     uint32_t lastDrawMs = 0;
+    uint8_t previousMode = 0xFF;
 
     for (;;) {
         DisplayState state = getDisplayStateSnapshot();
         CarePlanView carePlan = getCarePlanViewSnapshot();
+        uint8_t currentMode = visibleMode(state);
         if (displayNeedsRedraw(state,
                                previousState,
                                carePlan,
                                previousCarePlan,
+                               currentMode,
+                               previousMode,
                                lastDrawMs,
                                hasPreviousState)) {
-            forceFullRedraw = !hasPreviousState || visibleMode(state) != visibleMode(previousState);
+            forceFullRedraw = !hasPreviousState || currentMode != previousMode;
             if (state.dosePromptActive) {
                 drawDosePrompt(state, carePlan);
+            } else if (currentMode == DISPLAY_MODE_NOTICE) {
+                drawDoseNotice(state);
             } else {
                 switch (state.activePage) {
+                    case DISPLAY_PAGE_DEVICE_SETUP:
+                        drawDeviceSetup(state);
+                        break;
                     case DISPLAY_PAGE_DEVICE_STATUS:
                         drawSystemStatus(state);
                         break;
@@ -795,6 +1173,7 @@ void displayUiTask(void* parameter) {
             previousCarePlan = carePlan;
             hasPreviousState = true;
             lastDrawMs = millis();
+            previousMode = currentMode;
         }
         vTaskDelay(pdMS_TO_TICKS(DISPLAY_REFRESH_MS));
     }

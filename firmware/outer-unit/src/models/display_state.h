@@ -7,7 +7,15 @@ enum DisplayPage : uint8_t {
     DISPLAY_PAGE_DEVICE_STATUS = 1,
     DISPLAY_PAGE_ALERTS = 2,
     DISPLAY_PAGE_QUEUE_STATUS = 3,
-    DISPLAY_PAGE_PRESCRIPTION = 4
+    DISPLAY_PAGE_PRESCRIPTION = 4,
+    DISPLAY_PAGE_DEVICE_SETUP = 5
+};
+
+enum DisplayNoticeType : uint8_t {
+    DISPLAY_NOTICE_NONE = 0,
+    DISPLAY_NOTICE_DOSE_RECORDED = 1,
+    DISPLAY_NOTICE_DOSE_AUTO_RECORDED = 2,
+    DISPLAY_NOTICE_DOSE_CANCELLED = 3
 };
 
 struct DisplayState {
@@ -48,5 +56,9 @@ struct DisplayState {
     int originalDoseUnits;
     uint8_t dosePromptRemainingSec;
     char doseEditBuffer[8];
+
+    uint8_t noticeType;
+    float noticeDoseUnits;
+    uint32_t noticeStartedMs;
 };
 

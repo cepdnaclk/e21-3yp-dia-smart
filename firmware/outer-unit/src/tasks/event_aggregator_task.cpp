@@ -259,7 +259,11 @@ void eventAggregatorTask(void* parameter) {
             char key = keyEvent.key;
             if (!pendingDose.active) {
                 DisplayState displayState = getDisplayStateSnapshot();
-                if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '*') {
+                if (displayState.activePage == DISPLAY_PAGE_DEVICE_STATUS &&
+                    key == '#') {
+                    updateDisplayPage(DISPLAY_PAGE_DEVICE_SETUP);
+                    Serial.println("[EventAgg] Display page: device setup");
+                } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '*') {
                     carePlanSelectPreviousSchedule();
                     Serial.println("[EventAgg] Prescription: previous schedule");
                 } else if (displayState.activePage == DISPLAY_PAGE_PRESCRIPTION && key == '#') {
@@ -299,6 +303,7 @@ void eventAggregatorTask(void* parameter) {
                     hasLastResolvedDose = true;
                     confirmedDose = true;
                     carePlanMarkDoseTaken(lastDose.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_RECORDED, lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose confirmed by patient: %d units\n",
                                   pendingDose.roundedUnits);
                     pendingDose = {};
@@ -315,6 +320,7 @@ void eventAggregatorTask(void* parameter) {
                     Serial.printf(
                         "[EventAgg] Accidental pen dose cancelled: %.1f units\n",
                         pendingDose.original.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_CANCELLED, 0.0f);
                     pendingDose = {};
                     clearDosePrompt();
                 }
@@ -350,6 +356,7 @@ void eventAggregatorTask(void* parameter) {
                     hasLastResolvedDose = true;
                     confirmedDose = true;
                     carePlanMarkDoseTaken(lastDose.doseUnits);
+                    showDisplayNotice(DISPLAY_NOTICE_DOSE_RECORDED, lastDose.doseUnits);
                     Serial.printf("[EventAgg] Dose edited by patient: raw=%.1f sent=%d units\n",
                                   pendingDose.original.doseUnits,
                                   editedUnits);
@@ -370,6 +377,7 @@ void eventAggregatorTask(void* parameter) {
                 hasLastResolvedDose = true;
                 confirmedDose = true;
                 carePlanMarkDoseTaken(lastDose.doseUnits);
+                showDisplayNotice(DISPLAY_NOTICE_DOSE_AUTO_RECORDED, lastDose.doseUnits);
                 Serial.printf("[EventAgg] Dose auto-confirmed after timeout: %d units\n",
                               pendingDose.roundedUnits);
                 pendingDose = {};

@@ -1,9 +1,12 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "config/app_config.h"
+#include "services/wifi_provisioning_service.h"
+#include "../../common/services/wifi_credential_manager.h"
 
 // Forward declaration for task defined in tasks/
 void sensorSamplingTask(void* pvParams);
@@ -14,20 +17,48 @@ void sensorSamplingTask(void* pvParams);
 // After locking the channel, WiFi is disconnected but the radio stays in
 // STA mode — required for ESP-NOW to operate.
 
-static void lockEspNowChannel() {
+namespace {
+WifiCredentialManager credentialManager(
+    "diasmart-wifi",
+    WIFI_SSID,
+    WIFI_PASSWORD);
+
+const char* credentialSourceName(WifiCredentialSource source) {
+    switch (source) {
+        case WifiCredentialSource::NVS_CURRENT:
+            return "saved";
+        case WifiCredentialSource::DEVELOPMENT_FALLBACK:
+            return "development fallback";
+        default:
+            return "unavailable";
+    }
+}
+}
+
+static bool tryLockEspNowChannel(
+    const WifiConfiguration& configuration,
+    WifiCredentialSource source
+) {
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(false);
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    if (configuration.openNetwork != 0) {
+        WiFi.begin(configuration.ssid);
+    } else {
+        WiFi.begin(configuration.ssid, configuration.password);
+    }
 
-    Serial.printf("[WiFi] Connecting to lock channel %d", ESPNOW_CHANNEL);
+    Serial.printf(
+        "[WiFi] Connecting with %s credentials (version=%lu)",
+        credentialSourceName(source),
+        static_cast<unsigned long>(configuration.configurationVersion));
 
-    uint32_t start = millis();
+    const uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED) {
         if ((millis() - start) >= WIFI_CONNECT_TIMEOUT_MS) {
-            Serial.println("\n[WiFi] Timeout — setting channel manually");
-            // Fallback: force channel without being associated to an AP
-            esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-            WiFi.disconnect(false);   // disconnect but keep STA mode alive
-            return;
+            Serial.println("\n[WiFi] Connection timed out");
+            WiFi.disconnect(false);
+            return false;
         }
         vTaskDelay(pdMS_TO_TICKS(250));
         Serial.print(".");
@@ -40,6 +71,35 @@ static void lockEspNowChannel() {
     WiFi.disconnect(false);
     esp_wifi_set_channel(lockedChannel, WIFI_SECOND_CHAN_NONE);
     Serial.printf("[WiFi] ESP-NOW channel locked to %d\n", lockedChannel);
+    return true;
+}
+
+static void lockEspNowChannel() {
+    WifiConfiguration configuration = {};
+    WifiCredentialSource source = WifiCredentialSource::NONE;
+    bool locked = false;
+
+    if (credentialManager.loadActive(configuration, source)) {
+        locked = tryLockEspNowChannel(configuration, source);
+    }
+    clearWifiConfiguration(configuration);
+
+    if (!locked && source == WifiCredentialSource::NVS_CURRENT) {
+        Serial.println(
+            "[WiFi] Saved credentials failed; trying development fallback");
+        if (credentialManager.loadDevelopmentFallback(configuration)) {
+            locked = tryLockEspNowChannel(
+                configuration,
+                WifiCredentialSource::DEVELOPMENT_FALLBACK);
+        }
+        clearWifiConfiguration(configuration);
+    }
+
+    if (!locked) {
+        Serial.println("[WiFi] Using ESP-NOW recovery channel");
+        WiFi.mode(WIFI_STA);
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    }
 }
 
 // -------------------------------------------------------------------------- //
@@ -50,6 +110,13 @@ void setup() {
     Serial.println("=== Dia-Smart Inner Unit Starting ===");
 
     lockEspNowChannel();
+
+    if (!setupInnerWifiProvisioningService()) {
+        Serial.println("[Main] Wi-Fi provisioning service failed - halting");
+        while (true) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
 
     // Sensor sampling + ESP-NOW TX — runs on Core 1 (sensor-heavy)
     xTaskCreatePinnedToCore(

@@ -11,6 +11,7 @@ void updateDisplayDosePrompt(bool active,
                              int originalDoseUnits,
                              uint8_t remainingSec,
                              const char* editBuffer);
+void showDisplayNotice(uint8_t noticeType, float doseUnits);
 void updateDisplayConnectivity(bool wifiConnected,
                                bool mqttConnected,
                                bool mqttRetrying,

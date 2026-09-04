@@ -4,6 +4,7 @@
 // ---- Wi-Fi ---------------------------------------------------------------- //
 #define WIFI_SSID                    "ananthu73"
 #define WIFI_PASSWORD                "123123123@@"
+#define WIFI_CONNECT_TIMEOUT_MS      10000
 
 // ---- Device UIDs (must match backend DB exactly) ------------------------- //
 #define DEVICE_UID                   "DS-OUTER-0001"   // MQTT client ID (keep alias)
@@ -22,9 +23,13 @@
 // Must match backend MQTT_TOPIC subscription.
 #define AWS_IOT_PUBLISH_TOPIC        "diasmart/device/telemetry"
 #define AWS_IOT_CARE_PLAN_TOPIC      "diasmart/devices/" DEVICE_UID_OUTER "/care-plan"
+#define AWS_IOT_COMMAND_TOPIC        "diasmart/devices/" DEVICE_UID_OUTER "/commands"
 #define AWS_IOT_COMMAND_ACK_TOPIC    "diasmart/devices/" DEVICE_UID_OUTER "/command-ack"
 #define AWS_IOT_DEVICE_TELEMETRY_TOPIC "diasmart/devices/" DEVICE_UID_OUTER "/telemetry"
 #define MQTT_BUFFER_BYTES            8192
+#define WIFI_COMMAND_MAX_BYTES       1024
+#define WIFI_COMMAND_QUEUE_LENGTH    3
+#define WIFI_STATUS_QUEUE_LENGTH     6
 
 // ---- Serial --------------------------------------------------------------- //
 #define SERIAL_BAUD                  115200
@@ -33,6 +38,16 @@
 // Outer unit receives on same channel as its WiFi AP.
 // Inner unit must lock to the same channel (ESPNOW_CHANNEL=1 on both sides).
 #define ESPNOW_CHANNEL               1
+#define WIFI_CONFIG_FRAME_QUEUE_LENGTH 4
+#define WIFI_PROVISIONING_TASK_STACK   8192
+#define WIFI_PAIRING_TIMEOUT_MS        3000
+#define WIFI_STAGE_ACK_TIMEOUT_MS      3000
+#define WIFI_INNER_RESULT_TIMEOUT_MS   15000
+#define WIFI_CONFIG_SEND_ATTEMPTS      3
+#define WIFI_PROVISION_RETRY_DELAY_MS  5000
+#define LOCAL_PROVISION_MAX_BODY_BYTES 256
+#define LOCAL_PROVISIONING_TASK_STACK  6144
+#define LOCAL_PROVISION_SUCCESS_GRACE_MS 30000
 
 // ---- Pen Unit BLE (central scans for this peripheral) -------------------- //
 #define PEN_BLE_DEVICE_NAME          "Dose_ESP32_C3"
@@ -55,10 +70,11 @@
 #define GLUCOMETER_SCAN_WINDOW_SEC   10
 #define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
 
-// Keep requesting the Guide Me latest record while its BLE link is active.
-// Sequence-number deduplication prevents repeat backend events.
-#define GLUCOMETER_LIVE_SYNC_INTERVAL_MS 5000
-#define GLUCOMETER_RACP_TIMEOUT_MS       12000
+// Use one RACP request per glucometer connection. After the request completes
+// (or times out), disconnect and start a fresh session later. The Guide Me is
+// more reliable when each stored-record fetch has a clean BLE session.
+#define GLUCOMETER_SESSION_RETRY_DELAY_MS 5000
+#define GLUCOMETER_RACP_TIMEOUT_MS        12000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //
 #define TEMP_MIN_C                   2.0f

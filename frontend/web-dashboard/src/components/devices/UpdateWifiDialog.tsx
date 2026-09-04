@@ -81,6 +81,11 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
 
           const isSuccess =
             res.overallStatus === "SUCCEEDED" ||
+            res.configurationStatus === "APPLIED" ||
+            (res.outerUnitStatus === "APPLIED" &&
+              res.innerUnitStatus === "CONNECTED") ||
+            (res.outerUnitStatus === "CONNECTED" &&
+              res.innerUnitStatus === "CONNECTED") ||
             (res.configurationStatus === "PUBLISHED" &&
               res.outerUnitStatus === "PUBLISHED" &&
               res.innerUnitStatus === "CONNECTED");

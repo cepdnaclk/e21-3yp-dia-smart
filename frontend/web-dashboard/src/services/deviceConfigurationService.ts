@@ -11,11 +11,13 @@ export interface DeviceConfigurationResponse {
   penDeviceId?: number;
   glucometerDeviceId?: number;
   wifiSsid: string;
-  configurationStatus: "PENDING" | "PUBLISHED" | "FAILED" | string;
+  configurationStatus: "PENDING" | "PUBLISHED" | "FAILED" | "TIMED_OUT" | string;
+  overallStatus?: "SUCCEEDED" | "FAILED" | "TIMED_OUT" | "ROLLED_BACK" | "SUPERSEDED" | string;
   outerUnitStatus: "PENDING" | "PUBLISHED" | "FAILED" | string;
   innerUnitStatus: "NOT_CONFIGURED" | "PENDING" | "CONNECTED" | "FAILED" | string;
   innerUnitIpAddress?: string;
   innerUnitMessage?: string;
+  lastErrorMessage?: string;
   lastInnerUnitStatusAt?: string;
   configurationVersion: number;
   lastSyncedAt?: string;

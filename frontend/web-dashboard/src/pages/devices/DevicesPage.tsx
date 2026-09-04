@@ -26,6 +26,8 @@ import type {
   DeviceDiagnostics,
 } from "../../types/device";
 import { ProvisioningWizard } from "../../components/devices/ProvisioningWizard";
+import { UpdateWifiDialog } from "../../components/devices/UpdateWifiDialog";
+import { Wifi as WifiIcon } from "@mui/icons-material";
 import { useAuth } from "../../context/AuthContext";
 
 const requiredDeviceTypes = [
@@ -68,14 +70,32 @@ const normalizeDeviceType = (
 const DeviceDetailsContent = ({
   selectedDevice,
   deviceDiagnostics,
+  onUpdateWifi,
 }: {
   selectedDevice: Device;
   deviceDiagnostics: DeviceDiagnostics | null;
-}) => (
+  onUpdateWifi?: (device: Device) => void;
+}) => {
+  const isOuterUnit =
+    normalizeDeviceType(selectedDevice.deviceType) === "OUTER_UNIT";
+
+  return (
   <Stack spacing={2}>
-    <Typography sx={{ fontWeight: 600 }}>
-      {selectedDevice.deviceName ?? selectedDevice.deviceUid}
-    </Typography>
+    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Typography sx={{ fontWeight: 600 }}>
+        {selectedDevice.deviceName ?? selectedDevice.deviceUid}
+      </Typography>
+      {isOuterUnit && onUpdateWifi && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<WifiIcon />}
+          onClick={() => onUpdateWifi(selectedDevice)}
+        >
+          Update Wi-Fi
+        </Button>
+      )}
+    </Box>
 
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, md: 6 }}>
@@ -204,7 +224,8 @@ const DeviceDetailsContent = ({
       </Grid>
     </Grid>
   </Stack>
-);
+  );
+};
 
 import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 
@@ -222,6 +243,7 @@ const DevicesPage = () => {
     useState<Device | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [wifiUpdateTarget, setWifiUpdateTarget] = useState<Device | null>(null);
 
   const loadDevices = async (silent = false) => {
     try {
@@ -430,17 +452,31 @@ const DevicesPage = () => {
                             <Typography color="text.secondary" variant="body2">
                               Device ID: {device.deviceUid}
                             </Typography>
-                            <Button
-                              color="error"
-                              size="small"
-                              sx={{ alignSelf: "flex-start", mt: 1 }}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setDisconnectTarget(device);
-                              }}
-                            >
-                              Disconnect
-                            </Button>
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                              {normalizeDeviceType(device.deviceType) === "OUTER_UNIT" && (
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<WifiIcon />}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setWifiUpdateTarget(device);
+                                  }}
+                                >
+                                  Update Wi-Fi
+                                </Button>
+                              )}
+                              <Button
+                                color="error"
+                                size="small"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDisconnectTarget(device);
+                                }}
+                              >
+                                Disconnect
+                              </Button>
+                            </Stack>
                           </Stack>
                         </CardContent>
                       </Card>
@@ -461,6 +497,7 @@ const DevicesPage = () => {
                     <DeviceDetailsContent
                       selectedDevice={selectedDevice}
                       deviceDiagnostics={deviceDiagnostics}
+                      onUpdateWifi={(device) => setWifiUpdateTarget(device)}
                     />
                   ) : (
                     <Typography color="text.secondary">
@@ -505,6 +542,7 @@ const DevicesPage = () => {
             <DeviceDetailsContent
               selectedDevice={selectedDevice}
               deviceDiagnostics={deviceDiagnostics}
+              onUpdateWifi={(device) => setWifiUpdateTarget(device)}
             />
           ) : (
             <Typography>Loading details...</Typography>
@@ -514,6 +552,13 @@ const DevicesPage = () => {
           <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <UpdateWifiDialog
+        open={Boolean(wifiUpdateTarget)}
+        onClose={() => setWifiUpdateTarget(null)}
+        outerDevice={wifiUpdateTarget}
+        onSuccess={() => loadDevices(true)}
+      />
     </>
   );
 };

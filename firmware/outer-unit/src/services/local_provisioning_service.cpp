@@ -278,7 +278,9 @@ bool setupLocalProvisioningService() {
     const bool hasSavedConfiguration =
         wifiCredentialStore().loadCurrent(current);
     clearWifiConfiguration(current);
-    if (!hasSavedConfiguration || !isWiFiConnected()) {
+    if (!hasSavedConfiguration ||
+        !isWiFiConnected() ||
+        isWifiUsingDevelopmentFallback()) {
         return startLocalProvisioningMode();
     }
     return true;

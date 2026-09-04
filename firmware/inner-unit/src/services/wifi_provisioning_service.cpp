@@ -184,10 +184,17 @@ void sendApplyResult(
         request.configurationVersion,
         request.commandHash,
         &response.payload);
-    esp_now_send(
-        pairedOuterMac,
-        reinterpret_cast<const uint8_t*>(&response),
-        sizeof(response));
+    for (uint8_t attempt = 0;
+         attempt < WIFI_RESULT_SEND_ATTEMPTS;
+         ++attempt) {
+        esp_now_send(
+            pairedOuterMac,
+            reinterpret_cast<const uint8_t*>(&response),
+            sizeof(response));
+        if ((attempt + 1) < WIFI_RESULT_SEND_ATTEMPTS) {
+            vTaskDelay(pdMS_TO_TICKS(WIFI_RESULT_RETRY_DELAY_MS));
+        }
+    }
 }
 
 bool connectAndLockChannel(
@@ -229,6 +236,38 @@ bool connectAndLockChannel(
     const bool espNowReady = initializeEspNow();
     switchInProgress = false;
     return connected && espNowReady;
+}
+
+bool restoreActiveWifiChannel(
+    uint8_t& channel,
+    IPAddress& ipAddress
+) {
+    WifiConfiguration configuration = {};
+    WifiCredentialSource source = WifiCredentialSource::NONE;
+    if (!credentialManager.loadActive(configuration, source)) {
+        return false;
+    }
+
+    bool connected = connectAndLockChannel(
+        configuration,
+        WIFI_CONNECT_TIMEOUT_MS,
+        channel,
+        ipAddress);
+    clearWifiConfiguration(configuration);
+
+    if (!connected && source == WifiCredentialSource::NVS_CURRENT) {
+        Serial.println(
+            "[WiFiProvisioning] Saved recovery failed; trying development fallback");
+        if (credentialManager.loadDevelopmentFallback(configuration)) {
+            connected = connectAndLockChannel(
+                configuration,
+                WIFI_CONNECT_TIMEOUT_MS,
+                channel,
+                ipAddress);
+        }
+        clearWifiConfiguration(configuration);
+    }
+    return connected;
 }
 
 void handlePairRequest(const ReceivedWifiFrame& frame) {
@@ -310,15 +349,6 @@ void handleStage(const ReceivedWifiFrame& frame) {
         return;
     }
 
-    WifiConfiguration current = {};
-    if (!credentialManager.store().loadCurrent(current)) {
-        WifiCredentialSource source = WifiCredentialSource::NONE;
-        if (credentialManager.loadActive(current, source)) {
-            credentialManager.store().saveCurrent(current);
-        }
-    }
-    clearWifiConfiguration(current);
-
     if (!credentialManager.store().stagePending(configuration)) {
         clearWifiConfiguration(configuration);
         sendStageAck(
@@ -397,18 +427,9 @@ void handleApply(const ReceivedWifiFrame& frame) {
     }
 
     credentialManager.store().clearPending();
-    WifiConfiguration current = {};
-    WifiCredentialSource source = WifiCredentialSource::NONE;
     uint8_t recoveryChannel = ESPNOW_CHANNEL;
     IPAddress recoveryIp;
-    if (credentialManager.loadActive(current, source)) {
-        connectAndLockChannel(
-            current,
-            WIFI_CONNECT_TIMEOUT_MS,
-            recoveryChannel,
-            recoveryIp);
-    }
-    clearWifiConfiguration(current);
+    restoreActiveWifiChannel(recoveryChannel, recoveryIp);
     sendApplyResult(
         request->header,
         WifiConfigResultStatus::FAILED,

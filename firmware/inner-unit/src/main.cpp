@@ -35,16 +35,12 @@ const char* credentialSourceName(WifiCredentialSource source) {
 }
 }
 
-static void lockEspNowChannel() {
-    WifiConfiguration configuration = {};
-    WifiCredentialSource source = WifiCredentialSource::NONE;
-    if (!credentialManager.loadActive(configuration, source)) {
-        Serial.println("[WiFi] No valid credentials - using recovery channel");
-        WiFi.mode(WIFI_STA);
-        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-        return;
-    }
-
+static bool tryLockEspNowChannel(
+    const WifiConfiguration& configuration,
+    WifiCredentialSource source
+) {
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(false);
     WiFi.mode(WIFI_STA);
     if (configuration.openNetwork != 0) {
         WiFi.begin(configuration.ssid);
@@ -56,16 +52,13 @@ static void lockEspNowChannel() {
         "[WiFi] Connecting with %s credentials (version=%lu)",
         credentialSourceName(source),
         static_cast<unsigned long>(configuration.configurationVersion));
-    clearWifiConfiguration(configuration);
 
-    uint32_t start = millis();
+    const uint32_t start = millis();
     while (WiFi.status() != WL_CONNECTED) {
         if ((millis() - start) >= WIFI_CONNECT_TIMEOUT_MS) {
-            Serial.println("\n[WiFi] Timeout — setting channel manually");
-            // Fallback: force channel without being associated to an AP
-            esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-            WiFi.disconnect(false);   // disconnect but keep STA mode alive
-            return;
+            Serial.println("\n[WiFi] Connection timed out");
+            WiFi.disconnect(false);
+            return false;
         }
         vTaskDelay(pdMS_TO_TICKS(250));
         Serial.print(".");
@@ -78,6 +71,35 @@ static void lockEspNowChannel() {
     WiFi.disconnect(false);
     esp_wifi_set_channel(lockedChannel, WIFI_SECOND_CHAN_NONE);
     Serial.printf("[WiFi] ESP-NOW channel locked to %d\n", lockedChannel);
+    return true;
+}
+
+static void lockEspNowChannel() {
+    WifiConfiguration configuration = {};
+    WifiCredentialSource source = WifiCredentialSource::NONE;
+    bool locked = false;
+
+    if (credentialManager.loadActive(configuration, source)) {
+        locked = tryLockEspNowChannel(configuration, source);
+    }
+    clearWifiConfiguration(configuration);
+
+    if (!locked && source == WifiCredentialSource::NVS_CURRENT) {
+        Serial.println(
+            "[WiFi] Saved credentials failed; trying development fallback");
+        if (credentialManager.loadDevelopmentFallback(configuration)) {
+            locked = tryLockEspNowChannel(
+                configuration,
+                WifiCredentialSource::DEVELOPMENT_FALLBACK);
+        }
+        clearWifiConfiguration(configuration);
+    }
+
+    if (!locked) {
+        Serial.println("[WiFi] Using ESP-NOW recovery channel");
+        WiFi.mode(WIFI_STA);
+        esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    }
 }
 
 // -------------------------------------------------------------------------- //

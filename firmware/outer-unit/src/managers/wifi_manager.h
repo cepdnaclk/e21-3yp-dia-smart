@@ -14,6 +14,9 @@ bool connectUsingWifiConfiguration(
 bool loadActiveWifiConfiguration(
     WifiConfiguration& configuration,
     WifiCredentialSource& source);
+bool connectUsingActiveWifiConfiguration(
+    bool enableAutoReconnectOnFailure = true);
+bool isWifiUsingDevelopmentFallback();
 WifiCredentialStore& wifiCredentialStore();
 
 #endif

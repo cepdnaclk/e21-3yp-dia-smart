@@ -9,6 +9,7 @@ WifiCredentialManager credentialManager(
     "diasmart-wifi",
     WIFI_SSID,
     WIFI_PASSWORD);
+volatile bool usingDevelopmentFallback = false;
 
 const char* credentialSourceName(WifiCredentialSource source) {
     switch (source) {
@@ -66,7 +67,7 @@ bool connectUsingWifiConfiguration(
         WiFi.setAutoReconnect(true);
         return true;
     } else {
-        Serial.println("\n[ERROR] Wi-Fi Connection Failed. Will retry automatically.");
+        Serial.println("\n[ERROR] Wi-Fi connection failed");
         esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
         Serial.printf("[WiFi] Forced ESP-NOW fallback channel %d\n", ESPNOW_CHANNEL);
     }
@@ -85,14 +86,16 @@ WifiCredentialStore& wifiCredentialStore() {
     return credentialManager.store();
 }
 
-void setupWiFi()
-{
+bool connectUsingActiveWifiConfiguration(
+    bool enableAutoReconnectOnFailure
+) {
     WifiConfiguration configuration = {};
     WifiCredentialSource source = WifiCredentialSource::NONE;
     if (!loadActiveWifiConfiguration(configuration, source)) {
         Serial.println("[WiFi] No valid credentials available");
         esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-        return;
+        usingDevelopmentFallback = false;
+        return false;
     }
 
     Serial.printf(
@@ -100,8 +103,38 @@ void setupWiFi()
         credentialSourceName(source),
         static_cast<unsigned long>(configuration.configurationVersion));
 
-    connectUsingWifiConfiguration(configuration, WIFI_CONNECT_TIMEOUT_MS);
+    bool connected = connectUsingWifiConfiguration(
+        configuration,
+        WIFI_CONNECT_TIMEOUT_MS,
+        enableAutoReconnectOnFailure);
     clearWifiConfiguration(configuration);
+
+    if (!connected && source == WifiCredentialSource::NVS_CURRENT) {
+        Serial.println(
+            "[WiFi] Saved credentials failed; trying development fallback");
+        if (credentialManager.loadDevelopmentFallback(configuration)) {
+            connected = connectUsingWifiConfiguration(
+                configuration,
+                WIFI_CONNECT_TIMEOUT_MS,
+                enableAutoReconnectOnFailure);
+        }
+        clearWifiConfiguration(configuration);
+        usingDevelopmentFallback = connected;
+        return connected;
+    }
+
+    usingDevelopmentFallback =
+        source == WifiCredentialSource::DEVELOPMENT_FALLBACK;
+    return connected;
+}
+
+bool isWifiUsingDevelopmentFallback() {
+    return usingDevelopmentFallback;
+}
+
+void setupWiFi()
+{
+    connectUsingActiveWifiConfiguration();
     Serial.printf("[WiFi] Current radio channel: %d\n", WiFi.channel());
 }
 

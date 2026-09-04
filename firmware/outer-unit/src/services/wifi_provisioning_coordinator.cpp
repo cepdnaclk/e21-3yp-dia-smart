@@ -279,15 +279,7 @@ void keepPendingForRetry(
 }
 
 void restoreCurrentWifi() {
-    WifiConfiguration current = {};
-    WifiCredentialSource source = WifiCredentialSource::NONE;
-    if (loadActiveWifiConfiguration(current, source)) {
-        connectUsingWifiConfiguration(
-            current,
-            WIFI_CONNECT_TIMEOUT_MS,
-            true);
-    }
-    clearWifiConfiguration(current);
+    connectUsingActiveWifiConfiguration(true);
 }
 
 void applyPendingConfiguration() {
@@ -307,15 +299,6 @@ void applyPendingConfiguration() {
         clearWifiConfiguration(pending);
         return;
     }
-
-    WifiConfiguration current = {};
-    if (!store.loadCurrent(current)) {
-        WifiCredentialSource source = WifiCredentialSource::NONE;
-        if (loadActiveWifiConfiguration(current, source)) {
-            store.saveCurrent(current);
-        }
-    }
-    clearWifiConfiguration(current);
 
     const uint32_t nonce = esp_random();
     setRuntimeStatus(

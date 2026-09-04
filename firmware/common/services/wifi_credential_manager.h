@@ -19,10 +19,27 @@ public:
         WifiCredentialSource& source
     ) const {
         if (store_.loadCurrent(configuration)) {
-            source = WifiCredentialSource::NVS_CURRENT;
-            return true;
+            const bool legacyDevelopmentFallback =
+                configuration.configurationVersion == 0 &&
+                strcmp(configuration.commandId, "DEV-FALLBACK") == 0;
+            if (!legacyDevelopmentFallback) {
+                source = WifiCredentialSource::NVS_CURRENT;
+                return true;
+            }
+            clearWifiConfiguration(configuration);
         }
 
+        if (!loadDevelopmentFallback(configuration)) {
+            source = WifiCredentialSource::NONE;
+            return false;
+        }
+        source = WifiCredentialSource::DEVELOPMENT_FALLBACK;
+        return true;
+    }
+
+    bool loadDevelopmentFallback(
+        WifiConfiguration& configuration
+    ) const {
         const bool openNetwork =
             developmentPassword_ == nullptr ||
             developmentPassword_[0] == '\0';
@@ -37,11 +54,8 @@ public:
                 0,
                 "DEV-FALLBACK");
         if (result != WifiValidationResult::VALID) {
-            source = WifiCredentialSource::NONE;
             return false;
         }
-
-        source = WifiCredentialSource::DEVELOPMENT_FALLBACK;
         return true;
     }
 

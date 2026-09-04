@@ -111,6 +111,16 @@ limit.
 Current credentials are promoted only after both units confirm a successful
 connection. The prior working configuration remains available for rollback.
 
+At boot, both units try a real saved app configuration first. If it cannot
+connect, they try the compile-time development fallback without copying that
+fallback into NVS. A legacy `DEV-FALLBACK` version-zero NVS record is treated
+as the development fallback rather than a patient configuration. If neither
+network works, both use the configured ESP-NOW recovery channel. The Outer
+keeps its setup access point available whenever it is running on the fallback.
+
+The Inner sends its final Wi-Fi result three times over encrypted ESP-NOW so a
+single lost packet cannot leave the Outer waiting after a successful switch.
+
 ## Development and Production Keys
 
 The repository contains clearly marked development-only ESP-NOW and setup AP

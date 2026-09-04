@@ -71,13 +71,16 @@ The password is never printed or included in status messages.
 
 ## Outer-to-Inner Transfer
 
-The existing `InnerPacket` payload remains unchanged. Inner broadcasts it only
-until first pairing discovery. After pairing, normal sensor packets use the
-same encrypted unicast peer as provisioning traffic.
+The existing `InnerPacket` payload remains unchanged and stays broadcast so it
+can also recover peer discovery. Outer filters duplicate sensor bursts. Wi-Fi
+credentials and all provisioning control traffic use encrypted unicast.
 
 Outer learns the Inner MAC from a valid sensor packet. The units exchange
 non-secret pairing frames, persist the peer MAC, and then replace the temporary
 peer with encrypted unicast ESP-NOW using a PMK and LMK.
+
+If encrypted staging fails, Outer clears the stale peer, learns Inner again
+from the next sensor broadcast, re-pairs, and retries the pending command.
 
 Only the encrypted `WIFI_CONFIG_STAGE` frame contains credentials. Every
 configuration frame includes:
@@ -103,10 +106,13 @@ limit.
 6. Both try the new 2.4 GHz access point.
 7. Inner records the router channel, disconnects from normal Wi-Fi, and
    reinitializes ESP-NOW on that channel.
-8. Outer waits for the Inner Unit's `CONNECTED` result.
-9. Only after both units connect, Outer promotes the pending credentials and
-   reports `APPLIED`.
-10. If the Inner Unit is unavailable, Outer keeps the pending credentials and
+8. Inner reports that the candidate network works but does not save it yet.
+9. Outer confirms its own connection, sends `WIFI_CONFIG_COMMIT`, and waits for
+   the Inner commit acknowledgement.
+10. Only after both units commit does Outer report `APPLIED`.
+11. If Outer fails or the commit times out, Inner discards the candidate and
+    returns to its previous/fallback network.
+12. If the Inner Unit is unavailable, Outer keeps the pending credentials and
     retries discovery and encrypted staging without requiring the app to resend
     them.
 

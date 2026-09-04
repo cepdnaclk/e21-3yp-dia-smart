@@ -16,12 +16,14 @@
 #define WIFI_CONNECT_TIMEOUT_MS  10000
 
 // ---- ESP-NOW ---------------------------------------------------------------
-// Must match outer unit's WiFi channel.
-#define ESPNOW_CHANNEL           1
+// Prototype recovery channel. This matches the current development fallback
+// access point and must stay identical to the Outer value.
+#define ESPNOW_CHANNEL           6
 #define WIFI_CONFIG_FRAME_QUEUE_LENGTH 4
 #define WIFI_PROVISIONING_TASK_STACK   8192
 #define WIFI_RESULT_SEND_ATTEMPTS      3
 #define WIFI_RESULT_RETRY_DELAY_MS     150
+#define WIFI_CONFIG_TRIAL_TIMEOUT_MS   20000
 
 // ---- DS18B20 temperature sensor (OneWire) ----------------------------------
 #define TEMP_SENSOR_PIN          21

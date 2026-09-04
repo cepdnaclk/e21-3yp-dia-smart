@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_system.h>
+#include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
@@ -167,6 +168,17 @@ bool pairInner(const uint8_t innerMac[6]) {
     return true;
 }
 
+void forgetInnerPeer() {
+    if (hasPairedInner && esp_now_is_peer_exist(pairedInnerMac)) {
+        esp_now_del_peer(pairedInnerMac);
+    }
+    peerStore.clear();
+    memset(pairedInnerMac, 0, sizeof(pairedInnerMac));
+    hasPairedInner = false;
+    Serial.println(
+        "[WiFiProvisioning] Stale Inner peer cleared; waiting to re-pair");
+}
+
 bool stageOnInner(
     const WifiConfiguration& pending,
     uint32_t nonce
@@ -223,15 +235,16 @@ bool stageOnInner(
     return accepted;
 }
 
-bool sendApply(
+bool sendControl(
     const WifiConfiguration& pending,
-    uint32_t nonce
+    uint32_t nonce,
+    WifiConfigPacketType packetType
 ) {
     WifiConfigControlPacket packet = {};
     packet.payload.applyDelayMs = WIFI_CONFIG_APPLY_DELAY_MS;
     initializeWifiConfigHeader(
         packet.header,
-        WifiConfigPacketType::WIFI_CONFIG_APPLY,
+        packetType,
         sizeof(packet.payload),
         nonce,
         pending.configurationVersion,
@@ -243,6 +256,71 @@ bool sendApply(
         sizeof(packet)) == ESP_OK;
     memset(&packet, 0, sizeof(packet));
     return sent;
+}
+
+bool sendApply(
+    const WifiConfiguration& pending,
+    uint32_t nonce
+) {
+    return sendControl(
+        pending,
+        nonce,
+        WifiConfigPacketType::WIFI_CONFIG_APPLY);
+}
+
+void sendRollback(
+    const WifiConfiguration& pending,
+    uint32_t nonce
+) {
+    for (uint8_t attempt = 0;
+         attempt < WIFI_CONFIG_SEND_ATTEMPTS;
+         ++attempt) {
+        sendControl(
+            pending,
+            nonce,
+            WifiConfigPacketType::WIFI_CONFIG_ROLLBACK);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+bool commitInner(
+    const WifiConfiguration& pending,
+    uint32_t nonce
+) {
+    for (uint8_t attempt = 0;
+         attempt < WIFI_CONFIG_SEND_ATTEMPTS;
+         ++attempt) {
+        if (!sendControl(
+                pending,
+                nonce,
+                WifiConfigPacketType::WIFI_CONFIG_COMMIT)) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+
+        ReceivedWifiFrame response = {};
+        if (waitForPacket(
+                WifiConfigPacketType::WIFI_CONFIG_COMMIT_ACK,
+                nonce,
+                pending.configurationVersion,
+                response,
+                WIFI_COMMIT_ACK_TIMEOUT_MS) &&
+            validateWifiConfigPacket(
+                response.data,
+                response.length,
+                WifiConfigPacketType::WIFI_CONFIG_COMMIT_ACK,
+                sizeof(WifiConfigResultPacket))) {
+            const auto* result =
+                reinterpret_cast<const WifiConfigResultPacket*>(
+                    response.data);
+            if (result->payload.status ==
+                static_cast<uint8_t>(
+                    WifiConfigResultStatus::COMMITTED)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void queueFailure(
@@ -308,6 +386,7 @@ void applyPendingConfiguration() {
         "CONFIGURING_INNER",
         pending.configurationVersion);
     if (!stageOnInner(pending, nonce)) {
+        forgetInnerPeer();
         keepPendingForRetry(pending, "WAITING_FOR_INNER");
         clearWifiConfiguration(pending);
         return;
@@ -332,6 +411,29 @@ void applyPendingConfiguration() {
         WIFI_CONNECT_TIMEOUT_MS,
         false);
     if (!outerConnected) {
+        ReceivedWifiFrame candidateFrame = {};
+        if (waitForPacket(
+                WifiConfigPacketType::WIFI_CONFIG_RESULT,
+                nonce,
+                pending.configurationVersion,
+                candidateFrame,
+                500) &&
+            validateWifiConfigPacket(
+                candidateFrame.data,
+                candidateFrame.length,
+                WifiConfigPacketType::WIFI_CONFIG_RESULT,
+                sizeof(WifiConfigResultPacket))) {
+            const auto* candidate =
+                reinterpret_cast<const WifiConfigResultPacket*>(
+                    candidateFrame.data);
+            if (candidate->payload.wifiChannel >= 1 &&
+                candidate->payload.wifiChannel <= 13) {
+                esp_wifi_set_channel(
+                    candidate->payload.wifiChannel,
+                    WIFI_SECOND_CHAN_NONE);
+            }
+        }
+        sendRollback(pending, nonce);
         restoreCurrentWifi();
         keepPendingForRetry(pending, "OUTER_WIFI_RETRY");
         clearWifiConfiguration(pending);
@@ -375,8 +477,17 @@ void applyPendingConfiguration() {
             "PENDING",
             innerIp,
             "WAITING_FOR_INNER");
+        sendRollback(pending, nonce);
         restoreCurrentWifi();
         keepPendingForRetry(pending, "WAITING_FOR_INNER");
+        clearWifiConfiguration(pending);
+        return;
+    }
+
+    if (!commitInner(pending, nonce)) {
+        sendRollback(pending, nonce);
+        restoreCurrentWifi();
+        keepPendingForRetry(pending, "INNER_COMMIT_RETRY");
         clearWifiConfiguration(pending);
         return;
     }
@@ -387,6 +498,11 @@ void applyPendingConfiguration() {
         clearWifiConfiguration(pending);
         return;
     }
+
+    Serial.printf(
+        "[WiFiProvisioning] Outer configuration committed. version=%lu ssid=%s\n",
+        static_cast<unsigned long>(pending.configurationVersion),
+        pending.ssid);
 
     queueWifiCommandStatus(
         pending.commandId,

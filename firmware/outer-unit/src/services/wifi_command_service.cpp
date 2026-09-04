@@ -45,14 +45,14 @@ void currentTimestamp(char* output, size_t outputLength) {
     }
 }
 
-void publishWifiCommandAck(
+bool publishWifiCommandAck(
     const char* commandId,
     const char* status,
     uint32_t configurationVersion,
     const char* message
 ) {
     if (commandId == nullptr || commandId[0] == '\0') {
-        return;
+        return false;
     }
 
     JsonDocument document;
@@ -69,17 +69,19 @@ void publishWifiCommandAck(
 
     String ackPayload;
     serializeJson(document, ackPayload);
-    if (!publishMqttMessage(
+    const bool published = publishMqttMessage(
             AWS_IOT_COMMAND_ACK_TOPIC,
             ackPayload,
-            false)) {
+            false);
+    if (!published) {
         Serial.printf(
             "[WiFiCommand] ACK publish failed. status=%s\n",
             status);
     }
+    return published;
 }
 
-void publishInnerResult(const WifiStatusEvent& event) {
+bool publishInnerResult(const WifiStatusEvent& event) {
     JsonDocument document;
     char timestamp[32];
     currentTimestamp(timestamp, sizeof(timestamp));
@@ -114,12 +116,14 @@ void publishInnerResult(const WifiStatusEvent& event) {
 
     String payload;
     serializeJson(document, payload);
-    if (!publishMqttMessage(
+    const bool published = publishMqttMessage(
             AWS_IOT_DEVICE_TELEMETRY_TOPIC,
             payload,
-            false)) {
+            false);
+    if (!published) {
         Serial.println("[WiFiCommand] Inner result publish failed");
     }
+    return published;
 }
 
 bool sameCommand(
@@ -150,7 +154,7 @@ void rejectCommand(
     const char* reason
 ) {
     Serial.printf("[WiFiCommand] Rejected: %s\n", reason);
-    publishWifiCommandAck(
+    (void)publishWifiCommandAck(
         commandId,
         "REJECTED",
         configurationVersion,
@@ -416,16 +420,20 @@ void processPendingWifiCommand() {
 
     WifiStatusEvent event = {};
     if (wifiStatusQueue != nullptr &&
-        xQueueReceive(wifiStatusQueue, &event, 0) == pdTRUE) {
+        xQueuePeek(wifiStatusQueue, &event, 0) == pdTRUE) {
+        bool published = false;
         if (event.eventType == WifiStatusEventType::COMMAND_ACK) {
-            publishWifiCommandAck(
+            published = publishWifiCommandAck(
                 event.commandId,
                 event.status,
                 event.configurationVersion,
                 event.message);
         } else if (
             event.eventType == WifiStatusEventType::INNER_RESULT) {
-            publishInnerResult(event);
+            published = publishInnerResult(event);
+        }
+        if (published) {
+            xQueueReceive(wifiStatusQueue, &event, 0);
         }
         memset(&event, 0, sizeof(event));
     }

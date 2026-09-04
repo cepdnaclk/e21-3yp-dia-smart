@@ -32,6 +32,19 @@ interface UpdateWifiDialogProps {
   onSuccess?: () => void;
 }
 
+const isWifiUpdateSuccessful = (
+  status: DeviceConfigurationResponse | null
+) =>
+  status?.overallStatus === "SUCCEEDED" ||
+  status?.configurationStatus === "APPLIED" ||
+  (status?.outerUnitStatus === "APPLIED" &&
+    status?.innerUnitStatus === "CONNECTED") ||
+  (status?.outerUnitStatus === "CONNECTED" &&
+    status?.innerUnitStatus === "CONNECTED") ||
+  (status?.configurationStatus === "PUBLISHED" &&
+    status?.outerUnitStatus === "PUBLISHED" &&
+    status?.innerUnitStatus === "CONNECTED");
+
 export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
   open,
   onClose,
@@ -79,16 +92,7 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
           );
           setConfigStatus(res);
 
-          const isSuccess =
-            res.overallStatus === "SUCCEEDED" ||
-            res.configurationStatus === "APPLIED" ||
-            (res.outerUnitStatus === "APPLIED" &&
-              res.innerUnitStatus === "CONNECTED") ||
-            (res.outerUnitStatus === "CONNECTED" &&
-              res.innerUnitStatus === "CONNECTED") ||
-            (res.configurationStatus === "PUBLISHED" &&
-              res.outerUnitStatus === "PUBLISHED" &&
-              res.innerUnitStatus === "CONNECTED");
+          const isSuccess = isWifiUpdateSuccessful(res);
 
           const failureStatuses = [
             "FAILED",
@@ -190,10 +194,7 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
     }
   };
 
-  const isSuccess =
-    configStatus?.configurationStatus === "PUBLISHED" &&
-    configStatus?.outerUnitStatus === "PUBLISHED" &&
-    configStatus?.innerUnitStatus === "CONNECTED";
+  const isSuccess = isWifiUpdateSuccessful(configStatus);
 
   const isFormValid = wifiSsid.trim() !== "" && wifiPassword.length >= 8;
 

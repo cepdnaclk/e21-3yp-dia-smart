@@ -58,6 +58,8 @@ bool connectUsingWifiConfiguration(
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("\n--- Wi-Fi Connected Successfully ---");
+        Serial.print("SSID: ");
+        Serial.println(WiFi.SSID());
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
         Serial.print("RSSI (Signal Strength): ");

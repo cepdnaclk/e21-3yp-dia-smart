@@ -96,7 +96,9 @@ public:
 
     WifiTransactionState transactionState() const {
         Preferences preferences;
-        if (!preferences.begin(nvsNamespace_, true)) {
+        // Open read/write so a clean device creates the namespace once instead
+        // of logging NVS_NOT_FOUND on every coordinator poll.
+        if (!preferences.begin(nvsNamespace_, false)) {
             return WifiTransactionState::IDLE;
         }
         const uint8_t stored = preferences.getUChar(

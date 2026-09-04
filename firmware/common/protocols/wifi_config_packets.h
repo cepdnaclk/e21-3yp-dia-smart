@@ -17,7 +17,9 @@ enum class WifiConfigPacketType : uint8_t {
     WIFI_CONFIG_STAGE_ACK = 4,
     WIFI_CONFIG_APPLY = 5,
     WIFI_CONFIG_RESULT = 6,
-    WIFI_CONFIG_ROLLBACK = 7
+    WIFI_CONFIG_ROLLBACK = 7,
+    WIFI_CONFIG_COMMIT = 8,
+    WIFI_CONFIG_COMMIT_ACK = 9
 };
 
 enum class WifiConfigResultStatus : uint8_t {
@@ -25,7 +27,8 @@ enum class WifiConfigResultStatus : uint8_t {
     STAGED = 1,
     CONNECTED = 2,
     FAILED = 3,
-    ROLLED_BACK = 4
+    ROLLED_BACK = 4,
+    COMMITTED = 5
 };
 
 enum class WifiConfigReason : uint16_t {

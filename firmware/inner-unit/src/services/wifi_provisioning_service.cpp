@@ -37,6 +37,10 @@ bool hasPairedOuter = false;
 volatile bool switchInProgress = false;
 uint32_t stagedNonce = 0;
 uint32_t stagedCommandHash = 0;
+bool candidateReady = false;
+uint32_t candidateDeadlineMs = 0;
+uint8_t candidateChannel = ESPNOW_CHANNEL;
+IPAddress candidateIp;
 
 bool sameMac(const uint8_t left[6], const uint8_t right[6]) {
     return memcmp(left, right, 6) == 0;
@@ -164,8 +168,9 @@ void sendStageAck(
         sizeof(response));
 }
 
-void sendApplyResult(
+void sendResult(
     const WifiConfigPacketHeader& request,
+    WifiConfigPacketType packetType,
     WifiConfigResultStatus status,
     WifiConfigReason reason,
     uint8_t channel,
@@ -184,7 +189,7 @@ void sendApplyResult(
     response.payload.reason = static_cast<uint16_t>(reason);
     initializeWifiConfigHeader(
         response.header,
-        WifiConfigPacketType::WIFI_CONFIG_RESULT,
+        packetType,
         sizeof(response.payload),
         request.transactionNonce,
         request.configurationVersion,
@@ -201,6 +206,22 @@ void sendApplyResult(
             vTaskDelay(pdMS_TO_TICKS(WIFI_RESULT_RETRY_DELAY_MS));
         }
     }
+}
+
+void sendApplyResult(
+    const WifiConfigPacketHeader& request,
+    WifiConfigResultStatus status,
+    WifiConfigReason reason,
+    uint8_t channel,
+    const IPAddress& ipAddress
+) {
+    sendResult(
+        request,
+        WifiConfigPacketType::WIFI_CONFIG_RESULT,
+        status,
+        reason,
+        channel,
+        ipAddress);
 }
 
 bool connectAndSelectChannel(
@@ -434,7 +455,11 @@ void handleApply(const ReceivedWifiFrame& frame) {
         newIp);
     clearWifiConfiguration(pending);
 
-    if (connected && credentialManager.store().promotePending()) {
+    if (connected) {
+        candidateReady = true;
+        candidateDeadlineMs = millis() + WIFI_CONFIG_TRIAL_TIMEOUT_MS;
+        candidateChannel = newChannel;
+        candidateIp = newIp;
         sendApplyResult(
             request->header,
             WifiConfigResultStatus::CONNECTED,
@@ -442,7 +467,7 @@ void handleApply(const ReceivedWifiFrame& frame) {
             newChannel,
             newIp);
         Serial.printf(
-            "[WiFiProvisioning] Applied configuration. version=%lu channel=%u\n",
+            "[WiFiProvisioning] Candidate connected. version=%lu channel=%u; waiting for Outer commit\n",
             static_cast<unsigned long>(
                 request->header.configurationVersion),
             newChannel);
@@ -462,6 +487,131 @@ void handleApply(const ReceivedWifiFrame& frame) {
     Serial.println("[WiFiProvisioning] Apply failed; previous Wi-Fi restored");
 }
 
+bool validateControlForPending(
+    const ReceivedWifiFrame& frame,
+    WifiConfigPacketType packetType,
+    WifiConfiguration& pending
+) {
+    if (!hasPairedOuter ||
+        !sameMac(frame.senderMac, pairedOuterMac) ||
+        !validateWifiConfigPacket(
+            frame.data,
+            frame.length,
+            packetType,
+            sizeof(WifiConfigControlPacket)) ||
+        !credentialManager.store().loadPending(pending)) {
+        return false;
+    }
+
+    const auto* request =
+        reinterpret_cast<const WifiConfigControlPacket*>(frame.data);
+    return request->header.transactionNonce == stagedNonce &&
+           request->header.commandHash == stagedCommandHash &&
+           request->header.configurationVersion ==
+               pending.configurationVersion;
+}
+
+void handleCommit(const ReceivedWifiFrame& frame) {
+    if (!candidateReady &&
+        hasPairedOuter &&
+        sameMac(frame.senderMac, pairedOuterMac) &&
+        validateWifiConfigPacket(
+            frame.data,
+            frame.length,
+            WifiConfigPacketType::WIFI_CONFIG_COMMIT,
+            sizeof(WifiConfigControlPacket))) {
+        const auto* duplicate =
+            reinterpret_cast<const WifiConfigControlPacket*>(frame.data);
+        WifiConfiguration current = {};
+        const bool alreadyCommitted =
+            credentialManager.store().loadCurrent(current) &&
+            duplicate->header.transactionNonce == stagedNonce &&
+            duplicate->header.commandHash == stagedCommandHash &&
+            duplicate->header.configurationVersion ==
+                current.configurationVersion;
+        clearWifiConfiguration(current);
+        if (alreadyCommitted) {
+            sendResult(
+                duplicate->header,
+                WifiConfigPacketType::WIFI_CONFIG_COMMIT_ACK,
+                WifiConfigResultStatus::COMMITTED,
+                WifiConfigReason::NONE,
+                candidateChannel,
+                candidateIp);
+        }
+        return;
+    }
+
+    WifiConfiguration pending = {};
+    if (!candidateReady ||
+        !validateControlForPending(
+            frame,
+            WifiConfigPacketType::WIFI_CONFIG_COMMIT,
+            pending)) {
+        clearWifiConfiguration(pending);
+        return;
+    }
+
+    const auto* request =
+        reinterpret_cast<const WifiConfigControlPacket*>(frame.data);
+    const uint32_t version = pending.configurationVersion;
+    clearWifiConfiguration(pending);
+
+    if (!credentialManager.store().promotePending()) {
+        sendResult(
+            request->header,
+            WifiConfigPacketType::WIFI_CONFIG_COMMIT_ACK,
+            WifiConfigResultStatus::FAILED,
+            WifiConfigReason::STORAGE_FAILED,
+            candidateChannel,
+            candidateIp);
+        return;
+    }
+
+    sendResult(
+        request->header,
+        WifiConfigPacketType::WIFI_CONFIG_COMMIT_ACK,
+        WifiConfigResultStatus::COMMITTED,
+        WifiConfigReason::NONE,
+        candidateChannel,
+        candidateIp);
+    candidateReady = false;
+    Serial.printf(
+        "[WiFiProvisioning] Configuration committed. version=%lu channel=%u\n",
+        static_cast<unsigned long>(version),
+        candidateChannel);
+}
+
+void rollbackCandidate(const char* reason) {
+    if (!candidateReady) {
+        return;
+    }
+
+    credentialManager.store().clearPending();
+    candidateReady = false;
+    uint8_t recoveryChannel = ESPNOW_CHANNEL;
+    IPAddress recoveryIp;
+    restoreActiveWifiChannel(recoveryChannel, recoveryIp);
+    Serial.printf(
+        "[WiFiProvisioning] Candidate rolled back: %s; channel=%u\n",
+        reason,
+        recoveryChannel);
+}
+
+void handleRollback(const ReceivedWifiFrame& frame) {
+    WifiConfiguration pending = {};
+    if (!candidateReady ||
+        !validateControlForPending(
+            frame,
+            WifiConfigPacketType::WIFI_CONFIG_ROLLBACK,
+            pending)) {
+        clearWifiConfiguration(pending);
+        return;
+    }
+    clearWifiConfiguration(pending);
+    rollbackCandidate("Outer could not use candidate Wi-Fi");
+}
+
 void provisioningTask(void* parameter) {
     (void)parameter;
     ReceivedWifiFrame frame = {};
@@ -469,7 +619,11 @@ void provisioningTask(void* parameter) {
         if (xQueueReceive(
                 receivedFrameQueue,
                 &frame,
-                portMAX_DELAY) != pdTRUE) {
+                pdMS_TO_TICKS(250)) != pdTRUE) {
+            if (candidateReady &&
+                (int32_t)(millis() - candidateDeadlineMs) >= 0) {
+                rollbackCandidate("commit timeout");
+            }
             continue;
         }
 
@@ -484,6 +638,12 @@ void provisioningTask(void* parameter) {
                 break;
             case WifiConfigPacketType::WIFI_CONFIG_APPLY:
                 handleApply(frame);
+                break;
+            case WifiConfigPacketType::WIFI_CONFIG_COMMIT:
+                handleCommit(frame);
+                break;
+            case WifiConfigPacketType::WIFI_CONFIG_ROLLBACK:
+                handleRollback(frame);
                 break;
             default:
                 break;
@@ -592,7 +752,5 @@ bool sendInnerSensorPacket(const uint8_t* data, size_t length) {
     if (switchInProgress || data == nullptr || length == 0) {
         return false;
     }
-    const uint8_t* destination =
-        hasPairedOuter ? pairedOuterMac : BROADCAST_MAC;
-    return esp_now_send(destination, data, length) == ESP_OK;
+    return esp_now_send(BROADCAST_MAC, data, length) == ESP_OK;
 }

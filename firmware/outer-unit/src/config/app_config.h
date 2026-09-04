@@ -36,13 +36,15 @@
 
 // ---- ESP-NOW -------------------------------------------------------------- //
 // Outer unit receives on same channel as its WiFi AP.
-// Inner unit must lock to the same channel (ESPNOW_CHANNEL=1 on both sides).
-#define ESPNOW_CHANNEL               1
+// Prototype recovery channel. This matches the current development fallback
+// access point so ESP-NOW still works if only one unit joins that Wi-Fi.
+#define ESPNOW_CHANNEL               6
 #define WIFI_CONFIG_FRAME_QUEUE_LENGTH 4
 #define WIFI_PROVISIONING_TASK_STACK   8192
 #define WIFI_PAIRING_TIMEOUT_MS        3000
 #define WIFI_STAGE_ACK_TIMEOUT_MS      3000
 #define WIFI_INNER_RESULT_TIMEOUT_MS   15000
+#define WIFI_COMMIT_ACK_TIMEOUT_MS     2000
 #define WIFI_CONFIG_SEND_ATTEMPTS      3
 #define WIFI_PROVISION_RETRY_DELAY_MS  5000
 #define LOCAL_PROVISION_MAX_BODY_BYTES 256

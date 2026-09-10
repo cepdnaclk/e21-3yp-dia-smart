@@ -45,13 +45,22 @@ public interface StorageReadingRepository
     );
 
     @Query(
-        "SELECT COUNT(s) FROM StorageReading s WHERE s.patientId = :patientId AND s.measuredAt >= :from AND s.measuredAt <= :to AND (s.temperatureC < :minTemp OR s.temperatureC > :maxTemp)"
+        "SELECT COUNT(s) FROM StorageReading s WHERE s.patientId = :patientId AND s.measuredAt >= :from AND s.measuredAt <= :to AND s.temperatureStatus IN :excursionStatuses"
     )
-    long countExcursions(
+    long countExcursionsByStatus(
             @Param("patientId") Long patientId,
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to,
-            @Param("minTemp") Double minTemp,
-            @Param("maxTemp") Double maxTemp
+            @Param("excursionStatuses") java.util.Collection<String> excursionStatuses
+    );
+
+    @Query(
+        "SELECT COUNT(s) FROM StorageReading s WHERE s.patientId = :patientId AND s.measuredAt >= :from AND s.measuredAt <= :to AND s.temperatureStatus IN :classifiedStatuses"
+    )
+    long countClassifiedReadings(
+            @Param("patientId") Long patientId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            @Param("classifiedStatuses") java.util.Collection<String> classifiedStatuses
     );
 }

@@ -20,7 +20,7 @@ class AiGatewayResponseValidatorTest {
 
     private final UUID requestId = UUID.randomUUID();
     private final String promptVersion = "clinical-summary-v1";
-    private final String pseudonymousRef = "patient-ref-123";
+    private final String pseudonymousRef = "patient-ref-12345678";
 
     @BeforeEach
     void setUp() {
@@ -29,7 +29,7 @@ class AiGatewayResponseValidatorTest {
         AiRequestedPeriod period = new AiRequestedPeriod(OffsetDateTime.now().minusDays(7), OffsetDateTime.now());
 
         AiGlucoseSummary glucoseSummary = new AiGlucoseSummary(
-                "glucose_summary:selected-period",
+                "glucose-summary:selected-period",
                 "mg/dL",
                 10,
                 110.0,
@@ -40,7 +40,7 @@ class AiGatewayResponseValidatorTest {
         );
 
         AiAdherenceSummary adherenceSummary = new AiAdherenceSummary(
-                "adherence_summary:selected-period",
+                "adherence-summary:selected-period",
                 7,
                 6,
                 1,
@@ -48,7 +48,7 @@ class AiGatewayResponseValidatorTest {
         );
 
         AiAlertContext alert = new AiAlertContext(
-                "alert:id-45",
+                "alert-event:ref-001",
                 "TEMP_HIGH",
                 "CRITICAL",
                 "OPEN",
@@ -56,13 +56,13 @@ class AiGatewayResponseValidatorTest {
         );
 
         AiSelectedEvent event = new AiSelectedEvent(
-                "glucose-reading:id-1",
+                "glucose-event:ref-002",
                 "GLUCOSE_HIGH",
                 OffsetDateTime.now(),
                 185.0,
                 "mg/dL",
                 "HIGH",
-                "Glucose value: 185.0 mg/dL"
+                "Glucose reading: 185.0 mg/dL"
         );
 
         validRequest = new AiClinicalSummaryGatewayRequest(
@@ -80,14 +80,14 @@ class AiGatewayResponseValidatorTest {
         );
 
         AiObservation obs = new AiObservation(
-                "The patient had a high glucose reading of 185.0 mg/dL.",
-                List.of("glucose-reading:id-1")
+                "The patient had an elevated glucose reading during the monitored period.",
+                List.of("glucose-event:ref-002")
         );
 
         AiCorrelation corr = new AiCorrelation(
-                "High storage temperature correlates with lower adherence rate.",
-                "moderate",
-                List.of("adherence_summary:selected-period", "alert:id-45")
+                "Storage temperature excursions correspond with lower recorded adherence.",
+                "MEDIUM",
+                List.of("adherence-summary:selected-period", "alert-event:ref-001")
         );
 
         AiProviderMetadata metadata = new AiProviderMetadata(
@@ -98,11 +98,11 @@ class AiGatewayResponseValidatorTest {
 
         validResponse = new AiClinicalSummaryGatewayResponse(
                 requestId,
-                "Clinical summary overview: patient shows good overall progress.",
+                "Clinical summary overview: patient demonstrates steady metrics.",
                 List.of(obs),
                 List.of(corr),
-                List.of("Uncertainty statement details."),
-                List.of("Discussion point 1"),
+                List.of("Telemetry gaps may affect aggregate accuracy."),
+                List.of("Discussion point on storage monitoring."),
                 AiGatewayResponseValidator.APPROVED_SAFETY_NOTICE,
                 metadata
         );
@@ -149,10 +149,41 @@ class AiGatewayResponseValidatorTest {
     }
 
     @Test
+    void shouldThrowWhenProviderIsNotMock() {
+        AiProviderMetadata badMeta = new AiProviderMetadata("openai", "gpt-4", promptVersion);
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                validResponse.summary(),
+                validResponse.observations(),
+                validResponse.correlations(),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                badMeta
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldThrowWhenUncertaintiesIsEmpty() {
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                validResponse.summary(),
+                validResponse.observations(),
+                validResponse.correlations(),
+                Collections.emptyList(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                validResponse.providerMetadata()
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
     void shouldThrowWhenUncitedEvidenceReferenced() {
         AiObservation badObs = new AiObservation(
                 "Statement with uncited evidence",
-                List.of("glucose-reading:id-999") // 999 does not exist in request!
+                List.of("glucose-event:ref-999") // 999 does not exist in request!
         );
         AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
                 requestId,
@@ -168,10 +199,10 @@ class AiGatewayResponseValidatorTest {
     }
 
     @Test
-    void shouldThrowWhenCitationsAreEmpty() {
+    void shouldThrowWhenInvalidCategoryEvidenceReferenced() {
         AiObservation badObs = new AiObservation(
-                "Statement with no citations",
-                Collections.emptyList()
+                "Statement with invalid category",
+                List.of("unsupported-category:ref-001")
         );
         AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
                 requestId,
@@ -187,10 +218,80 @@ class AiGatewayResponseValidatorTest {
     }
 
     @Test
-    void shouldThrowWhenClinicalSafetyFilterTriggered() {
+    void shouldThrowWhenCorrelationCitesFewerThanTwoCitations() {
+        AiCorrelation badCorr = new AiCorrelation(
+                "Correlation with only one citation",
+                "HIGH",
+                List.of("adherence-summary:selected-period")
+        );
         AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
                 requestId,
-                "Please increase your insulin dose by 2 units.", // Prohibited text!
+                validResponse.summary(),
+                validResponse.observations(),
+                List.of(badCorr),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                validResponse.providerMetadata()
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldThrowWhenUnsupportedConfidenceLevelProvided() {
+        AiCorrelation badCorr = new AiCorrelation(
+                "Correlation with invalid confidence",
+                "EXTREMELY_CONFIDENT",
+                List.of("adherence-summary:selected-period", "alert-event:ref-001")
+        );
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                validResponse.summary(),
+                validResponse.observations(),
+                List.of(badCorr),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                validResponse.providerMetadata()
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldThrowWhenDosageAdjustmentInText() {
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                "Please increase your insulin dose by 2 units.",
+                validResponse.observations(),
+                validResponse.correlations(),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                validResponse.providerMetadata()
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldThrowWhenDiagnosisInText() {
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                "The patient is diagnosed with type 2 diabetes complications.",
+                validResponse.observations(),
+                validResponse.correlations(),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                validResponse.providerMetadata()
+        );
+        assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldThrowWhenDefiniteCausationInText() {
+        AiClinicalSummaryGatewayResponse badResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                "High temperature was definitely caused by door open status.",
                 validResponse.observations(),
                 validResponse.correlations(),
                 validResponse.uncertainties(),

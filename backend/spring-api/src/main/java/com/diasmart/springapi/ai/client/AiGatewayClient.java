@@ -48,32 +48,26 @@ public class AiGatewayClient {
                     .retrieve()
                     .body(AiClinicalSummaryGatewayResponse.class);
         } catch (ResourceAccessException e) {
-            log.error("Resource access error during AI Gateway summary request: {}", e.getMessage());
+            log.error("Resource access error during AI Gateway summary request");
             if (e.getCause() instanceof SocketTimeoutException) {
                 throw new AiGatewayTimeoutException("AI Gateway read or connection timeout occurred.");
             }
-            throw new AiGatewayUnavailableException("AI Gateway is unreachable: " + e.getMessage());
+            throw new AiGatewayUnavailableException("AI Gateway is currently unavailable.");
         } catch (HttpClientErrorException e) {
-            log.error("Client error from AI Gateway: Code={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("Client error from AI Gateway: Code={}", e.getStatusCode());
             if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
-                throw new AiGatewayAuthenticationException("AI Gateway rejected request credentials (401/403).");
+                throw new AiGatewayAuthenticationException("AI Gateway authentication failed.");
             }
-            String msg = "AI Gateway rejected request: " + e.getMessage();
-            try {
-                AiGatewayErrorResponse err = e.getResponseBodyAs(AiGatewayErrorResponse.class);
-                if (err != null && err.message() != null) {
-                    msg = err.message();
-                }
-            } catch (Exception ex) {
-                // Ignore parse failures
+            if (e.getStatusCode().value() == 413) {
+                throw new AiGatewayRequestTooLargeException("AI Gateway rejected request: payload too large.");
             }
-            throw new AiGatewayRequestRejectedException(msg);
+            throw new AiGatewayRequestRejectedException("AI Gateway rejected request.");
         } catch (HttpServerErrorException e) {
-            log.error("Server error from AI Gateway: Code={}, Body={}", e.getStatusCode(), e.getResponseBodyAsString());
-            throw new AiGatewayErrorException("AI Gateway encountered an internal error: " + e.getMessage());
+            log.error("Server error from AI Gateway: Code={}", e.getStatusCode());
+            throw new AiGatewayErrorException("AI Gateway encountered an internal error.");
         } catch (Exception e) {
-            log.error("Unexpected error communicating with AI Gateway: {}", e.getMessage());
-            throw new AiGatewayErrorException("Unexpected AI Gateway communication failure: " + e.getMessage());
+            log.error("Unexpected error communicating with AI Gateway");
+            throw new AiGatewayErrorException("Unexpected AI Gateway communication failure.");
         }
     }
 }

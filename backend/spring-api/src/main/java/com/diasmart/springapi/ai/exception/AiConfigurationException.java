@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 
 public class AiConfigurationException extends ApiException {
     public AiConfigurationException(String message) {
-        super(HttpStatus.INTERNAL_SERVER_ERROR, "AI_CONFIGURATION_ERROR", message);
+        super(HttpStatus.SERVICE_UNAVAILABLE, "AI_CONFIGURATION_ERROR", message);
     }
 }

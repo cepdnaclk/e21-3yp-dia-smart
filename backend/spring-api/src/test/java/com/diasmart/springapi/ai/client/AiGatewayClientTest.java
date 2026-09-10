@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -51,10 +50,9 @@ class AiGatewayClientTest {
                 null, null, null, null, null,
                 Collections.emptyList(), Collections.emptyList()
         );
-        
+
         when(aiProperties.getInternalServiceToken()).thenReturn("mock-token");
 
-        // Use Answers.RETURNS_SELF so fluent API calls automatically return the mock spec
         requestBodyUriSpec = mock(RestClient.RequestBodyUriSpec.class, Answers.RETURNS_SELF);
         requestBodySpec = mock(RestClient.RequestBodySpec.class, Answers.RETURNS_SELF);
         responseSpec = mock(RestClient.ResponseSpec.class);
@@ -78,7 +76,9 @@ class AiGatewayClientTest {
     @Test
     void shouldThrowAiConfigurationExceptionWhenTokenMissing() {
         when(aiProperties.getInternalServiceToken()).thenReturn("");
-        assertThrows(AiConfigurationException.class, () -> client.requestClinicalSummary(request));
+        AiConfigurationException ex = assertThrows(AiConfigurationException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
+        assertEquals("AI_CONFIGURATION_ERROR", ex.getErrorCode());
     }
 
     @Test
@@ -86,7 +86,9 @@ class AiGatewayClientTest {
         doThrow(new ResourceAccessException("Timeout", new SocketTimeoutException()))
                 .when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
 
-        assertThrows(AiGatewayTimeoutException.class, () -> client.requestClinicalSummary(request));
+        AiGatewayTimeoutException ex = assertThrows(AiGatewayTimeoutException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.GATEWAY_TIMEOUT, ex.getStatus());
+        assertEquals("AI_GATEWAY_TIMEOUT", ex.getErrorCode());
     }
 
     @Test
@@ -94,7 +96,9 @@ class AiGatewayClientTest {
         doThrow(new ResourceAccessException("Unreachable"))
                 .when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
 
-        assertThrows(AiGatewayUnavailableException.class, () -> client.requestClinicalSummary(request));
+        AiGatewayUnavailableException ex = assertThrows(AiGatewayUnavailableException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatus());
+        assertEquals("AI_GATEWAY_UNAVAILABLE", ex.getErrorCode());
     }
 
     @Test
@@ -104,7 +108,45 @@ class AiGatewayClientTest {
         );
         doThrow(ex).when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
 
-        assertThrows(AiGatewayAuthenticationException.class, () -> client.requestClinicalSummary(request));
+        AiGatewayAuthenticationException actualEx = assertThrows(AiGatewayAuthenticationException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, actualEx.getStatus());
+        assertEquals("AI_GATEWAY_AUTHENTICATION_ERROR", actualEx.getErrorCode());
+    }
+
+    @Test
+    void shouldThrowGatewayAuthenticationExceptionOn403() {
+        HttpClientErrorException ex = HttpClientErrorException.create(
+                HttpStatus.FORBIDDEN, "Forbidden", null, null, null
+        );
+        doThrow(ex).when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
+
+        AiGatewayAuthenticationException actualEx = assertThrows(AiGatewayAuthenticationException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, actualEx.getStatus());
+        assertEquals("AI_GATEWAY_AUTHENTICATION_ERROR", actualEx.getErrorCode());
+    }
+
+    @Test
+    void shouldThrowGatewayRequestTooLargeOn413() {
+        HttpClientErrorException ex = HttpClientErrorException.create(
+                HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large", null, null, null
+        );
+        doThrow(ex).when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
+
+        AiGatewayRequestTooLargeException actualEx = assertThrows(AiGatewayRequestTooLargeException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.BAD_GATEWAY, actualEx.getStatus());
+        assertEquals("AI_GATEWAY_REQUEST_TOO_LARGE", actualEx.getErrorCode());
+    }
+
+    @Test
+    void shouldThrowGatewayRequestRejectedOn422() {
+        HttpClientErrorException ex = HttpClientErrorException.create(
+                HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity", null, null, null
+        );
+        doThrow(ex).when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
+
+        AiGatewayRequestRejectedException actualEx = assertThrows(AiGatewayRequestRejectedException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.BAD_GATEWAY, actualEx.getStatus());
+        assertEquals("AI_GATEWAY_REQUEST_REJECTED", actualEx.getErrorCode());
     }
 
     @Test
@@ -114,6 +156,8 @@ class AiGatewayClientTest {
         );
         doThrow(ex).when(responseSpec).body(AiClinicalSummaryGatewayResponse.class);
 
-        assertThrows(AiGatewayErrorException.class, () -> client.requestClinicalSummary(request));
+        AiGatewayErrorException actualEx = assertThrows(AiGatewayErrorException.class, () -> client.requestClinicalSummary(request));
+        assertEquals(HttpStatus.BAD_GATEWAY, actualEx.getStatus());
+        assertEquals("AI_GATEWAY_ERROR", actualEx.getErrorCode());
     }
 }

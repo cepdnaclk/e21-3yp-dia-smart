@@ -1,7 +1,9 @@
 package com.diasmart.springapi.ai.validation;
 
+import com.diasmart.springapi.ai.config.AiProperties;
 import com.diasmart.springapi.ai.dto.gateway.*;
 import com.diasmart.springapi.ai.exception.AiInvalidResponseException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -31,6 +33,11 @@ public class AiGatewayResponseValidator {
             "LOW"
     );
 
+    private static final Set<String> ALLOWED_PROVIDERS = Set.of(
+            "mock",
+            "gemini"
+    );
+
     // Keywords or phrases indicating prohibited clinical instructions (diagnosis, prescription, dosage, treatment, causation)
     private static final List<Pattern> CLINICAL_SAFETY_PATTERNS = List.of(
             Pattern.compile("\\b(diagnose|diagnosis|diagnosed|diagnostic)\\b", Pattern.CASE_INSENSITIVE),
@@ -40,6 +47,17 @@ public class AiGatewayResponseValidator {
             Pattern.compile("\\b(treatment\\s+recommendation|treatment\\s+plan\\s+change|change\\s+your\\s+treatment)\\b", Pattern.CASE_INSENSITIVE),
             Pattern.compile("\\b(definitely\\s+caused\\s+by|proves\\s+that|conclusively\\s+demonstrates|direct\\s+cause\\s+of)\\b", Pattern.CASE_INSENSITIVE)
     );
+
+    private final AiProperties aiProperties;
+
+    public AiGatewayResponseValidator() {
+        this(new AiProperties());
+    }
+
+    @Autowired
+    public AiGatewayResponseValidator(AiProperties aiProperties) {
+        this.aiProperties = aiProperties != null ? aiProperties : new AiProperties();
+    }
 
     public void validateResponse(AiClinicalSummaryGatewayRequest request, AiClinicalSummaryGatewayResponse response) {
         if (response == null) {
@@ -61,8 +79,14 @@ public class AiGatewayResponseValidator {
         if (response.providerMetadata() == null) {
             throw new AiInvalidResponseException("AI response provider metadata is missing.");
         }
-        if (!"mock".equalsIgnoreCase(response.providerMetadata().provider())) {
-            throw new AiInvalidResponseException("AI response provider is not mock: " + response.providerMetadata().provider());
+        String configuredExpectedProvider = aiProperties.getExpectedProvider();
+        if (configuredExpectedProvider == null || !ALLOWED_PROVIDERS.contains(configuredExpectedProvider.trim().toLowerCase())) {
+            throw new AiInvalidResponseException("Unsupported expected AI provider configuration: " + configuredExpectedProvider);
+        }
+        String expectedProviderClean = configuredExpectedProvider.trim().toLowerCase();
+        if (!expectedProviderClean.equalsIgnoreCase(response.providerMetadata().provider())) {
+            throw new AiInvalidResponseException("AI response provider mismatch. Expected: "
+                    + expectedProviderClean + ", Received: " + response.providerMetadata().provider());
         }
         if (!request.promptVersion().equals(response.providerMetadata().promptVersion())) {
             throw new AiInvalidResponseException("AI response prompt version mismatch.");

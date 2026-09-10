@@ -92,12 +92,39 @@ python -m venv .venv
 
 ---
 
-## 5. Configuration & MockProvider
+## 5. Configuration & Providers
+
 Copy the example environment file to `.env`:
 ```bash
 cp .env.example .env
 ```
-Ensure `AI_PROVIDER=mock` is configured. If any other provider value is configured, the factory will raise a configuration exception. A valid, long `AI_INTERNAL_SERVICE_TOKEN` (at least 32 characters) must be configured in `.env` for local execution.
+
+The service supports two providers:
+1. **MockProvider (`AI_PROVIDER=mock`) [Default]**: Fully deterministic, operates completely offline without external network or API keys.
+2. **GeminiProvider (`AI_PROVIDER=gemini`) [Optional]**: Uses official `google-genai` SDK Interactions API to generate clinical summaries with structured outputs.
+
+### Temporary Local Gemini Configuration (Windows PowerShell)
+To test Gemini locally without committing keys:
+```powershell
+$env:GEMINI_API_KEY="<set-locally>"
+$env:AI_PROVIDER="gemini"
+$env:GEMINI_MODEL="<configured-model>"
+```
+
+### Switching Back to MockProvider
+```powershell
+$env:AI_PROVIDER="mock"
+```
+
+### Removing Local Process Key
+```powershell
+Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+```
+> [!NOTE]
+> Closing the PowerShell terminal automatically clears any process-scoped `$env:` environment variables.
+> **Security Rule:** Never commit API keys to version control, documentation, test files, or scripts. Compromised or retired keys must be revoked or deleted immediately through the Google Cloud / Google AI Studio credential management interface.
+
+Ensure a valid `AI_INTERNAL_SERVICE_TOKEN` (at least 32 characters) is configured in `.env` for local execution.
 
 ---
 

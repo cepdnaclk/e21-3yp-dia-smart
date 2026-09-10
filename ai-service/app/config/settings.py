@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,8 +10,14 @@ class Settings(BaseSettings):
     AI_ENVIRONMENT: str = "development"
     AI_PROVIDER: str = "mock"
 
-    # Internal bear token
+    # Internal bearer token
     AI_INTERNAL_SERVICE_TOKEN: str = ""
+
+    # Gemini Provider Settings
+    GEMINI_API_KEY: SecretStr | None = None
+    GEMINI_MODEL: str | None = None
+    GEMINI_TIMEOUT_SECONDS: float = 30.0
+    GEMINI_TEMPERATURE: float = 0.2
 
     # Security limits
     AI_MAX_DATE_RANGE_DAYS: int = 31
@@ -28,9 +34,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_settings(self) -> "Settings":
-        # Part 2 requirement: only mock provider is allowed
-        if self.AI_PROVIDER != "mock":
-            raise ValueError("Part 2 supports only 'mock' as the AI provider")
+        provider = self.AI_PROVIDER.lower().strip()
+        if provider not in {"mock", "gemini"}:
+            raise ValueError(f"Unsupported AI provider '{self.AI_PROVIDER}'. Supported: 'mock', 'gemini'")
+
+        # When provider is gemini, GEMINI_API_KEY and GEMINI_MODEL are required
+        if provider == "gemini":
+            if self.GEMINI_API_KEY is None or not self.GEMINI_API_KEY.get_secret_value().strip():
+                raise ValueError("GEMINI_API_KEY is required when AI_PROVIDER is 'gemini'")
+            if not self.GEMINI_MODEL or not self.GEMINI_MODEL.strip():
+                raise ValueError("GEMINI_MODEL is required when AI_PROVIDER is 'gemini'")
+            if self.GEMINI_TIMEOUT_SECONDS <= 0:
+                raise ValueError("GEMINI_TIMEOUT_SECONDS must be greater than 0")
+            if not (0.0 <= self.GEMINI_TEMPERATURE <= 2.0):
+                raise ValueError("GEMINI_TEMPERATURE must be between 0.0 and 2.0")
 
         # Validate internal bearer token length
         token = self.AI_INTERNAL_SERVICE_TOKEN.strip()

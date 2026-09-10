@@ -11,12 +11,47 @@ def test_valid_default_settings():
 
 
 def test_unsupported_provider():
-    # Setting an unsupported provider must throw validation error in settings
-    with pytest.raises(ValueError, match="supports only 'mock'"):
+    # Setting an unknown provider must throw validation error in settings
+    with pytest.raises(ValueError, match="Unsupported AI provider"):
+        Settings(
+            AI_PROVIDER="unsupported-provider",
+            AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+        )
+
+
+def test_gemini_missing_api_key():
+    with pytest.raises(ValueError, match="GEMINI_API_KEY is required"):
         Settings(
             AI_PROVIDER="gemini",
             AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+            GEMINI_MODEL="gemini-2.5-flash",
         )
+
+
+def test_gemini_missing_model():
+    with pytest.raises(ValueError, match="GEMINI_MODEL is required"):
+        Settings(
+            AI_PROVIDER="gemini",
+            AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+            GEMINI_API_KEY="test-key-fake-1234567890",
+        )
+
+
+def test_valid_gemini_settings():
+    settings = Settings(
+        AI_PROVIDER="gemini",
+        AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+        GEMINI_API_KEY="test-key-fake-1234567890",
+        GEMINI_MODEL="gemini-2.5-flash",
+        GEMINI_TIMEOUT_SECONDS=45.0,
+        GEMINI_TEMPERATURE=0.5,
+    )
+    assert settings.AI_PROVIDER == "gemini"
+    assert settings.GEMINI_MODEL == "gemini-2.5-flash"
+    assert settings.GEMINI_TIMEOUT_SECONDS == 45.0
+    assert settings.GEMINI_TEMPERATURE == 0.5
+    # Ensure key is masked in repr
+    assert "test-key-fake-1234567890" not in repr(settings)
 
 
 def test_missing_token():

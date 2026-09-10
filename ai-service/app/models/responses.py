@@ -46,7 +46,7 @@ class Correlation(BaseModel):
 class ProviderMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    provider: Literal["mock"]
+    provider: Literal["mock", "gemini"]
     model: str
     prompt_version: Literal["clinical-summary-v1"]
 

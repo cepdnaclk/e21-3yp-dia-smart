@@ -1,5 +1,6 @@
 package com.diasmart.springapi.ai.validation;
 
+import com.diasmart.springapi.ai.config.AiProperties;
 import com.diasmart.springapi.ai.dto.gateway.*;
 import com.diasmart.springapi.ai.exception.AiInvalidResponseException;
 import org.junit.jupiter.api.BeforeEach;
@@ -300,5 +301,76 @@ class AiGatewayResponseValidatorTest {
                 validResponse.providerMetadata()
         );
         assertThrows(AiInvalidResponseException.class, () -> validator.validateResponse(validRequest, badResponse));
+    }
+
+    @Test
+    void shouldAcceptDefaultMockProvider() {
+        assertDoesNotThrow(() -> validator.validateResponse(validRequest, validResponse));
+    }
+
+    @Test
+    void shouldAcceptGeminiWhenExpectedProviderIsGemini() {
+        AiProperties props = new AiProperties();
+        props.setExpectedProvider("gemini");
+        AiGatewayResponseValidator geminiValidator = new AiGatewayResponseValidator(props);
+
+        AiClinicalSummaryGatewayResponse geminiResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                validResponse.summary(),
+                validResponse.observations(),
+                validResponse.correlations(),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                new AiProviderMetadata("gemini", "gemini-model-test", promptVersion)
+        );
+
+        assertDoesNotThrow(() -> geminiValidator.validateResponse(validRequest, geminiResponse));
+    }
+
+    @Test
+    void shouldRejectGeminiWhenExpectedProviderIsMock() {
+        AiClinicalSummaryGatewayResponse geminiResponse = new AiClinicalSummaryGatewayResponse(
+                requestId,
+                validResponse.summary(),
+                validResponse.observations(),
+                validResponse.correlations(),
+                validResponse.uncertainties(),
+                validResponse.discussionPoints(),
+                validResponse.safetyNotice(),
+                new AiProviderMetadata("gemini", "gemini-model-test", promptVersion)
+        );
+
+        AiInvalidResponseException ex = assertThrows(
+                AiInvalidResponseException.class,
+                () -> validator.validateResponse(validRequest, geminiResponse)
+        );
+        assertTrue(ex.getMessage().contains("AI response provider mismatch"));
+    }
+
+    @Test
+    void shouldRejectMockWhenExpectedProviderIsGemini() {
+        AiProperties props = new AiProperties();
+        props.setExpectedProvider("gemini");
+        AiGatewayResponseValidator geminiValidator = new AiGatewayResponseValidator(props);
+
+        AiInvalidResponseException ex = assertThrows(
+                AiInvalidResponseException.class,
+                () -> geminiValidator.validateResponse(validRequest, validResponse)
+        );
+        assertTrue(ex.getMessage().contains("AI response provider mismatch"));
+    }
+
+    @Test
+    void shouldRejectUnsupportedExpectedProviderConfiguration() {
+        AiProperties props = new AiProperties();
+        props.setExpectedProvider("unknown-engine");
+        AiGatewayResponseValidator brokenValidator = new AiGatewayResponseValidator(props);
+
+        AiInvalidResponseException ex = assertThrows(
+                AiInvalidResponseException.class,
+                () -> brokenValidator.validateResponse(validRequest, validResponse)
+        );
+        assertTrue(ex.getMessage().contains("Unsupported expected AI provider configuration"));
     }
 }

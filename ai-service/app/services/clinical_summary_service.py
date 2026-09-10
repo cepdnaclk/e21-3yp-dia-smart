@@ -1,6 +1,8 @@
 import logging
 
+from app.config.settings import get_settings
 from app.exceptions.types import (
+    AiBaseException,
     AiEvidenceValidationError,
     AiMedicalSafetyRejectionError,
     AiProviderError,
@@ -35,14 +37,18 @@ class ClinicalSummaryService:
             raise AiUnsupportedPromptVersionError(str(e)) from e
 
         # 2. AI Provider execution
+        settings = get_settings()
+        provider_name = settings.AI_PROVIDER.lower().strip()
         provider = get_provider()
         try:
             provider_response = await provider.generate_clinical_summary(request)
+        except AiBaseException:
+            raise
         except Exception as exc:
             logger.error(
                 "AI provider failed request_id=%s provider=%s exception_type=%s",
                 request.request_id,
-                "mock",
+                provider_name,
                 type(exc).__name__,
             )
             raise AiProviderError("The AI provider could not complete the request.") from exc

@@ -1,5 +1,10 @@
 # Parallel BLE and Live Glucometer Sync
 
+> **Superseded:** The parallel-client design documented here was found unsafe
+> with ESP32 BLE Arduino because that library keeps one global client pointer.
+> Use `firmware-development-record-2026-09-12.md` as the authoritative design
+> and hardware-validation record. This file remains only as development history.
+
 ## Scope
 
 This firmware update gives the insulin pen and Accu-Chek Guide Me independent

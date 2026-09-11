@@ -1,0 +1,79 @@
+import logging
+
+from app.config.settings import get_settings
+from app.exceptions.types import (
+    AiBaseException,
+    AiEvidenceValidationError,
+    AiMedicalSafetyRejectionError,
+    AiProviderError,
+    AiResponseValidationError,
+    AiUnsupportedPromptVersionError,
+)
+from app.models.requests import ClinicalSummaryRequest
+from app.models.responses import ClinicalSummaryResponse
+from app.prompts.prompt_builder import build_prompt
+from app.providers.factory import get_provider
+from app.validators.evidence_validator import EvidenceValidationError, validate_evidence
+from app.validators.medical_safety_validator import MedicalSafetyRejection, validate_medical_safety
+from app.validators.response_validator import ResponseValidationError, validate_response_schema
+
+logger = logging.getLogger("app.services.clinical_summary")
+
+
+class ClinicalSummaryService:
+    """
+    Coordinates the validation and execution pipeline for clinical summaries.
+    Enforces sequential checks: prompt validation, provider run, schema mapping,
+    clinical safety filtering, and citation integrity.
+    """
+
+    async def generate_summary(self, request: ClinicalSummaryRequest) -> ClinicalSummaryResponse:
+        logger.info(f"Initializing clinical summary generation pipeline. Request ID: {request.request_id}")
+
+        # 1. Prompt version validation & prompt building
+        try:
+            build_prompt(request)
+        except ValueError as e:
+            raise AiUnsupportedPromptVersionError(str(e)) from e
+
+        # 2. AI Provider execution
+        settings = get_settings()
+        provider_name = settings.AI_PROVIDER.lower().strip()
+        provider = get_provider()
+        try:
+            provider_response = await provider.generate_clinical_summary(request)
+        except AiBaseException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "AI provider failed request_id=%s provider=%s exception_type=%s",
+                request.request_id,
+                provider_name,
+                type(exc).__name__,
+            )
+            raise AiProviderError("The AI provider could not complete the request.") from exc
+
+        # 3. Response-schema validation
+        try:
+            validated_response = validate_response_schema(provider_response)
+        except ResponseValidationError as e:
+            raise AiResponseValidationError(str(e)) from e
+
+        # 3.5 Request-ID correlation validation
+        if validated_response.request_id != request.request_id:
+            raise AiResponseValidationError("Provider response request_id does not match the incoming request")
+
+        # 4. Medical-safety validation
+        try:
+            validate_medical_safety(validated_response)
+        except MedicalSafetyRejection as e:
+            raise AiMedicalSafetyRejectionError(str(e)) from e
+
+        # 5. Evidence-reference validation
+        try:
+            validate_evidence(request, validated_response)
+        except EvidenceValidationError as e:
+            raise AiEvidenceValidationError(str(e)) from e
+
+        logger.info(f"Clinical summary pipeline completed successfully. Request ID: {request.request_id}")
+        return validated_response

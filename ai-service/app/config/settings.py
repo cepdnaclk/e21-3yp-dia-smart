@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         if provider not in {"mock", "gemini"}:
             raise ValueError(f"Unsupported AI provider '{self.AI_PROVIDER}'. Supported: 'mock', 'gemini'")
 
+        # Production provider policy: MockProvider is strictly prohibited in production
+        env = self.AI_ENVIRONMENT.lower().strip()
+        if env in {"production", "prod"} and provider == "mock":
+            raise ValueError("MockProvider is not permitted in production environment. AI_PROVIDER must be 'gemini' in production.")
+
         # When provider is gemini, GEMINI_API_KEY and GEMINI_MODEL are required
         if provider == "gemini":
             if self.GEMINI_API_KEY is None or not self.GEMINI_API_KEY.get_secret_value().strip():

@@ -80,3 +80,24 @@ def test_invalid_limits():
             AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
             AI_MAX_DATE_RANGE_DAYS=0,
         )
+
+
+def test_production_mock_provider_prohibited():
+    with pytest.raises(ValueError, match="MockProvider is not permitted in production"):
+        Settings(
+            AI_ENVIRONMENT="production",
+            AI_PROVIDER="mock",
+            AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+        )
+
+
+def test_production_gemini_provider_allowed():
+    settings = Settings(
+        AI_ENVIRONMENT="production",
+        AI_PROVIDER="gemini",
+        AI_INTERNAL_SERVICE_TOKEN="some-random-handshake-token-32-chars-long",
+        GEMINI_API_KEY="test-key-fake-1234567890",
+        GEMINI_MODEL="gemini-2.5-flash",
+    )
+    assert settings.AI_ENVIRONMENT == "production"
+    assert settings.AI_PROVIDER == "gemini"

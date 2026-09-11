@@ -47,4 +47,4 @@ diasmart:
     max-alerts: ${AI_MAX_ALERTS:100}
     max-selected-events: ${AI_MAX_SELECTED_EVENTS:100}
     prompt-version: ${AI_PROMPT_VERSION:clinical-summary-v1}
-    expected-provider: ${AI_EXPECTED_PROVIDER:mock}
+    expected-provider: ${AI_EXPECTED_PROVIDER:gemini}

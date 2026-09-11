@@ -22,12 +22,15 @@ logger = logging.getLogger("app.main")
 
 settings = get_settings()
 
+is_production = settings.AI_ENVIRONMENT.lower().strip() in {"production", "prod"}
+
 app = FastAPI(
     title=settings.AI_SERVICE_NAME,
     version=settings.AI_SERVICE_VERSION,
     description="Dia-Smart IoT Diabetes Management System AI Subsystem",
-    docs_url="/docs",  # Default enabled in development; recommended to disable or protect in production
-    redoc_url="/redoc",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
 )
 
 # Add request body size limit protection middleware

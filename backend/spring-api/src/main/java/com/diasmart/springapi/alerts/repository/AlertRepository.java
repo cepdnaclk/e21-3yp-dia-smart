@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public interface AlertRepository
@@ -29,4 +30,9 @@ public interface AlertRepository
                         List<Long> patientIds,
                         String status,
                         Pageable pageable);
+
+        boolean existsByPatientIdAndAlertTypeAndCreatedAtAfter(
+                        Long patientId,
+                        String alertType,
+                        OffsetDateTime createdAt);
 }

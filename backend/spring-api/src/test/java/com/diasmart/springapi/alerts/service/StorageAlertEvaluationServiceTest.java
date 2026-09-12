@@ -1,5 +1,6 @@
 package com.diasmart.springapi.alerts.service;
 
+import com.diasmart.springapi.alerts.repository.AlertRepository;
 import com.diasmart.springapi.storage.entity.StorageReading;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,9 @@ class StorageAlertEvaluationServiceTest {
 
     @Mock
     private AlertFactoryService alertFactoryService;
+
+    @Mock
+    private AlertRepository alertRepository;
 
     @InjectMocks
     private StorageAlertEvaluationService service;
@@ -50,6 +54,14 @@ class StorageAlertEvaluationServiceTest {
         when(reading.getPatientId())
                 .thenReturn(1L);
 
+        when(alertRepository
+                .existsByPatientIdAndAlertTypeAndCreatedAtAfter(
+                        eq(1L),
+                        eq("TEMP_LOW"),
+                        any()
+                ))
+                .thenReturn(false);
+
         service.evaluateStorageAlerts(reading);
 
         verify(alertFactoryService)
@@ -73,6 +85,14 @@ class StorageAlertEvaluationServiceTest {
         when(reading.getPatientId())
                 .thenReturn(1L);
 
+        when(alertRepository
+                .existsByPatientIdAndAlertTypeAndCreatedAtAfter(
+                        eq(1L),
+                        eq("TEMP_HIGH"),
+                        any()
+                ))
+                .thenReturn(false);
+
         service.evaluateStorageAlerts(reading);
 
         verify(alertFactoryService)
@@ -92,6 +112,30 @@ class StorageAlertEvaluationServiceTest {
 
         when(reading.getTemperatureC())
                 .thenReturn(5.0);
+
+        service.evaluateStorageAlerts(reading);
+
+        verifyNoInteractions(alertFactoryService);
+    }
+
+    @Test
+    void shouldSkipHighTemperatureAlertInsideGap() {
+
+        StorageReading reading = mock(StorageReading.class);
+
+        when(reading.getTemperatureC())
+                .thenReturn(10.0);
+
+        when(reading.getPatientId())
+                .thenReturn(1L);
+
+        when(alertRepository
+                .existsByPatientIdAndAlertTypeAndCreatedAtAfter(
+                        eq(1L),
+                        eq("TEMP_HIGH"),
+                        any()
+                ))
+                .thenReturn(true);
 
         service.evaluateStorageAlerts(reading);
 

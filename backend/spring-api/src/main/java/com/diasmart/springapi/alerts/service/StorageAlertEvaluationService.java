@@ -1,8 +1,12 @@
 package com.diasmart.springapi.alerts.service;
 
+import com.diasmart.springapi.alerts.repository.AlertRepository;
 import com.diasmart.springapi.storage.entity.StorageReading;
 
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.OffsetDateTime;
 
 /**
  * Current phase:
@@ -22,13 +26,20 @@ import org.springframework.stereotype.Service;
 @Service
 public class StorageAlertEvaluationService {
 
+    private static final Duration TEMPERATURE_ALERT_GAP =
+            Duration.ofMinutes(10);
+
     private final AlertFactoryService alertFactoryService;
+    private final AlertRepository alertRepository;
 
     public StorageAlertEvaluationService(
-            AlertFactoryService alertFactoryService
+            AlertFactoryService alertFactoryService,
+            AlertRepository alertRepository
     ) {
         this.alertFactoryService =
                 alertFactoryService;
+        this.alertRepository =
+                alertRepository;
     }
 
     public void evaluateStorageAlerts(
@@ -69,7 +80,7 @@ public class StorageAlertEvaluationService {
 
         if (temperature < minSafeTemperature) {
 
-            alertFactoryService.createAlert(
+            createTemperatureAlert(
 
                     reading.getPatientId(),
 
@@ -90,7 +101,7 @@ public class StorageAlertEvaluationService {
 
         if (temperature > maxSafeTemperature) {
 
-            alertFactoryService.createAlert(
+            createTemperatureAlert(
 
                     reading.getPatientId(),
 
@@ -104,5 +115,40 @@ public class StorageAlertEvaluationService {
                             + temperature + "°C"
             );
         }
+    }
+
+    private void createTemperatureAlert(
+
+            Long patientId,
+
+            String alertType,
+
+            String severity,
+
+            String title,
+
+            String message
+    ) {
+
+        OffsetDateTime gapStart =
+                OffsetDateTime.now()
+                        .minus(TEMPERATURE_ALERT_GAP);
+
+        if (alertRepository
+                .existsByPatientIdAndAlertTypeAndCreatedAtAfter(
+                        patientId,
+                        alertType,
+                        gapStart
+                )) {
+            return;
+        }
+
+        alertFactoryService.createAlert(
+                patientId,
+                alertType,
+                severity,
+                title,
+                message
+        );
     }
 }

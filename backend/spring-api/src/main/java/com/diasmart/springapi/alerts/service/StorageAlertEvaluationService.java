@@ -4,6 +4,8 @@ import com.diasmart.springapi.storage.entity.StorageReading;
 
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
 /**
  * Current phase:
  * ----------------
@@ -21,6 +23,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class StorageAlertEvaluationService {
+
+    private static final Duration TEMPERATURE_ALERT_GAP =
+            Duration.ofMinutes(10);
 
     private final AlertFactoryService alertFactoryService;
 
@@ -69,7 +74,7 @@ public class StorageAlertEvaluationService {
 
         if (temperature < minSafeTemperature) {
 
-            alertFactoryService.createAlert(
+            createTemperatureAlert(
 
                     reading.getPatientId(),
 
@@ -90,7 +95,7 @@ public class StorageAlertEvaluationService {
 
         if (temperature > maxSafeTemperature) {
 
-            alertFactoryService.createAlert(
+            createTemperatureAlert(
 
                     reading.getPatientId(),
 
@@ -104,5 +109,28 @@ public class StorageAlertEvaluationService {
                             + temperature + "°C"
             );
         }
+    }
+
+    private void createTemperatureAlert(
+
+            Long patientId,
+
+            String alertType,
+
+            String severity,
+
+            String title,
+
+            String message
+    ) {
+
+        alertFactoryService.createAlertIfGapElapsed(
+                patientId,
+                alertType,
+                severity,
+                title,
+                message,
+                TEMPERATURE_ALERT_GAP
+        );
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AlertRepository
                 extends JpaRepository<Alert, Long> {
@@ -36,4 +37,8 @@ public interface AlertRepository
                         OffsetDateTime from,
                         OffsetDateTime to,
                         Pageable pageable);
+
+        Optional<Alert> findTopByPatientIdAndAlertTypeOrderByCreatedAtDesc(
+                        Long patientId,
+                        String alertType);
 }

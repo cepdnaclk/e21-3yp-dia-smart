@@ -69,14 +69,15 @@
 #define PEN_SCAN_WINDOW_SEC          2
 #define PEN_SCAN_IDLE_DELAY_MS       3000
 #define PEN_SESSION_HOLD_MS          2500
-#define GLUCOMETER_SCAN_WINDOW_SEC   10
+#define GLUCOMETER_SCAN_WINDOW_SEC   3
 #define GLUCOMETER_INITIAL_SCAN_DELAY_MS 5000
 
-// Use one RACP request per glucometer connection. After the request completes
-// (or times out), disconnect and start a fresh session later. The Guide Me is
-// more reliable when each stored-record fetch has a clean BLE session.
-#define GLUCOMETER_SESSION_RETRY_DELAY_MS 5000
+// Use one RACP request per glucometer connection. The ESP32 BLE Arduino
+// library supports only one active client. Scan while listening to the pen,
+// then switch clients only after the meter is actually discovered.
+#define GLUCOMETER_SCAN_INTERVAL_MS       4000
 #define GLUCOMETER_RACP_TIMEOUT_MS        12000
+#define GLUCOMETER_AUTH_TIMEOUT_MS        6000
 
 // ---- Storage / Inventory thresholds -------------------------------------- //
 #define TEMP_MIN_C                   2.0f
@@ -145,7 +146,7 @@
 // ---- FreeRTOS Stack sizes (bytes) ---------------------------------------- //
 #define STACK_EVENT_AGG              8192
 #define STACK_MQTT_PUBLISH           8192
-#define STACK_BLE_MANAGER            16384   // BLE client stack is large
+#define STACK_BLE_MANAGER            16384   // BLE client discovery is stack-heavy
 #define STACK_DISPLAY_UI             8192
 #define STACK_KEYPAD                 3072
 

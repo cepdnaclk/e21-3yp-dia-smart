@@ -5,9 +5,7 @@ import com.diasmart.springapi.alerts.repository.AlertRepository;
 
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Optional;
 
 @Service
 public class AlertFactoryService {
@@ -79,49 +77,5 @@ public class AlertFactoryService {
         );
 
         return alertRepository.save(alert);
-    }
-
-    public Optional<Alert> createAlertIfGapElapsed(
-
-            Long patientId,
-
-            String alertType,
-
-            String severity,
-
-            String title,
-
-            String message,
-
-            Duration alertGap
-    ) {
-
-        Optional<Alert> latestAlert =
-                alertRepository
-                        .findTopByPatientIdAndAlertTypeOrderByCreatedAtDesc(
-                                patientId,
-                                alertType
-                        );
-
-        OffsetDateTime gapStart =
-                OffsetDateTime.now()
-                        .minus(alertGap);
-
-        if (latestAlert.isPresent()
-                && latestAlert.get().getCreatedAt() != null
-                && latestAlert.get().getCreatedAt().isAfter(gapStart)) {
-
-            return Optional.empty();
-        }
-
-        return Optional.of(
-                createAlert(
-                        patientId,
-                        alertType,
-                        severity,
-                        title,
-                        message
-                )
-        );
     }
 }

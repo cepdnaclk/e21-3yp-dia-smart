@@ -32,23 +32,14 @@ bool penConnected = false;
 bool glucometerConnected = false;
 volatile bool racpDone = false;
 volatile bool racpRequestInFlight = false;
-volatile bool glucometerAuthComplete = false;
-volatile bool glucometerAuthSucceeded = false;
-volatile uint8_t glucometerAuthFailReason = 0;
 
 uint32_t lastScanMs = 0;
+uint32_t nextPenConnectMs = 0;
+uint32_t nextGlucometerConnectMs = 0;
 uint32_t lastPenRssiMs = 0;
 uint32_t lastRacpRequestMs = 0;
-uint32_t nextGlucometerSyncMs = 0;
-
-enum class ScanTarget : uint8_t {
-    Pen,
-    Glucometer
-};
-volatile ScanTarget scanTarget = ScanTarget::Pen;
 
 volatile uint16_t pendingPenAckMask = 0;
-uint32_t lastQueuedPenEpochBySlot[16] = {};
 bool hasLastGlucoseSeq = false;
 uint16_t lastAcceptedGlucoseSeq = 0;
 
@@ -149,7 +140,6 @@ bool parseCompactDosePayload(const char* payload, DoseReading* dose) {
                &doseTenths,
                &takenEpochSec) != 3 ||
         slot < 0 ||
-        slot >= 16 ||
         doseTenths <= 0 ||
         takenEpochSec < 1700000000UL) {
         return false;
@@ -209,21 +199,9 @@ void onPenDoseNotify(BLERemoteCharacteristic* characteristic,
         return;
     }
 
-    if (dose.hasPenTakenEpoch &&
-        lastQueuedPenEpochBySlot[dose.penRecordSlot] ==
-            dose.penTakenEpochSec) {
-        queuePenAck(dose.penRecordSlot);
-        return;
-    }
-
     if (xQueueSend(doseQueue, &dose, 0) != pdTRUE) {
         Serial.println("[BLE] doseQueue full; dose dropped");
         return;
-    }
-
-    if (dose.hasPenTakenEpoch) {
-        lastQueuedPenEpochBySlot[dose.penRecordSlot] =
-            dose.penTakenEpochSec;
     }
 
     Serial.printf("[BLE] Pen dose received: %.1fU at %s\n",
@@ -331,15 +309,9 @@ public:
     }
 
     void onAuthenticationComplete(esp_ble_auth_cmpl_t result) override {
-        glucometerAuthSucceeded = result.success;
-        glucometerAuthFailReason = result.fail_reason;
-        glucometerAuthComplete = true;
-        if (result.success) {
-            Serial.println("[BLE] Glucometer authentication succeeded");
-        } else {
-            Serial.printf("[BLE] Glucometer authentication failed reason=0x%02X\n",
-                          result.fail_reason);
-        }
+        Serial.println(result.success
+            ? "[BLE] Glucometer authentication succeeded"
+            : "[BLE] Glucometer authentication failed");
     }
 };
 
@@ -348,8 +320,7 @@ public:
     void onResult(BLEAdvertisedDevice advertisedDevice) override {
         bool foundTarget = false;
 
-        if (scanTarget == ScanTarget::Pen &&
-            !penConnected &&
+        if (!penConnected &&
             !penFound &&
             advertisedDevice.getName() == PEN_BLE_DEVICE_NAME) {
             penDevice = new BLEAdvertisedDevice(advertisedDevice);
@@ -359,8 +330,7 @@ public:
                           advertisedDevice.getAddress().toString().c_str());
         }
 
-        if (scanTarget == ScanTarget::Glucometer &&
-            !glucometerConnected &&
+        if (!glucometerConnected &&
             !glucometerFound &&
             advertisedDevice.haveServiceUUID() &&
             advertisedDevice.isAdvertisingService(
@@ -388,7 +358,7 @@ BLEScan* setupScan(BLEAdvertisedDeviceCallbacks* callbacks) {
     return scan;
 }
 
-void disconnectPenClient() {
+void clearPenClient() {
     penConnected = false;
     penDoseChar = nullptr;
     g_lastBleRssi = 0;
@@ -397,15 +367,13 @@ void disconnectPenClient() {
     }
     if (penClient->isConnected()) {
         penClient->disconnect();
-        const uint32_t disconnectStartedMs = millis();
-        while (penClient->isConnected() &&
-               (millis() - disconnectStartedMs) < 2000) {
-            vTaskDelay(pdMS_TO_TICKS(50));
-        }
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
+    delete penClient;
+    penClient = nullptr;
 }
 
-void disconnectGlucometerClient() {
+void clearGlucometerClient() {
     glucometerConnected = false;
     glucometerMeasureChar = nullptr;
     glucometerRacpChar = nullptr;
@@ -416,12 +384,19 @@ void disconnectGlucometerClient() {
     }
     if (glucometerClient->isConnected()) {
         glucometerClient->disconnect();
-        const uint32_t disconnectStartedMs = millis();
-        while (glucometerClient->isConnected() &&
-               (millis() - disconnectStartedMs) < 2000) {
-            vTaskDelay(pdMS_TO_TICKS(50));
-        }
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
+    delete glucometerClient;
+    glucometerClient = nullptr;
+}
+
+void finishGlucometerSession(const char* reason) {
+    Serial.printf("[BLE] Glucometer session finished: %s\n", reason);
+    clearGlucometerClient();
+    glucometerFound = false;
+    nextGlucometerConnectMs =
+        millis() + GLUCOMETER_SESSION_RETRY_DELAY_MS;
+    lastScanMs = millis();
 }
 
 bool requestLatestGlucometerRecord() {
@@ -447,29 +422,20 @@ bool connectPen() {
         return false;
     }
 
-    // BLEDevice keeps only one global client pointer. Retire the previous
-    // glucometer session immediately before creating the pen client.
-    if (glucometerClient != nullptr) {
-        delete glucometerClient;
-        glucometerClient = nullptr;
-    }
-    if (penClient != nullptr) {
-        delete penClient;
-    }
+    clearPenClient();
     penClient = BLEDevice::createClient();
-    Serial.println("[BLE] Connecting pen...");
+    Serial.println("[BLE] Connecting pen without dropping glucometer...");
     if (!penClient->connect(penDevice)) {
         Serial.println("[BLE] Pen connect failed");
-        disconnectPenClient();
+        clearPenClient();
         return false;
     }
 
-    penClient->getServices();
     BLERemoteService* service =
         penClient->getService(BLEUUID(PEN_BLE_SERVICE_UUID));
     if (service == nullptr) {
         Serial.println("[BLE] Pen service not found");
-        disconnectPenClient();
+        clearPenClient();
         return false;
     }
 
@@ -477,7 +443,7 @@ bool connectPen() {
         service->getCharacteristic(BLEUUID(PEN_BLE_CHAR_UUID));
     if (penDoseChar == nullptr || !penDoseChar->canNotify()) {
         Serial.println("[BLE] Pen notification characteristic unavailable");
-        disconnectPenClient();
+        clearPenClient();
         return false;
     }
 
@@ -487,7 +453,7 @@ bool connectPen() {
     g_lastBleRssi = penClient->getRssi();
     lastPenRssiMs = millis();
     sendPendingPenAcks();
-    Serial.printf("[BLE] Pen connected, RSSI=%d dBm\n",
+    Serial.printf("[BLE] Pen connected in parallel, RSSI=%d dBm\n",
                   g_lastBleRssi);
     return true;
 }
@@ -497,45 +463,18 @@ bool connectGlucometer() {
         return false;
     }
 
-    // Retire the disconnected pen client immediately before creating the
-    // glucometer client. Two simultaneous clients are unsafe in this library.
-    if (penClient != nullptr) {
-        delete penClient;
-        penClient = nullptr;
-    }
-    if (glucometerClient != nullptr) {
-        delete glucometerClient;
-    }
+    clearGlucometerClient();
     glucometerClient = BLEDevice::createClient();
-    Serial.println("[BLE] Connecting glucometer...");
-    // Ask for encryption from ESP_GATTC_CONNECT_EVT, where the stack provides
-    // the actual connected peer address. Calling it later with the advertised
-    // address can fail with BT_BTM "Device not found" on the Guide Me.
-    glucometerAuthComplete = false;
-    glucometerAuthSucceeded = false;
-    glucometerAuthFailReason = 0;
-    BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT_MITM);
-    const bool connected = glucometerClient->connect(glucometerDevice);
-    BLEDevice::setEncryptionLevel((esp_ble_sec_act_t)0);
-    if (!connected) {
+    Serial.println("[BLE] Connecting glucometer without dropping pen...");
+    if (!glucometerClient->connect(glucometerDevice)) {
         Serial.println("[BLE] Glucometer connect failed");
-        disconnectGlucometerClient();
+        clearGlucometerClient();
         return false;
     }
 
-    const uint32_t authStartedMs = millis();
-    while (!glucometerAuthComplete &&
-           glucometerClient->isConnected() &&
-           (millis() - authStartedMs) < GLUCOMETER_AUTH_TIMEOUT_MS) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-    if (!glucometerAuthComplete || !glucometerAuthSucceeded) {
-        Serial.printf(
-            "[BLE] Glucometer authentication aborted reason=0x%02X; retry pairing mode\n",
-            glucometerAuthFailReason);
-        disconnectGlucometerClient();
-        return false;
-    }
+    esp_ble_set_encryption(*glucometerDevice->getAddress().getNative(),
+                           ESP_BLE_SEC_ENCRYPT_MITM);
+    vTaskDelay(pdMS_TO_TICKS(4000));
 
     esp_ble_gattc_cache_refresh(
         *glucometerDevice->getAddress().getNative());
@@ -547,7 +486,7 @@ bool connectGlucometer() {
         BLEUUID((uint16_t)GLUCOMETER_SERVICE_UUID));
     if (service == nullptr) {
         Serial.println("[BLE] Glucose service not found");
-        disconnectGlucometerClient();
+        clearGlucometerClient();
         return false;
     }
 
@@ -559,7 +498,7 @@ bool connectGlucometer() {
         glucometerRacpChar == nullptr ||
         !glucometerMeasureChar->canNotify()) {
         Serial.println("[BLE] Glucometer characteristics unavailable");
-        disconnectGlucometerClient();
+        clearGlucometerClient();
         return false;
     }
 
@@ -570,32 +509,26 @@ bool connectGlucometer() {
     vTaskDelay(pdMS_TO_TICKS(1000));
     if (!requestLatestGlucometerRecord()) {
         Serial.println("[BLE] Glucometer request failed; ending session");
-        disconnectGlucometerClient();
+        clearGlucometerClient();
         return false;
     }
-    Serial.println("[BLE] Glucometer connected; waiting for latest record");
+    Serial.println("[BLE] Glucometer connected in parallel");
     return true;
 }
 
-void scanForDevice(BLEScan* scan, ScanTarget target, uint32_t seconds) {
-    scanTarget = target;
-    if (target == ScanTarget::Pen) {
-        penFound = false;
-        if (penDevice != nullptr) {
-            delete penDevice;
-            penDevice = nullptr;
-        }
-        Serial.println("[BLE] Scanning for pen");
-    } else {
-        glucometerFound = false;
-        if (glucometerDevice != nullptr) {
-            delete glucometerDevice;
-            glucometerDevice = nullptr;
-        }
-        Serial.println("[BLE] Scanning for glucometer");
+void scanForMissingDevices(BLEScan* scan) {
+    if ((penConnected || penFound) &&
+        (glucometerConnected || glucometerFound)) {
+        return;
     }
+
+    Serial.printf("[BLE] Scanning for%s%s\n",
+                  (!penConnected && !penFound) ? " pen" : "",
+                  (!glucometerConnected && !glucometerFound)
+                      ? " glucometer"
+                      : "");
     scan->clearResults();
-    scan->start(seconds, false);
+    scan->start(PEN_SCAN_WINDOW_SEC, false);
     scan->clearResults();
     lastScanMs = millis();
 }
@@ -617,64 +550,58 @@ void bleManagerTask(void* parameter) {
 
     DiscoveryCallbacks* discoveryCallbacks = new DiscoveryCallbacks();
     BLEScan* scan = setupScan(discoveryCallbacks);
-    nextGlucometerSyncMs =
-        millis() + GLUCOMETER_INITIAL_SCAN_DELAY_MS;
-    Serial.println("[BLE] Serialized pen/glucometer manager started");
+    lastScanMs = millis() - PEN_SCAN_IDLE_DELAY_MS;
+
+    Serial.println("[BLE] Parallel client manager started");
 
     for (;;) {
         uint32_t now = millis();
 
-        if ((int32_t)(now - nextGlucometerSyncMs) >= 0) {
-            scanForDevice(
-                scan, ScanTarget::Glucometer, GLUCOMETER_SCAN_WINDOW_SEC);
-            if (glucometerFound) {
-                if (penConnected) {
-                    sendPendingPenAcks();
-                    Serial.println("[BLE] Meter found; pausing pen for sync");
-                    disconnectPenClient();
-                    vTaskDelay(pdMS_TO_TICKS(500));
-                }
-
-                if (connectGlucometer()) {
-                    const uint32_t syncStartedMs = millis();
-                    while (!racpDone &&
-                           glucometerClient->isConnected() &&
-                           (millis() - syncStartedMs) <
-                               GLUCOMETER_RACP_TIMEOUT_MS) {
-                        vTaskDelay(pdMS_TO_TICKS(100));
-                    }
-                    Serial.println(racpDone
-                        ? "[BLE] Glucometer session finished: RACP complete"
-                        : "[BLE] Glucometer session finished: RACP timeout");
-                    disconnectGlucometerClient();
-                }
-            }
-            glucometerFound = false;
-            if (glucometerDevice != nullptr) {
-                delete glucometerDevice;
-                glucometerDevice = nullptr;
-            }
-            nextGlucometerSyncMs =
-                millis() + GLUCOMETER_SCAN_INTERVAL_MS;
-            continue;
-        }
-
         if (penConnected &&
             (penClient == nullptr || !penClient->isConnected())) {
             Serial.println("[BLE] Pen disconnected; reconnect scheduled");
-            disconnectPenClient();
+            clearPenClient();
+            penFound = false;
+            nextPenConnectMs = now + PEN_SCAN_IDLE_DELAY_MS;
+        }
+
+        if (glucometerConnected &&
+            (glucometerClient == nullptr ||
+             !glucometerClient->isConnected())) {
+            Serial.println(
+                "[BLE] Glucometer disconnected; reconnect scheduled");
+            clearGlucometerClient();
+            glucometerFound = false;
+            nextGlucometerConnectMs = now + PEN_SCAN_IDLE_DELAY_MS;
         }
 
         if (!penConnected &&
-            (now - lastScanMs) >= PEN_SCAN_IDLE_DELAY_MS) {
-            scanForDevice(scan, ScanTarget::Pen, PEN_SCAN_WINDOW_SEC);
-            if (penFound) {
-                connectPen();
-                penFound = false;
-                delete penDevice;
-                penDevice = nullptr;
+            penFound &&
+            (int32_t)(now - nextPenConnectMs) >= 0) {
+            if (!connectPen()) {
+                nextPenConnectMs =
+                    millis() + PEN_SCAN_IDLE_DELAY_MS;
             }
+            penFound = false;
+            delete penDevice;
+            penDevice = nullptr;
         }
+
+        if (!glucometerConnected &&
+            glucometerFound &&
+            (int32_t)(now - nextGlucometerConnectMs) >= 0) {
+            if (!connectGlucometer()) {
+                nextGlucometerConnectMs =
+                    millis() + PEN_SCAN_IDLE_DELAY_MS;
+            }
+            glucometerFound = false;
+            delete glucometerDevice;
+            glucometerDevice = nullptr;
+        }
+
+        // BLE connection setup blocks for several seconds. Refresh the loop
+        // clock so a request sent during setup cannot appear already timed out.
+        now = millis();
 
         if (penConnected) {
             sendPendingPenAcks();
@@ -684,6 +611,23 @@ void bleManagerTask(void* parameter) {
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        if (glucometerConnected) {
+            if (racpDone) {
+                finishGlucometerSession("RACP complete");
+            } else if (racpRequestInFlight &&
+                (now - lastRacpRequestMs) >=
+                    GLUCOMETER_RACP_TIMEOUT_MS) {
+                finishGlucometerSession("RACP timeout");
+            }
+        }
+
+        if ((!penConnected || !glucometerConnected) &&
+            !penFound &&
+            !glucometerFound &&
+            (now - lastScanMs) >= PEN_SCAN_IDLE_DELAY_MS) {
+            scanForMissingDevices(scan);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 }

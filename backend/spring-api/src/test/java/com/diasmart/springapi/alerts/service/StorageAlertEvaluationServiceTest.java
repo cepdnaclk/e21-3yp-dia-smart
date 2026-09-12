@@ -7,8 +7,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Duration;
-
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,13 +53,12 @@ class StorageAlertEvaluationServiceTest {
         service.evaluateStorageAlerts(reading);
 
         verify(alertFactoryService)
-                .createAlertIfGapElapsed(
+                .createAlert(
                         eq(1L),
                         eq("TEMP_LOW"),
                         eq("CRITICAL"),
                         eq("Storage temperature too low"),
-                        contains("1.5"),
-                        eq(Duration.ofMinutes(10))
+                        contains("1.5")
                 );
     }
 
@@ -79,13 +76,12 @@ class StorageAlertEvaluationServiceTest {
         service.evaluateStorageAlerts(reading);
 
         verify(alertFactoryService)
-                .createAlertIfGapElapsed(
+                .createAlert(
                         eq(1L),
                         eq("TEMP_HIGH"),
                         eq("CRITICAL"),
                         eq("Storage temperature too high"),
-                        contains("10.0"),
-                        eq(Duration.ofMinutes(10))
+                        contains("10.0")
                 );
     }
 

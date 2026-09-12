@@ -19,7 +19,6 @@ import PrescriptionsCard from "../../components/workspace/PrescriptionsCard";
 import DoseScheduleCard from "../../components/workspace/DoseScheduleCard";
 import AnalyticsCard from "../../components/workspace/AnalyticsCard";
 import ReportsCard from "../../components/workspace/ReportsCard";
-import AiClinicalSummaryCard from "../../components/workspace/AiClinicalSummaryCard";
 
 // Caregiver specific sections
 import TodayDoseCard from "../../components/workspace/TodayDoseCard";
@@ -36,7 +35,6 @@ const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   "glucose-trends": GlucoseTrendsCard,
   "dose-history": DoseHistoryCard,
   "alerts": AlertsCard,
-  "ai-clinical-summary": AiClinicalSummaryCard,
   "prescriptions": PrescriptionsCard,
   "dose-schedule": DoseScheduleCard,
   "analytics": AnalyticsCard,

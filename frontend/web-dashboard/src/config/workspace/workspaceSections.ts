@@ -14,7 +14,6 @@ export const workspaceSections: Record<UserRole, WorkspaceSectionConfig[]> = {
   [UserRole.DOCTOR]: [
     { id: "patient-details", gridSize: { xs: 12, md: 4 } },
     { id: "alerts", gridSize: { xs: 12, md: 8 } },
-    { id: "ai-clinical-summary", gridSize: { xs: 12 } },
     { id: "prescriptions", gridSize: { xs: 12, md: 6 } },
     { id: "dose-schedule", gridSize: { xs: 12, md: 6 } },
     { id: "analytics", gridSize: { xs: 12, md: 12 } },
@@ -23,7 +22,6 @@ export const workspaceSections: Record<UserRole, WorkspaceSectionConfig[]> = {
   [UserRole.CAREGIVER]: [
     { id: "patient-details", gridSize: { xs: 12, md: 4 } },
     { id: "today-dose", gridSize: { xs: 12, md: 8 } },
-    { id: "ai-clinical-summary", gridSize: { xs: 12 } },
     { id: "alerts", gridSize: { xs: 12, md: 6 } },
     { id: "storage-monitoring", gridSize: { xs: 12, md: 6 } },
     { id: "inventory-monitoring", gridSize: { xs: 12, md: 6 } },

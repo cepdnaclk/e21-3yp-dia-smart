@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://diasmart-db.c7myyog8ar0z.eu-north-1.rds.amazonaws.com:5432/diasmart?sslmode=require}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://diasmart-db.c7myyog8ar0z.eu-north-1.rds.amazonaws.com:5432/diasmart?sslmode=require
+    username: postgres
+    password: Sanjeevan2002
 
     jpa:
     hibernate:
@@ -22,10 +22,10 @@ logging:
 
 app:
   encryption:
-    key: ${ENCRYPTION_KEY}
+    key: ${ENCRYPTION_KEY:prod-secret-key-must-be-32-chars}
   jwt:
-    secret: ${JWT_SECRET}
-    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    secret: diasmart_super_secure_local_jwt_secret_123456
+    expiration-ms: 3600000
 
 mqtt:
   broker:
@@ -35,16 +35,3 @@ mqtt:
     id: diasmart-backend-prod
 
   topic: diasmart/device/telemetry
-
-diasmart:
-  ai:
-    enabled: ${AI_ENABLED:false}
-    gateway-url: ${AI_GATEWAY_URL:http://127.0.0.1:8000}
-    internal-service-token: ${AI_INTERNAL_SERVICE_TOKEN:}
-    connect-timeout: ${AI_CONNECT_TIMEOUT:3s}
-    read-timeout: ${AI_READ_TIMEOUT:30s}
-    max-date-range-days: ${AI_MAX_DATE_RANGE_DAYS:31}
-    max-alerts: ${AI_MAX_ALERTS:100}
-    max-selected-events: ${AI_MAX_SELECTED_EVENTS:100}
-    prompt-version: ${AI_PROMPT_VERSION:clinical-summary-v1}
-    expected-provider: ${AI_EXPECTED_PROVIDER:gemini}

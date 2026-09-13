@@ -11,11 +11,14 @@ import java.time.OffsetDateTime;
 public class AlertFactoryService {
 
     private final AlertRepository alertRepository;
+    private final FcmPushNotificationService fcmPushNotificationService;
 
     public AlertFactoryService(
-            AlertRepository alertRepository
+            AlertRepository alertRepository,
+            FcmPushNotificationService fcmPushNotificationService
     ) {
         this.alertRepository = alertRepository;
+        this.fcmPushNotificationService = fcmPushNotificationService;
     }
 
     /**
@@ -76,6 +79,10 @@ public class AlertFactoryService {
                 OffsetDateTime.now()
         );
 
-        return alertRepository.save(alert);
+        Alert savedAlert = alertRepository.save(alert);
+        if (fcmPushNotificationService != null && patientId != null) {
+            fcmPushNotificationService.sendPushNotificationForAlert(patientId, savedAlert);
+        }
+        return savedAlert;
     }
 }

@@ -1,25 +1,87 @@
 import { AppScaffold } from "@/components/AppScaffold";
 import { StatCard } from "@/components/StatCard";
-import { buildMetrics, sampleReadings } from "@/data/mockData";
+import { buildMetrics, sampleDashboardTelemetry, sampleReadings } from "@/data/mockData";
+import {
+  getGlucoseStatus,
+  getInventoryStatus,
+  getLastDoseStatus,
+  getTemperatureStatus,
+} from "@/utils/statusUtils";
 import { colors } from "@/theme/colors";
 import { Activity } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function HomeTab() {
   const metrics = buildMetrics(sampleReadings);
+  const telemetry = sampleDashboardTelemetry;
+
+  const inventoryStatus = getInventoryStatus(
+    telemetry.inventory,
+    telemetry.estimatedRemainingPercent,
+    telemetry.inventoryStatus
+  );
+  const temperatureStatus = getTemperatureStatus(
+    telemetry.temperature,
+    telemetry.temperatureStatus
+  );
+  const doseStatus = getLastDoseStatus(
+    telemetry.lastDose,
+    telemetry.lastDoseInjectedAt
+  );
+  const glucoseStatus = getGlucoseStatus(telemetry.glucose);
 
   return (
-    <AppScaffold title="Patient Overview" subtitle="App-style dashboard view">
+    <AppScaffold title="Patient Overview" subtitle="Live telemetry & patient dashboard">
+      {/* Primary Storage & Dosage Telemetry Cards */}
       <View style={styles.row}>
-        <StatCard label="Average" value={`${metrics.avg.toFixed(1)} mg/dL`} />
-        <StatCard label="Latest" value={`${metrics.latest?.glucose_mg_dl ?? "-"} mg/dL`} />
+        <StatCard
+          label="Inventory"
+          value={`${telemetry.inventory} g`}
+          statusText={inventoryStatus.text}
+          statusColor={inventoryStatus.color}
+          accentColor="#f59e0b"
+        />
+        <StatCard
+          label="Temperature"
+          value={`${telemetry.temperature} °C`}
+          statusText={temperatureStatus.text}
+          statusColor={temperatureStatus.color}
+          accentColor="#3ec1fa"
+        />
       </View>
 
       <View style={styles.row}>
-        <StatCard label="Readings" value={`${metrics.total}`} />
-        <StatCard label="In Range" value={`${metrics.inRangePct}%`} />
+        <StatCard
+          label="Last Dose"
+          value={`${telemetry.lastDose} Units`}
+          statusText={doseStatus.text}
+          statusColor={doseStatus.color}
+          accentColor="#10b981"
+        />
+        <StatCard
+          label="Glucose"
+          value={`${telemetry.glucose} mg/dL`}
+          statusText={glucoseStatus.text}
+          statusColor={glucoseStatus.color}
+          accentColor="#ef4444"
+        />
       </View>
 
+      {/* Aggregate Dosing Metrics */}
+      <View style={styles.row}>
+        <StatCard
+          label="Average Glucose"
+          value={`${metrics.avg.toFixed(1)} mg/dL`}
+          accentColor="#8b5cf6"
+        />
+        <StatCard
+          label="Time In Range"
+          value={`${metrics.inRangePct}%`}
+          accentColor="#10b981"
+        />
+      </View>
+
+      {/* Risk Zones Breakdown */}
       <View style={styles.card}>
         <View style={styles.headRow}>
           <Activity color={colors.accent} size={18} />

@@ -41,6 +41,34 @@ export function zoneFromValue(value: number): "low" | "normal" | "high" | "criti
   return "critical";
 }
 
+export interface TelemetryData {
+  glucose: number;
+  glucoseMeasuredAt?: string;
+  inventory: number; // weight in g
+  estimatedRemainingPercent?: number;
+  inventoryStatus?: string;
+  inventoryMeasuredAt?: string;
+  temperature: number; // in °C
+  temperatureStatus?: string;
+  temperatureMeasuredAt?: string;
+  lastDose: number; // in Units
+  lastDoseInjectedAt?: string;
+}
+
+export const sampleDashboardTelemetry: TelemetryData = {
+  glucose: 118,
+  glucoseMeasuredAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+  inventory: 0.738,
+  estimatedRemainingPercent: 65,
+  inventoryStatus: "NORMAL",
+  inventoryMeasuredAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+  temperature: 3.4,
+  temperatureStatus: "NORMAL",
+  temperatureMeasuredAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  lastDose: 10,
+  lastDoseInjectedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+};
+
 export function buildMetrics(readings: Reading[]) {
   const total = readings.length;
   const avg = total ? readings.reduce((sum, item) => sum + item.glucose_mg_dl, 0) / total : 0;
@@ -60,3 +88,4 @@ export function buildMetrics(readings: Reading[]) {
     zones
   };
 }
+

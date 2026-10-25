@@ -33,10 +33,13 @@
     }
   ],
   "tags": [
-    "Web",
+    "IoT",
     "Embedded Systems",
-    "IoT"
+    "Healthcare",
+    "Web"
   ],
   "image": "cover_page.jpg",
-  "thumbnail": "thumbnail.jpg"
+  "thumbnail": "thumbnail.jpg",
+  "publications": [],
+  "media": []
 }

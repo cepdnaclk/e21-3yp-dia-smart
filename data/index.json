@@ -1,0 +1,42 @@
+{
+  "title": "Dia-Smart: Intelligent Diabetes Care System",
+  "team": [
+    {
+      "name": "ANANTHASAGARAN N.",
+      "email": "e21031@eng.pdn.ac.lk",
+      "eNumber": "E/21/031"
+    },
+    {
+      "name": "ARNIKAN U.",
+      "email": "e21036@eng.pdn.ac.lk",
+      "eNumber": "E/21/036"
+    },
+    {
+      "name": "SANJEEVAN U.",
+      "email": "e21356@eng.pdn.ac.lk",
+      "eNumber": "E/21/356"
+    },
+    {
+      "name": "SIVASUTHAN J.",
+      "email": "e21386@eng.pdn.ac.lk",
+      "eNumber": "E/21/386"
+    }
+  ],
+  "supervisors": [
+    {
+      "name": "Ms. Yasodha Vimukthi",
+      "email": "yasodhav@eng.pdn.ac.lk"
+    },
+    {
+      "name": "Dr. Isuru Nawinne",
+      "email": "isurunawinne@eng.pdn.ac.lk"
+    }
+  ],
+  "tags": [
+    "Web",
+    "Embedded Systems",
+    "IoT"
+  ],
+  "image": "cover_page.jpg",
+  "thumbnail": "thumbnail.jpg"
+}

@@ -92,14 +92,14 @@ const PatientWorkspacePage = () => {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
       <PageTitle>Patient Workspace</PageTitle>
 
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: { xs: 3, md: 4 } }}>
         <PatientHeader patientProfile={patientProfile} />
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         {sections.map((section) => {
           const Component = COMPONENT_REGISTRY[section.id];
           if (!Component) return null;

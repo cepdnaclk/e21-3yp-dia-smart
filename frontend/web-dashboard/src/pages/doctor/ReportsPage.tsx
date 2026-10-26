@@ -93,7 +93,7 @@ const ReportsPage = () => {
   if (loadingList) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: "secondary.dark" }} />
       </Box>
     );
   }
@@ -109,9 +109,9 @@ const ReportsPage = () => {
       )}
 
       {/* Patient Selection & Filter Controls */}
-      <Card elevation={2} sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent sx={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "center" }}>
-          <FormControl sx={{ minWidth: 240 }} size="small">
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 2, sm: 3 }, alignItems: "center" }}>
+          <FormControl sx={{ minWidth: { sm: 240 }, width: { xs: "100%", sm: "auto" } }} size="small">
             <InputLabel id="reports-patient-select-label">Select Patient</InputLabel>
             <Select
               labelId="reports-patient-select-label"
@@ -131,6 +131,7 @@ const ReportsPage = () => {
             label="Start Date"
             type="date"
             size="small"
+            sx={{ width: { xs: "100%", sm: "auto" } }}
             slotProps={{ inputLabel: { shrink: true } }}
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
@@ -140,6 +141,7 @@ const ReportsPage = () => {
             label="End Date"
             type="date"
             size="small"
+            sx={{ width: { xs: "100%", sm: "auto" } }}
             slotProps={{ inputLabel: { shrink: true } }}
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}

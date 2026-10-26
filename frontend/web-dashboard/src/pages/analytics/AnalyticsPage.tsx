@@ -1,5 +1,7 @@
 import { Box } from "@mui/material";
+import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import PageTitle from "../../components/common/PageTitle";
+import EmptyState from "../../components/common/EmptyState";
 import AdvancedAnalyticsView from "../../components/workspace/AdvancedAnalyticsView";
 import { getPatientId } from "../../utils/patient";
 
@@ -12,9 +14,11 @@ const AnalyticsPage = () => {
       {patientId ? (
         <AdvancedAnalyticsView patientId={Number(patientId)} />
       ) : (
-        <Box sx={{ textAlign: "center", py: 4, color: "text.secondary" }}>
-          No patient profile associated with this account.
-        </Box>
+        <EmptyState
+          message="No patient profile associated with this account."
+          icon={<PersonOffOutlinedIcon />}
+          minHeight={220}
+        />
       )}
     </Box>
   );

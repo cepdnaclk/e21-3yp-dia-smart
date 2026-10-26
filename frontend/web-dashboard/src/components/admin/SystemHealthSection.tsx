@@ -1,4 +1,6 @@
-import { Card, CardContent, Typography, Box, List, ListItem, ListItemText, Divider } from "@mui/material";
+import { Card, CardContent, Typography, Box, List, ListItem, Chip } from "@mui/material";
+import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
+import CardHeading from "../common/CardHeading";
 
 const SystemHealthSection = () => {
   const components = [
@@ -9,33 +11,56 @@ const SystemHealthSection = () => {
   ];
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 3, height: "100%" }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          System Telemetry & Health Monitoring
-        </Typography>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column" }}>
+        <CardHeading
+          title="System Telemetry & Health Monitoring"
+          subtitle="Real-time service health check monitoring API nodes, database query execution, and message pipelines."
+          icon={<DnsOutlinedIcon />}
+          color="#10b981"
+          sx={{ alignItems: "flex-start" }}
+        />
 
-        <Typography variant="body2" color="text.secondary">
-          Real-time service health check monitoring API nodes, database query execution, and message pipelines.
-        </Typography>
-
-        <List sx={{ display: "flex", flexDirection: "column", gap: 2, p: 0, mt: 1 }}>
+        <List sx={{ display: "flex", flexDirection: "column", gap: 1.25, p: 0 }}>
           {components.map((c, idx) => (
-            <Box key={idx}>
-              <ListItem sx={{ p: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <ListItemText
-                  primary={<Typography variant="body2" sx={{ fontWeight: "bold" }}>{c.name}</Typography>}
-                  secondary={<Typography variant="caption" color="text.secondary">Performance: {c.latency}</Typography>}
+            <ListItem
+              key={idx}
+              sx={{
+                p: 1.5,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 1,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "#f8fafc",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: "1 1 180px" }}>
+                <Box
+                  aria-hidden
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    bgcolor: c.color,
+                    boxShadow: "0 0 0 4px rgba(16, 185, 129, 0.15)",
+                  }}
                 />
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: c.color }} />
-                  <Typography variant="caption" sx={{ fontWeight: "bold", color: c.color }}>
-                    {c.status}
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "text.primary" }}>
+                    {c.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Performance: {c.latency}
                   </Typography>
                 </Box>
-              </ListItem>
-              {idx < components.length - 1 && <Divider sx={{ mt: 1.5 }} />}
-            </Box>
+              </Box>
+              <Chip label={c.status} size="small" color="success" variant="outlined" />
+            </ListItem>
           ))}
         </List>
       </CardContent>

@@ -14,7 +14,12 @@ import {
   Divider,
   Stack
 } from "@mui/material";
+import MedicationRoundedIcon from "@mui/icons-material/MedicationRounded";
+import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import PauseCircleOutlineRoundedIcon from "@mui/icons-material/PauseCircleOutlineRounded";
 
+import EmptyState from "../../components/common/EmptyState";
 import PageError from "../../components/common/PageError";
 import PageLoading from "../../components/common/PageLoading";
 import PageTitle from "../../components/common/PageTitle";
@@ -79,32 +84,64 @@ const PrescriptionsPage = () => {
       <PageTitle mb={3}>Prescriptions</PageTitle>
 
       {/* Laptop / Desktop / Tablet Table View */}
-      <TableContainer component={Paper} sx={{ display: { xs: "none", md: "block" }, borderRadius: 4 }}>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{
+          display: { xs: "none", md: "block" },
+          borderRadius: "14px",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04)",
+          overflowX: "auto",
+        }}
+      >
         <Table>
-          <TableHead sx={{ bgcolor: "#f8f9fa" }}>
+          <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Prescription</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Start Date</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>End Date</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Dosing Schedules</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: "#12233b" }}>Notes</TableCell>
+              <TableCell>Prescription</TableCell>
+              <TableCell>Start Date</TableCell>
+              <TableCell>End Date</TableCell>
+              <TableCell>Dosing Schedules</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Notes</TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
             {prescriptions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 3, color: "text.secondary" }}>
-                  No prescriptions available
+                <TableCell colSpan={6} sx={{ p: 3 }}>
+                  <EmptyState
+                    message="No prescriptions available"
+                    icon={<MedicationRoundedIcon />}
+                  />
                 </TableCell>
               </TableRow>
             ) : (
               prescriptions.map((item) => (
                 <TableRow key={item.prescriptionId} hover>
-                  <TableCell sx={{ fontWeight: 600 }}>{item.prescriptionName}</TableCell>
-                  <TableCell>{item.startDate}</TableCell>
-                  <TableCell>{item.endDate}</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "primary.main" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                      <Box
+                        aria-hidden
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          flexShrink: 0,
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: "#e0f2fe",
+                          color: "#0284c7",
+                        }}
+                      >
+                        <MedicationRoundedIcon sx={{ fontSize: 18 }} />
+                      </Box>
+                      {item.prescriptionName}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>{item.startDate}</TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>{item.endDate}</TableCell>
                   <TableCell>
                     {getSchedulesForPrescription(item.prescriptionId).length === 0 ? (
                       <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
@@ -116,17 +153,20 @@ const PrescriptionsPage = () => {
                           <Box
                             key={s.scheduleId}
                             sx={{
-                              p: 1,
-                              bgcolor: "#f1f5f9",
+                              px: 1.25,
+                              py: 1,
+                              bgcolor: "#f8fafc",
                               borderRadius: 2,
                               border: "1px solid #e2e8f0",
+                              borderLeft: "3px solid #3ec1fa",
                               minWidth: 160
                             }}
                           >
                             <Typography variant="caption" sx={{ fontWeight: 700, color: "#1e293b", display: "block" }}>
                               {s.scheduleLabel}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                              <ScheduleRoundedIcon aria-hidden sx={{ fontSize: 13 }} />
                               Time: {s.targetTime ? s.targetTime.substring(0, 5) : s.scheduledTime.substring(0, 5)} • {s.doseUnits} Units
                             </Typography>
                           </Box>
@@ -137,12 +177,14 @@ const PrescriptionsPage = () => {
                   <TableCell>
                     <Chip
                       size="small"
+                      icon={item.active ? <CheckCircleRoundedIcon /> : <PauseCircleOutlineRoundedIcon />}
                       label={item.active ? "Active" : "Inactive"}
                       color={item.active ? "success" : "default"}
+                      variant="outlined"
                       sx={{ fontWeight: 700, fontSize: "0.75rem" }}
                     />
                   </TableCell>
-                  <TableCell color="text.secondary">{item.notes ?? "No notes"}</TableCell>
+                  <TableCell sx={{ color: "text.secondary", maxWidth: 280 }}>{item.notes ?? "No notes"}</TableCell>
                 </TableRow>
               ))
             )}
@@ -153,24 +195,43 @@ const PrescriptionsPage = () => {
       {/* Mobile Card List View */}
       <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 2 }}>
         {prescriptions.length === 0 ? (
-          <Paper sx={{ p: 4, textAlign: "center", borderRadius: 3 }}>
-            <Typography color="text.secondary" variant="body2">
-              No prescriptions available.
-            </Typography>
-          </Paper>
+          <EmptyState
+            message="No prescriptions available."
+            icon={<MedicationRoundedIcon />}
+          />
         ) : (
           prescriptions.map((item) => (
-            <Card key={item.prescriptionId} sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-              <Box sx={{ p: 2 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#12233b" }}>
-                    {item.prescriptionName}
-                  </Typography>
+            <Card key={item.prescriptionId}>
+              <Box sx={{ p: 2.25 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+                    <Box
+                      aria-hidden
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        flexShrink: 0,
+                        borderRadius: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: "#e0f2fe",
+                        color: "#0284c7",
+                      }}
+                    >
+                      <MedicationRoundedIcon sx={{ fontSize: 19 }} />
+                    </Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#12233b", overflowWrap: "anywhere" }}>
+                      {item.prescriptionName}
+                    </Typography>
+                  </Box>
                   <Chip
                     size="small"
+                    icon={item.active ? <CheckCircleRoundedIcon /> : <PauseCircleOutlineRoundedIcon />}
                     label={item.active ? "Active" : "Inactive"}
                     color={item.active ? "success" : "default"}
-                    sx={{ fontWeight: 700, fontSize: "0.7rem", height: 20 }}
+                    variant="outlined"
+                    sx={{ fontWeight: 700, fontSize: "0.7rem", flexShrink: 0 }}
                   />
                 </Box>
 

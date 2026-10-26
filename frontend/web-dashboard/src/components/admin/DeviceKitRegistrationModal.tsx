@@ -10,8 +10,12 @@ import {
   Typography,
   Divider,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Box
 } from "@mui/material";
+import DevicesOtherOutlinedIcon from "@mui/icons-material/DevicesOtherOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutlined";
+import MemoryOutlinedIcon from "@mui/icons-material/MemoryOutlined";
 import api from "../../services/api";
 
 interface DeviceKitRegistrationModalProps {
@@ -99,13 +103,38 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Register New Device Kit</DialogTitle>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#0ea5e9",
+            bgcolor: "#e0f2fe",
+          }}
+        >
+          <DevicesOtherOutlinedIcon fontSize="small" />
+        </Box>
+        Register New Device Kit
+      </DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent dividers>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-          <Typography variant="h6" gutterBottom>Buyer Information</Typography>
+          <Typography
+            variant="subtitle1"
+            component="h3"
+            sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, color: "primary.main", fontWeight: 700 }}
+          >
+            <PersonOutlineIcon fontSize="small" sx={{ color: "#0284c7" }} />
+            Buyer Information
+          </Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField required fullWidth label="Full Name" name="buyerFullName" value={formData.buyerFullName} onChange={handleChange} />
@@ -124,9 +153,16 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
             </Grid>
           </Grid>
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3, borderStyle: "dashed" }} />
 
-          <Typography variant="h6" gutterBottom>Device Information</Typography>
+          <Typography
+            variant="subtitle1"
+            component="h3"
+            sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, color: "primary.main", fontWeight: 700 }}
+          >
+            <MemoryOutlinedIcon fontSize="small" sx={{ color: "#0284c7" }} />
+            Device Information
+          </Typography>
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField fullWidth label="Outer Gateway Device ID" name="outerGatewayId" value={formData.outerGatewayId} onChange={handleChange} />
@@ -143,9 +179,9 @@ const DeviceKitRegistrationModal: React.FC<DeviceKitRegistrationModalProps> = ({
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose} disabled={loading}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? <CircularProgress size={24} /> : "Register Kit"}
+          <Button onClick={onClose} disabled={loading} color="inherit">Cancel</Button>
+          <Button type="submit" variant="contained" disabled={loading} sx={{ minWidth: 128 }}>
+            {loading ? <CircularProgress size={22} color="inherit" /> : "Register Kit"}
           </Button>
         </DialogActions>
       </form>

@@ -13,8 +13,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Box
 } from "@mui/material";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
 import { adminService } from "../../services/adminService";
 import { UserRole } from "../../types/roles";
 import type { AdminUserRecord } from "../../types/admin";
@@ -119,21 +121,39 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: "bold" }}>Add New User Account</DialogTitle>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#0284c7",
+            bgcolor: "#e0f2fe",
+          }}
+        >
+          <PersonAddAlt1OutlinedIcon fontSize="small" />
+        </Box>
+        Add New User Account
+      </DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent dividers>
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ mb: 2.5 }}>
               {error}
             </Alert>
           )}
           {success && (
-            <Alert severity="success" sx={{ mb: 3 }}>
+            <Alert severity="success" sx={{ mb: 2.5 }}>
               {success}
             </Alert>
           )}
 
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5} sx={{ pt: 0.5 }}>
             <Grid size={12}>
               <TextField
                 required
@@ -194,12 +214,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions>
           <Button onClick={onClose} disabled={loading} color="inherit">
             Cancel
           </Button>
-          <Button type="submit" variant="contained" disabled={loading} color="primary">
-            {loading ? <CircularProgress size={24} /> : "Create User"}
+          <Button type="submit" variant="contained" disabled={loading} color="primary" sx={{ minWidth: 128 }}>
+            {loading ? <CircularProgress size={22} color="inherit" /> : "Create User"}
           </Button>
         </DialogActions>
       </form>

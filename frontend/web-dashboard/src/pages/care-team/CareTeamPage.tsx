@@ -81,7 +81,7 @@ const CareTeamPage = () => {
     <>
       <PageTitle>Care Team</PageTitle>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid size={{ xs: 12, md: 6 }}>
           <DoctorCard doctors={doctors} onRevoke={handleRevoke} />
         </Grid>
@@ -106,7 +106,12 @@ const CareTeamPage = () => {
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         {alert ? (
-          <Alert onClose={() => setAlert(null)} severity={alert.severity} sx={{ width: "100%" }}>
+          <Alert
+            onClose={() => setAlert(null)}
+            severity={alert.severity}
+            variant="filled"
+            sx={{ width: "100%", boxShadow: "0 12px 32px rgba(15, 23, 42, 0.18)", fontWeight: 600 }}
+          >
             {alert.message}
           </Alert>
         ) : undefined}

@@ -1,5 +1,15 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { Card, CardContent, Box } from "@mui/material";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import CardHeading from "../common/CardHeading";
+import {
+  chartAxisProps,
+  chartCursor,
+  chartGridProps,
+  chartTooltipContentStyle,
+  chartTooltipItemStyle,
+  chartTooltipLabelStyle,
+} from "../charts/chartStyles";
 
 const UsageReportsSection = () => {
   const data = [
@@ -13,25 +23,35 @@ const UsageReportsSection = () => {
   ];
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Platform Ingestion Volume & Activity
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Daily telemetry ingestion message records processed by the ingestion gateways.
-          </Typography>
-        </Box>
+    <Card>
+      <CardContent sx={{ display: "flex", flexDirection: "column" }}>
+        <CardHeading
+          title="Platform Ingestion Volume & Activity"
+          subtitle="Daily telemetry ingestion message records processed by the ingestion gateways."
+          icon={<InsightsOutlinedIcon />}
+          color="#0284c7"
+          sx={{ alignItems: "flex-start" }}
+        />
 
         <Box sx={{ width: "100%", height: 300 }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Area type="monotone" dataKey="volume" stroke="#9c27b0" fill="#9c27b0" fillOpacity={0.15} strokeWidth={2.5} name="Telemetry Records" />
+              <defs>
+                <linearGradient id="adminUsageVolumeFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3ec1fa" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#3ec1fa" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid {...chartGridProps} />
+              <XAxis dataKey="date" {...chartAxisProps} />
+              <YAxis {...chartAxisProps} />
+              <Tooltip
+                cursor={chartCursor}
+                contentStyle={chartTooltipContentStyle}
+                labelStyle={chartTooltipLabelStyle}
+                itemStyle={chartTooltipItemStyle}
+              />
+              <Area type="monotone" dataKey="volume" stroke="#0284c7" fill="url(#adminUsageVolumeFill)" strokeWidth={2.5} name="Telemetry Records" />
             </AreaChart>
           </ResponsiveContainer>
         </Box>

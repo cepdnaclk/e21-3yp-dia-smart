@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-  Typography,
   List,
   ListItem,
   ListItemText,
@@ -10,7 +9,13 @@ import {
   Box,
   Divider,
   CircularProgress,
+  Avatar,
 } from "@mui/material";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+
+import CardHeading from "../common/CardHeading";
 import { careTeamService } from "../../services/careTeamService";
 import type { RelationshipRequestDto } from "../../types/careTeam";
 
@@ -68,7 +73,7 @@ const PendingRequestsCard = ({ onRefresh }: PendingRequestsCardProps) => {
     return (
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress size={24} />
+          <CircularProgress size={24} sx={{ color: "secondary.dark" }} />
         </CardContent>
       </Card>
     );
@@ -80,26 +85,22 @@ const PendingRequestsCard = ({ onRefresh }: PendingRequestsCardProps) => {
 
   return (
     <Card
-      elevation={2}
       sx={{
         mb: 3,
-        borderRadius: 2,
-        borderLeft: 5,
-        borderColor: "warning.main",
+        borderLeft: "4px solid #f59e0b",
       }}
     >
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: 600 }}
-        >
-          Pending Connection Requests
-        </Typography>
+        <CardHeading
+          title="Pending Connection Requests"
+          icon={<PersonAddAlt1OutlinedIcon />}
+          color="#f59e0b"
+        />
 
         <List disablePadding>
           {requests.map((req, idx) => (
             <Box key={req.requestId}>
-              {idx > 0 && <Divider sx={{ my: 1 }} />}
+              {idx > 0 && <Divider sx={{ my: 0.5 }} />}
               <ListItem
                 disableGutters
                 sx={{
@@ -110,16 +111,28 @@ const PendingRequestsCard = ({ onRefresh }: PendingRequestsCardProps) => {
                   py: 1,
                 }}
               >
-                <ListItemText
-                  primary={req.requesterName}
-                  secondary={`Patient ID: ${req.patientId} • Requested: ${new Date(req.createdAt).toLocaleDateString()}`}
-                  sx={{ m: 0, width: "100%" }}
-                />
-                <Box sx={{ display: "flex", gap: 1, mt: { xs: 1, sm: 0 }, alignSelf: { xs: "flex-end", sm: "auto" } }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%", minWidth: 0 }}>
+                  <Avatar
+                    sx={{ width: 36, height: 36, fontSize: "0.85rem", fontWeight: 700, bgcolor: "#fef3c7", color: "#b45309" }}
+                  >
+                    {(req.requesterName ?? "").trim().charAt(0).toUpperCase() || "?"}
+                  </Avatar>
+                  <ListItemText
+                    primary={req.requesterName}
+                    secondary={`Patient ID: ${req.patientId} • Requested: ${new Date(req.createdAt).toLocaleDateString()}`}
+                    sx={{ m: 0, minWidth: 0 }}
+                    slotProps={{
+                      primary: { sx: { fontWeight: 600, color: "text.primary", overflowWrap: "anywhere" } },
+                      secondary: { sx: { overflowWrap: "anywhere" } },
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: "flex", gap: 1, mt: { xs: 0.5, sm: 0 }, flexShrink: 0, alignSelf: { xs: "flex-end", sm: "auto" } }}>
                   <Button
                     variant="contained"
                     color="success"
                     size="small"
+                    startIcon={<CheckRoundedIcon />}
                     disabled={actionId !== null}
                     onClick={() => handleAccept(req.requestId)}
                   >
@@ -129,6 +142,7 @@ const PendingRequestsCard = ({ onRefresh }: PendingRequestsCardProps) => {
                     variant="outlined"
                     color="error"
                     size="small"
+                    startIcon={<CloseRoundedIcon />}
                     disabled={actionId !== null}
                     onClick={() => handleReject(req.requestId)}
                   >

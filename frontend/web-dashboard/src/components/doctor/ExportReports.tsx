@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Card,
   CardContent,
-  Typography,
   FormGroup,
   FormControlLabel,
   Checkbox,
@@ -15,6 +14,9 @@ import {
   Alert
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+
+import CardHeading from "../common/CardHeading";
 
 import { doctorService } from "../../services/doctorService";
 
@@ -136,15 +138,15 @@ const ExportReports = ({ patientId, startDate, endDate, patientName }: ExportRep
   };
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "medium" }}>
-          Export Reports
-        </Typography>
-
-        <Typography variant="body2" color="text.secondary">
-          Configure categories, select format, and download clinical export logs.
-        </Typography>
+        <CardHeading
+          title="Export Reports"
+          subtitle="Configure categories, select format, and download clinical export logs."
+          icon={<FileDownloadOutlinedIcon />}
+          color="#0284c7"
+          sx={{ mb: 0.5 }}
+        />
 
         {successMsg && (
           <Alert severity="success" onClose={() => setSuccessMsg(null)}>
@@ -152,7 +154,17 @@ const ExportReports = ({ patientId, startDate, endDate, patientName }: ExportRep
           </Alert>
         )}
 
-        <FormGroup sx={{ gap: 1 }}>
+        <FormGroup
+          sx={{
+            gap: 0.5,
+            px: 1.5,
+            py: 1,
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "#f8fafc",
+          }}
+        >
           <FormControlLabel
             control={<Checkbox checked={includeVitals} onChange={(e) => setIncludeVitals(e.target.checked)} />}
             label="Include Vitals & Alerts"
@@ -181,7 +193,7 @@ const ExportReports = ({ patientId, startDate, endDate, patientName }: ExportRep
           startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
           onClick={handleExport}
           disabled={loading}
-          sx={{ textTransform: "none", borderRadius: 2 }}
+          sx={{ textTransform: "none", py: 1.1, fontWeight: 700 }}
         >
           {loading ? "Compiling..." : "Export Data"}
         </Button>

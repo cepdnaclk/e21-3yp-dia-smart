@@ -3,6 +3,10 @@ import { Card, CardContent, Typography, Box, CircularProgress, List, ListItem, L
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import TimelineOutlinedIcon from "@mui/icons-material/TimelineOutlined";
+import HistoryIcon from "@mui/icons-material/History";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { caregiverService } from "../../services/caregiverService";
 import type { Alert } from "../../types/alert";
@@ -58,30 +62,42 @@ const TimelineCard = ({ patientId, refreshTrigger }: TimelineCardProps) => {
   }, [patientId, refreshTrigger]);
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Patient Activity Timeline
-        </Typography>
+        <CardHeading title="Patient Activity Timeline" icon={<TimelineOutlinedIcon />} color="#12233b" />
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4, flexGrow: 1, alignItems: "center" }}>
-            <CircularProgress size={32} />
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : activities.length === 0 ? (
-          <Typography color="text.secondary" variant="body2" sx={{ py: 2 }}>
-            No recent activity logged for this patient.
-          </Typography>
+          <EmptyState message="No recent activity logged for this patient." icon={<HistoryIcon />} />
         ) : (
           <List disablePadding>
             {activities.map((act) => (
-              <ListItem key={act.id} disableGutters sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  {act.icon}
+              <ListItem key={act.id} disableGutters sx={{ py: 1.25, alignItems: "flex-start", borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
+                <ListItemIcon sx={{ minWidth: 44, mt: 0.25 }}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: "#f8fafc",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      "& .MuiSvgIcon-root": { fontSize: 18 },
+                    }}
+                  >
+                    {act.icon}
+                  </Box>
                 </ListItemIcon>
                 <ListItemText
-                  primary={<Typography variant="body2" sx={{ fontWeight: "medium" }}>{act.primary}</Typography>}
-                  secondary={<Typography variant="caption" color="text.secondary">{act.secondary} • {act.timeText}</Typography>}
+                  sx={{ m: 0, minWidth: 0 }}
+                  primary={<Typography variant="body2" sx={{ fontWeight: 700, color: "#12233b", overflowWrap: "anywhere" }}>{act.primary}</Typography>}
+                  secondary={<Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>{act.secondary} • {act.timeText}</Typography>}
                 />
               </ListItem>
             ))}

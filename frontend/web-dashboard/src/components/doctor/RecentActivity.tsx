@@ -3,7 +3,10 @@ import { Card, CardContent, Typography, Box, CircularProgress, List, ListItem, L
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import HistoryIcon from "@mui/icons-material/History";
 
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 import { doctorService } from "../../services/doctorService";
 import type { Alert } from "../../types/alert";
 
@@ -25,7 +28,7 @@ const RecentActivity = () => {
           .map((alert: Alert) => {
             const patient = patients.find((p) => p.patientId === alert.patientId);
             const patientName = patient ? patient.patientName : (alert.patientId ? `Patient ID: ${alert.patientId}` : "Unknown Patient");
-            
+
             let icon = <NotificationsIcon color="warning" />;
             let primaryText = `${alert.title} alert raised for ${patientName}`;
             if (alert.status === "ACKNOWLEDGED") {
@@ -57,30 +60,50 @@ const RecentActivity = () => {
   }, []);
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Recent Activity
-        </Typography>
+        <CardHeading title="Recent Activity" icon={<HistoryIcon />} color="#0284c7" />
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4, flexGrow: 1 }}>
-            <CircularProgress size={32} />
+            <CircularProgress size={32} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : activities.length === 0 ? (
-          <Typography color="text.secondary" variant="body2" sx={{ py: 2 }}>
-            No recent patient activities logged
-          </Typography>
+          <EmptyState message="No recent patient activities logged" icon={<HistoryIcon />} />
         ) : (
           <List disablePadding>
             {activities.map((act) => (
-              <ListItem key={act.id} disableGutters sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  {act.icon}
+              <ListItem
+                key={act.id}
+                disableGutters
+                sx={{
+                  py: 1.25,
+                  alignItems: "flex-start",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  "&:last-child": { borderBottom: 0 },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 0, mr: 1.5, mt: 0.25 }}>
+                  <Box
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      bgcolor: "#f1f5f9",
+                      "& .MuiSvgIcon-root": { fontSize: 18 },
+                    }}
+                  >
+                    {act.icon}
+                  </Box>
                 </ListItemIcon>
                 <ListItemText
-                  primary={<Typography variant="body2" sx={{ fontWeight: "medium" }}>{act.primary}</Typography>}
-                  secondary={<Typography variant="caption" color="text.secondary">{act.secondary}</Typography>}
+                  sx={{ my: 0, minWidth: 0 }}
+                  primary={<Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary", overflowWrap: "anywhere" }}>{act.primary}</Typography>}
+                  secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, overflowWrap: "anywhere" }}>{act.secondary}</Typography>}
                 />
               </ListItem>
             ))}

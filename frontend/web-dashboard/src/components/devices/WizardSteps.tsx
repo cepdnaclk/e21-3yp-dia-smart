@@ -28,6 +28,29 @@ import {
   Autorenew as AutorenewIcon,
 } from "@mui/icons-material";
 
+/** Shared presentational styles for the wizard steps. */
+const stepTitleSx = { fontWeight: 700, mb: 1, color: "primary.main" } as const;
+
+const insetCardSx = {
+  width: "100%",
+  maxWidth: "450px",
+  bgcolor: "#f8fafc",
+  borderColor: "#e2e8f0",
+  borderRadius: 3,
+  boxShadow: "none",
+} as const;
+
+const heroIconSx = {
+  width: 88,
+  height: 88,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  bgcolor: "#e0f2fe",
+  boxShadow: "0 0 0 8px #f0f9ff",
+} as const;
+
 // --- STEP 1: DEVICE REGISTRATION ---
 interface DeviceRegistrationStepProps {
   outerUid: string;
@@ -55,7 +78,7 @@ export const DeviceRegistrationStep: React.FC<DeviceRegistrationStepProps> = ({
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           Register Your Kit Devices
         </Typography>
         <Typography color="text.secondary" variant="body2">
@@ -148,7 +171,7 @@ export const WifiConfigStep: React.FC<WifiConfigStepProps> = ({
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           Configure Device Wi-Fi Connection
         </Typography>
         <Typography color="text.secondary" variant="body2">
@@ -206,17 +229,19 @@ interface ConnectHotspotStepProps {
 export const ConnectHotspotStep: React.FC<ConnectHotspotStepProps> = ({ outerUid }) => {
   return (
     <Stack spacing={3} sx={{ alignItems: "center", textAlign: "center", py: 2 }}>
-      <PhoneIcon color="primary" sx={{ fontSize: 60 }} />
+      <Box aria-hidden sx={heroIconSx}>
+        <PhoneIcon sx={{ fontSize: 44, color: "#0284c7" }} />
+      </Box>
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           Connect to Device Wi-Fi Hotspot
         </Typography>
-        <Typography color="text.secondary" variant="body2" sx={{ maxW: "600px" }}>
+        <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "600px" }}>
           To transmit setup configurations directly, you must join the Outer base station's local configuration network.
         </Typography>
       </Box>
 
-      <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", bgcolor: "background.default", p: 2 }}>
+      <Card variant="outlined" sx={{ ...insetCardSx, p: 2.5, borderLeft: "4px solid #3ec1fa" }}>
         <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1, textTransform: "uppercase", letterSpacing: 1 }}>
           Instructions
         </Typography>
@@ -224,7 +249,7 @@ export const ConnectHotspotStep: React.FC<ConnectHotspotStepProps> = ({ outerUid
           1. Open your smartphone or computer's <b>Wi-Fi Settings</b>.
         </Typography>
         <Typography variant="body2" sx={{ textAlign: "left", mb: 1, wordBreak: "break-all" }}>
-          2. Connect to the network named: <b><span style={{ color: "#1976d2" }}>DiaSmart-{outerUid || "XXXX"}</span></b>
+          2. Connect to the network named: <b><span style={{ color: "#0284c7" }}>DiaSmart-{outerUid || "XXXX"}</span></b>
         </Typography>
         <Typography variant="body2" sx={{ textAlign: "left", mb: 2 }}>
           3. Once connected, return here and click <b>Next</b>.
@@ -255,7 +280,7 @@ export const SendingCredentialsStep: React.FC<SendingCredentialsStepProps> = ({
       {isSending && <CircularProgress size={50} sx={{ mb: 1 }} />}
       
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           {isSending ? "Sending Wi-Fi Credentials..." : error ? "Transmission Failed" : "Sent"}
         </Typography>
         <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
@@ -274,18 +299,18 @@ export const SendingCredentialsStep: React.FC<SendingCredentialsStepProps> = ({
         </Alert>
       )}
 
-      <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", bgcolor: "background.default", p: 3 }}>
+      <Card variant="outlined" sx={{ ...insetCardSx, p: 3 }}>
         <Typography variant="body2" color="text.primary" sx={{ mb: 1, fontWeight: "bold" }}>
           Transmission Progress
         </Typography>
-        <LinearProgress variant={isSending ? "indeterminate" : "determinate"} value={error ? 0 : 100} sx={{ height: 10, borderRadius: 5, mb: 1 }} />
+        <LinearProgress variant={isSending ? "indeterminate" : "determinate"} value={error ? 0 : 100} color={error ? "error" : "primary"} sx={{ height: 10, borderRadius: 5, mb: 1, bgcolor: "#e2e8f0" }} />
         <Typography variant="caption" color="text.secondary">
           {isSending ? "Sending SSID and Password bundle safely over local network..." : error ? "Connection timed out." : "Credentials received by hardware."}
         </Typography>
       </Card>
 
       {error && (
-        <Button variant="contained" size="large" onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
+        <Button variant="contained" size="large" disableElevation onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
           Re-enter Wi-Fi Credentials
         </Button>
       )}
@@ -335,7 +360,7 @@ export const ProvisioningProgressStep: React.FC<ProvisioningProgressStepProps> =
   return (
     <Stack spacing={3}>
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           Provisioning In Progress
         </Typography>
         <Typography color="text.secondary" variant="body2">
@@ -349,16 +374,16 @@ export const ProvisioningProgressStep: React.FC<ProvisioningProgressStepProps> =
         </Alert>
       )}
 
-      <Card variant="outlined" sx={{ p: 3, bgcolor: "background.default" }}>
+      <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 }, bgcolor: "#f8fafc", borderColor: "#e2e8f0", borderRadius: 3, boxShadow: "none" }}>
         <Stack spacing={3}>
           <Box>
-            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                 Outer Unit Connection Stage
               </Typography>
-              <Chip size="small" {...getChipProps(outerState)} />
+              <Chip size="small" sx={{ fontWeight: 700 }} {...getChipProps(outerState)} />
             </Stack>
-            <LinearProgress variant={outerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(outerState)} sx={{ height: 8, borderRadius: 4 }} />
+            <LinearProgress variant={outerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(outerState)} sx={{ height: 8, borderRadius: 4, bgcolor: "#e2e8f0" }} />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
               {status?.message || "Staging Wi-Fi configuration and verifying ESP32 memory..."}
             </Typography>
@@ -367,13 +392,13 @@ export const ProvisioningProgressStep: React.FC<ProvisioningProgressStepProps> =
           <Divider />
 
           <Box>
-            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                 Inner Unit Connection Stage
               </Typography>
-              <Chip size="small" {...getChipProps(innerState)} />
+              <Chip size="small" sx={{ fontWeight: 700 }} {...getChipProps(innerState)} />
             </Stack>
-            <LinearProgress variant={innerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(innerState)} sx={{ height: 8, borderRadius: 4 }} />
+            <LinearProgress variant={innerState === "CONNECTING" ? "indeterminate" : "determinate"} value={getProgressValue(innerState)} sx={{ height: 8, borderRadius: 4, bgcolor: "#e2e8f0" }} />
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
               Waiting for Outer station to broadcast ESP-NOW credentials...
             </Typography>
@@ -388,9 +413,11 @@ export const ProvisioningProgressStep: React.FC<ProvisioningProgressStepProps> =
 export const ReconnectHomeWifiStep: React.FC = () => {
   return (
     <Stack spacing={3} sx={{ alignItems: "center", textAlign: "center", py: 2 }}>
-      <WifiIcon color="primary" sx={{ fontSize: 60 }} />
+      <Box aria-hidden sx={heroIconSx}>
+        <WifiIcon sx={{ fontSize: 44, color: "#0284c7" }} />
+      </Box>
       <Box>
-        <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+        <Typography sx={stepTitleSx} variant="h6">
           Reconnect to Your Home Wi-Fi
         </Typography>
         <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
@@ -398,7 +425,7 @@ export const ReconnectHomeWifiStep: React.FC = () => {
         </Typography>
       </Box>
 
-      <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", bgcolor: "background.default", p: 2 }}>
+      <Card variant="outlined" sx={{ ...insetCardSx, p: 2.5, borderLeft: "4px solid #3ec1fa" }}>
         <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1, textTransform: "uppercase", letterSpacing: 1 }}>
           Instructions
         </Typography>
@@ -442,9 +469,11 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
     <Stack spacing={3} sx={{ alignItems: "center", py: 2 }}>
       {isSuccess ? (
         <>
-          <CheckCircleIcon color="success" sx={{ fontSize: 70 }} />
+          <Box aria-hidden sx={{ ...heroIconSx, bgcolor: "#d1fae5", boxShadow: "0 0 0 8px #ecfdf5" }}>
+            <CheckCircleIcon color="success" sx={{ fontSize: 52 }} />
+          </Box>
           <Box sx={{ textAlign: "center" }}>
-            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h5">
+            <Typography sx={stepTitleSx} variant="h5">
               Kit Setup Successful!
             </Typography>
             <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
@@ -452,7 +481,7 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
             </Typography>
           </Box>
 
-          <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", p: 3, bgcolor: "success.light", color: "success.contrastText" }}>
+          <Card variant="outlined" sx={{ ...insetCardSx, p: 3, bgcolor: "#ecfdf5", borderColor: "#a7f3d0", color: "#065f46" }}>
             <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
               Connection Validated
             </Typography>
@@ -463,9 +492,11 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
         </>
       ) : isFailed ? (
         <>
-          <ErrorOutlinedIcon color="error" sx={{ fontSize: 70 }} />
+          <Box aria-hidden sx={{ ...heroIconSx, bgcolor: "#fee2e2", boxShadow: "0 0 0 8px #fef2f2" }}>
+            <ErrorOutlinedIcon color="error" sx={{ fontSize: 52 }} />
+          </Box>
           <Box sx={{ textAlign: "center" }}>
-            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h5">
+            <Typography sx={stepTitleSx} variant="h5">
               Cloud Sync Failed
             </Typography>
             <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
@@ -477,7 +508,7 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
             {error || "Verification timeout or backend synchronization error occurred."}
           </Alert>
 
-          <Button variant="contained" size="large" onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
+          <Button variant="contained" size="large" disableElevation onClick={onRetry} sx={{ minHeight: "48px", mt: 1 }}>
             Retry Verification
           </Button>
         </>
@@ -485,7 +516,7 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
         <>
           <CircularProgress size={50} sx={{ mb: 1 }} />
           <Box sx={{ textAlign: "center" }}>
-            <Typography sx={{ fontWeight: 600, mb: 1 }} variant="h6">
+            <Typography sx={stepTitleSx} variant="h6">
               Verifying Cloud Synchronization...
             </Typography>
             <Typography color="text.secondary" variant="body2" sx={{ maxWidth: "500px" }}>
@@ -493,30 +524,30 @@ export const CloudVerificationStep: React.FC<CloudVerificationStepProps> = ({
             </Typography>
           </Box>
 
-          <Card variant="outlined" sx={{ width: "100%", maxWidth: "450px", p: 3, bgcolor: "background.default" }}>
+          <Card variant="outlined" sx={{ ...insetCardSx, p: 3 }}>
             <Stack spacing={2}>
               <Box>
-                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 0.5 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold" }}>Configuration State</Typography>
                   <Typography variant="body2" color={configStatus === "PUBLISHED" ? "success.main" : "warning.main"}>{configStatus}</Typography>
                 </Stack>
-                <LinearProgress variant={configStatus === "PENDING" ? "indeterminate" : "determinate"} value={configStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+                <LinearProgress variant={configStatus === "PENDING" ? "indeterminate" : "determinate"} value={configStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3, bgcolor: "#e2e8f0" }} />
               </Box>
 
               <Box>
-                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 0.5 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold" }}>Outer Base Station</Typography>
                   <Typography variant="body2" color={outerStatus === "PUBLISHED" ? "success.main" : "warning.main"}>{outerStatus}</Typography>
                 </Stack>
-                <LinearProgress variant={outerStatus === "PENDING" ? "indeterminate" : "determinate"} value={outerStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+                <LinearProgress variant={outerStatus === "PENDING" ? "indeterminate" : "determinate"} value={outerStatus === "PUBLISHED" ? 100 : 20} sx={{ height: 6, borderRadius: 3, bgcolor: "#e2e8f0" }} />
               </Box>
 
               <Box>
-                <Stack direction="row" sx={{ justifyContent: "space-between", mb: 0.5 }}>
+                <Stack direction="row" sx={{ justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 0.5 }}>
                   <Typography variant="body2" sx={{ fontWeight: "bold" }}>Inner Enclosure Unit</Typography>
                   <Typography variant="body2" color={innerStatus === "CONNECTED" ? "success.main" : "warning.main"}>{innerStatus}</Typography>
                 </Stack>
-                <LinearProgress variant={innerStatus === "PENDING" ? "indeterminate" : "determinate"} value={innerStatus === "CONNECTED" ? 100 : 20} sx={{ height: 6, borderRadius: 3 }} />
+                <LinearProgress variant={innerStatus === "PENDING" ? "indeterminate" : "determinate"} value={innerStatus === "CONNECTED" ? 100 : 20} sx={{ height: 6, borderRadius: 3, bgcolor: "#e2e8f0" }} />
               </Box>
             </Stack>
           </Card>

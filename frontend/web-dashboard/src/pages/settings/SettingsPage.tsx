@@ -1,19 +1,43 @@
 import { useState, useEffect } from "react";
 import {
-  Typography,
   Card,
   CardContent,
   FormControlLabel,
   Switch,
-  Divider,
   Stack,
   Box,
   CircularProgress,
   Alert,
   Snackbar,
+  Grid,
 } from "@mui/material";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 
+import CardHeading from "../../components/common/CardHeading";
 import PageTitle from "../../components/common/PageTitle";
+
+/** Presentational styling for the toggle rows: label left, switch right, separated rows. */
+const toggleListSx = {
+  "& .MuiFormControlLabel-root": {
+    mx: 0,
+    px: 1.5,
+    py: 0.75,
+    width: "100%",
+    justifyContent: "space-between",
+    gap: 2,
+    borderRadius: 2,
+    border: "1px solid #f1f5f9",
+    transition: "background-color 0.15s ease, border-color 0.15s ease",
+    "&:hover": { bgcolor: "#f8fafc", borderColor: "#e2e8f0" },
+  },
+  "& .MuiFormControlLabel-label": {
+    fontWeight: 600,
+    color: "#1e293b",
+    fontSize: "0.95rem",
+  },
+} as const;
 import { settingsService, type UserSettings } from "../../services/settingsService";
 
 const SettingsPage = () => {
@@ -59,7 +83,7 @@ const SettingsPage = () => {
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: "#0284c7" }} />
       </Box>
     );
   }
@@ -78,16 +102,16 @@ const SettingsPage = () => {
     <>
       <PageTitle>Settings</PageTitle>
 
-      <Stack spacing={3}>
-        <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, lg: 6 }}>
+        <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1, color: "#12233b" }}>
-              Notifications
-            </Typography>
+            <CardHeading
+              title="Notifications"
+              icon={<NotificationsActiveOutlinedIcon />}
+            />
 
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack spacing={1}>
+            <Stack spacing={1} sx={toggleListSx}>
               <FormControlLabel
                 control={
                   <Switch
@@ -97,6 +121,7 @@ const SettingsPage = () => {
                   />
                 }
                 label="Inventory Alerts"
+                labelPlacement="start"
               />
 
               <FormControlLabel
@@ -108,6 +133,7 @@ const SettingsPage = () => {
                   />
                 }
                 label="Temperature Alerts"
+                labelPlacement="start"
               />
 
               <FormControlLabel
@@ -119,20 +145,23 @@ const SettingsPage = () => {
                   />
                 }
                 label="Missed Dose Alerts"
+                labelPlacement="start"
               />
             </Stack>
           </CardContent>
         </Card>
+        </Grid>
 
-        <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
+        <Grid size={{ xs: 12, lg: 6 }}>
+        <Stack spacing={3} sx={{ height: "100%" }}>
+        <Card>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1, color: "#12233b" }}>
-              Account Preferences
-            </Typography>
+            <CardHeading
+              title="Account Preferences"
+              icon={<ManageAccountsOutlinedIcon />}
+            />
 
-            <Divider sx={{ mb: 2 }} />
-
-            <Stack spacing={1}>
+            <Stack spacing={1} sx={toggleListSx}>
               <FormControlLabel
                 control={
                   <Switch
@@ -142,6 +171,7 @@ const SettingsPage = () => {
                   />
                 }
                 label="Email Notifications"
+                labelPlacement="start"
               />
 
               <FormControlLabel
@@ -153,19 +183,21 @@ const SettingsPage = () => {
                   />
                 }
                 label="SMS Notifications"
+                labelPlacement="start"
               />
             </Stack>
           </CardContent>
         </Card>
 
-        <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
+        <Card sx={{ flexGrow: 1 }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1, color: "#12233b" }}>
-              Security
-            </Typography>
+            <CardHeading
+              title="Security"
+              icon={<ShieldOutlinedIcon />}
+              color="#10b981"
+            />
 
-            <Divider sx={{ mb: 2 }} />
-
+            <Box sx={toggleListSx}>
             <FormControlLabel
               control={
                 <Switch
@@ -175,10 +207,14 @@ const SettingsPage = () => {
                 />
               }
               label="Two-Factor Authentication"
+              labelPlacement="start"
             />
+            </Box>
           </CardContent>
         </Card>
-      </Stack>
+        </Stack>
+        </Grid>
+      </Grid>
 
       <Snackbar
         open={snackbarOpen}
@@ -186,7 +222,7 @@ const SettingsPage = () => {
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: "100%", borderRadius: 2 }}>
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success" variant="filled" sx={{ width: "100%", fontWeight: 600, boxShadow: "0 12px 32px rgba(15, 23, 42, 0.18)" }}>
           Settings saved successfully!
         </Alert>
       </Snackbar>

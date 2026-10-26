@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +8,7 @@ import {
   Grid,
   Divider
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   BarChart,
   Bar,
@@ -17,7 +19,18 @@ import {
   ResponsiveContainer,
   CartesianGrid
 } from "recharts";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
+import {
+  chartAxisProps,
+  chartGridProps,
+  chartTooltipContentStyle,
+  chartTooltipItemStyle,
+  chartTooltipLabelStyle,
+} from "../charts/chartStyles";
 import type { AdherenceAnalyticsResponse } from "../../types/analytics";
 
 interface AdherenceReportsProps {
@@ -25,25 +38,49 @@ interface AdherenceReportsProps {
   loading: boolean;
 }
 
+/** Presentational summary tile for the adherence breakdown row. */
+const SummaryTile = ({ label, value, color }: { label: string; value: ReactNode; color: string }) => (
+  <Box
+    sx={{
+      p: 2,
+      height: "100%",
+      borderRadius: 2.5,
+      textAlign: "center",
+      bgcolor: alpha(color, 0.07),
+      border: "1px solid",
+      borderColor: alpha(color, 0.18),
+    }}
+  >
+    <Typography variant="caption" sx={{ fontWeight: 600, color: "text.secondary", display: "block" }}>
+      {label}
+    </Typography>
+    <Typography variant="h5" sx={{ fontWeight: 800, mt: 0.5, color, letterSpacing: "-0.01em" }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
 const AdherenceReports: React.FC<AdherenceReportsProps> = ({
   adherenceData,
   loading
 }) => {
   if (loading) {
     return (
-      <Card elevation={2} sx={{ borderRadius: 3, minHeight: 250, display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <CircularProgress />
+      <Card sx={{ minHeight: 250, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <CircularProgress sx={{ color: "secondary.dark" }} />
       </Card>
     );
   }
 
   if (!adherenceData) {
     return (
-      <Card elevation={2} sx={{ borderRadius: 3 }}>
-        <CardContent sx={{ textAlign: "center", py: 6 }}>
-          <Typography color="text.secondary">
-            No patient adherence records loaded. Please select a patient to view analytical reports.
-          </Typography>
+      <Card>
+        <CardContent>
+          <EmptyState
+            message="No patient adherence records loaded. Please select a patient to view analytical reports."
+            icon={<AssessmentOutlinedIcon />}
+            minHeight={200}
+          />
         </CardContent>
       </Card>
     );
@@ -67,58 +104,32 @@ const AdherenceReports: React.FC<AdherenceReportsProps> = ({
   const ratePercent = (adherenceData.adherenceRate * 100).toFixed(1);
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Adherence & Intake Compliance Reports
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Analysis of insulin dosing schedules compliance. Displays on-time completion rates vs missed or delayed injections.
-          </Typography>
-        </Box>
+    <Card>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <CardHeading
+          title="Adherence & Intake Compliance Reports"
+          subtitle="Analysis of insulin dosing schedules compliance. Displays on-time completion rates vs missed or delayed injections."
+          icon={<FactCheckOutlinedIcon />}
+          color="#10b981"
+          sx={{ mb: 0 }}
+        />
 
         {/* Adherence Summary Grid */}
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 2, textAlign: "center" }}>
-              <Typography variant="caption" color="text.secondary">Adherence Rate</Typography>
-              <Typography variant="h5" sx={{ fontWeight: "bold", mt: 0.5, color: "primary.main" }}>
-                {ratePercent}%
-              </Typography>
-            </Box>
+            <SummaryTile label="Adherence Rate" value={`${ratePercent}%`} color="#12233b" />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 2, textAlign: "center" }}>
-              <Typography variant="caption" color="text.secondary">Total Scheduled</Typography>
-              <Typography variant="h5" sx={{ fontWeight: "bold", mt: 0.5 }}>
-                {adherenceData.totalScheduled}
-              </Typography>
-            </Box>
+            <SummaryTile label="Total Scheduled" value={adherenceData.totalScheduled} color="#0284c7" />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Box sx={{ p: 2, bgcolor: "success.light", borderRadius: 2, textAlign: "center", color: "success.dark", opacity: 0.9 }}>
-              <Typography variant="caption" sx={{ fontWeight: "medium" }}>On Time Doses</Typography>
-              <Typography variant="h5" sx={{ fontWeight: "bold", mt: 0.5 }}>
-                {adherenceData.onTime}
-              </Typography>
-            </Box>
+            <SummaryTile label="On Time Doses" value={adherenceData.onTime} color="#059669" />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Box sx={{ p: 2, bgcolor: "warning.light", borderRadius: 2, textAlign: "center", color: "warning.dark", opacity: 0.9 }}>
-              <Typography variant="caption" sx={{ fontWeight: "medium" }}>Late Doses</Typography>
-              <Typography variant="h5" sx={{ fontWeight: "bold", mt: 0.5 }}>
-                {adherenceData.late}
-              </Typography>
-            </Box>
+            <SummaryTile label="Late Doses" value={adherenceData.late} color="#d97706" />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Box sx={{ p: 2, bgcolor: "error.light", borderRadius: 2, textAlign: "center", color: "error.dark", opacity: 0.9 }}>
-              <Typography variant="caption" sx={{ fontWeight: "medium" }}>Missed Doses</Typography>
-              <Typography variant="h5" sx={{ fontWeight: "bold", mt: 0.5 }}>
-                {adherenceData.missed}
-              </Typography>
-            </Box>
+            <SummaryTile label="Missed Doses" value={adherenceData.missed} color="#dc2626" />
           </Grid>
         </Grid>
 
@@ -131,15 +142,20 @@ const AdherenceReports: React.FC<AdherenceReportsProps> = ({
               data={chartData}
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="On Time" stackId="a" fill="#2e7d32" name="On Time" />
-              <Bar dataKey="Late" stackId="a" fill="#ed6c02" name="Late" />
-              <Bar dataKey="Missed" stackId="a" fill="#d32f2f" name="Missed" />
-              <Bar dataKey="Unscheduled" stackId="a" fill="#9c27b0" name="Unscheduled (Correction)" />
+              <CartesianGrid {...chartGridProps} />
+              <XAxis dataKey="date" {...chartAxisProps} />
+              <YAxis allowDecimals={false} {...chartAxisProps} />
+              <Tooltip
+                cursor={{ fill: "#f1f5f9" }}
+                contentStyle={chartTooltipContentStyle}
+                labelStyle={chartTooltipLabelStyle}
+                itemStyle={chartTooltipItemStyle}
+              />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+              <Bar dataKey="On Time" stackId="a" fill="#10b981" name="On Time" />
+              <Bar dataKey="Late" stackId="a" fill="#f59e0b" name="Late" />
+              <Bar dataKey="Missed" stackId="a" fill="#ef4444" name="Missed" />
+              <Bar dataKey="Unscheduled" stackId="a" fill="#8b5cf6" name="Unscheduled (Correction)" />
             </BarChart>
           </ResponsiveContainer>
         </Box>

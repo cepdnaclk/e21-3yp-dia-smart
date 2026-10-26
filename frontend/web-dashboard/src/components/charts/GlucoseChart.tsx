@@ -8,6 +8,15 @@ import {
   CartesianGrid,
 } from "recharts";
 
+import {
+  chartAxisProps,
+  chartCursor,
+  chartGridProps,
+  chartTooltipContentStyle,
+  chartTooltipItemStyle,
+  chartTooltipLabelStyle,
+} from "./chartStyles";
+
 interface Props {
   data: {
     date: string;
@@ -24,46 +33,36 @@ const GlucoseChart = ({ data }: Props) => {
       <AreaChart data={data} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
         <defs>
           <linearGradient id="colorGlucose" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.24} />
             <stop offset="95%" stopColor="#ef4444" stopOpacity={0.0} />
           </linearGradient>
         </defs>
 
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <CartesianGrid {...chartGridProps} />
 
         <XAxis
           dataKey="date"
-          stroke="#94a3b8"
-          fontSize={11}
-          tickLine={false}
-          axisLine={false}
+          {...chartAxisProps}
           dy={10}
         />
 
         <YAxis
-          stroke="#94a3b8"
-          fontSize={11}
-          tickLine={false}
-          axisLine={false}
+          {...chartAxisProps}
           dx={-10}
         />
 
         <Tooltip
-          contentStyle={{
-            backgroundColor: "#12233b",
-            borderRadius: 8,
-            border: "none",
-            color: "#ffffff",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          }}
-          labelStyle={{ fontWeight: "bold", color: "#3ec1fa" }}
+          contentStyle={chartTooltipContentStyle}
+          labelStyle={chartTooltipLabelStyle}
+          itemStyle={chartTooltipItemStyle}
+          cursor={chartCursor}
         />
 
         <Area
           type="monotone"
           dataKey="glucose"
           stroke="#ef4444"
-          strokeWidth={3}
+          strokeWidth={2.5}
           fillOpacity={1}
           fill="url(#colorGlucose)"
           activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2, fill: "#ef4444" }}
@@ -73,4 +72,4 @@ const GlucoseChart = ({ data }: Props) => {
   );
 };
 
-export default GlucoseChart;
+export default GlucoseChart;

@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, Typography, Box, CircularProgress } from "@mui/material";
+import { Card, CardContent, Box, CircularProgress } from "@mui/material";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+
+import CardHeading from "../common/CardHeading";
+import MetricCard from "../common/MetricCard";
 import { caregiverService } from "../../services/caregiverService";
 
 const AssignedPatientsSummary = () => {
@@ -21,33 +26,27 @@ const AssignedPatientsSummary = () => {
   }, []);
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
-      <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: "medium" }}
-        >
-          Assigned Patients Summary
-        </Typography>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <CardHeading
+          title="Assigned Patients Summary"
+          icon={<GroupsOutlinedIcon />}
+          color="#12233b"
+        />
 
-        <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 1 }}
-          >
-            Total Assigned Patients
-          </Typography>
-          {loading ? (
-            <CircularProgress size={20} />
-          ) : (
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: "bold", color: "primary.main" }}
-            >
-              {count !== null ? count : "N/A"}
-            </Typography>
-          )}
+        <Box sx={{ flexGrow: 1 }}>
+          <MetricCard
+            label="Total Assigned Patients"
+            value={
+              loading ? (
+                <CircularProgress size={20} sx={{ color: "secondary.dark" }} />
+              ) : (
+                count !== null ? count : "N/A"
+              )
+            }
+            icon={<PeopleAltOutlinedIcon />}
+            tone="primary"
+          />
         </Box>
       </CardContent>
     </Card>

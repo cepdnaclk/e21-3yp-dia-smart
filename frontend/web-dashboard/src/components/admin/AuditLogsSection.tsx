@@ -10,9 +10,13 @@ import {
   TableBody,
   CircularProgress,
   TablePagination,
-  Box
+  Box,
+  Chip
 } from "@mui/material";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import type { AuditLogRecord } from "../../types/admin";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 interface AuditLogsSectionProps {
   logs: AuditLogRecord[];
@@ -32,44 +36,79 @@ const AuditLogsSection: React.FC<AuditLogsSectionProps> = ({
   onPageChange
 }) => {
   return (
-    <Card elevation={2} sx={{ borderRadius: 3, height: "100%" }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Administrative Audit Logs
-        </Typography>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <CardHeading
+          title="Administrative Audit Logs"
+          icon={<ReceiptLongOutlinedIcon />}
+          color="#12233b"
+          sx={{ mb: 1.5 }}
+        />
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
+            <CircularProgress size={36} thickness={4} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : (
           <>
-            <TableContainer sx={{ maxHeight: 440 }}>
-              <Table stickyHeader size="small">
+            <TableContainer
+              sx={{
+                maxHeight: 440,
+                overflowX: "auto",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Table stickyHeader size="small" sx={{ minWidth: 520 }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Entity</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>IP Address</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Timestamp</TableCell>
+                    <TableCell>Action</TableCell>
+                    <TableCell>Entity</TableCell>
+                    <TableCell>IP Address</TableCell>
+                    <TableCell>Timestamp</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {logs.map((log) => (
                     <TableRow key={log.auditLogId} hover>
-                      <TableCell sx={{ fontWeight: "medium" }}>{log.actionType}</TableCell>
                       <TableCell>
-                        {log.entityType} (ID: {log.entityId || "N/A"})
+                        <Chip
+                          label={log.actionType}
+                          size="small"
+                          variant="outlined"
+                          sx={{ color: "#12233b", bgcolor: "#f1f5f9", borderColor: "#e2e8f0" }}
+                        />
                       </TableCell>
-                      <TableCell>{log.ipAddress || "Localhost"}</TableCell>
-                      <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {log.entityType} (ID: {log.entityId || "N/A"})
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}
+                        >
+                          {log.ipAddress || "Localhost"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </Typography>
+                      </TableCell>
                     </TableRow>
                   ))}
 
                   {logs.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} align="center" sx={{ py: 3, color: "text.secondary" }}>
-                        No audit records registered.
+                      <TableCell colSpan={4} sx={{ py: 2 }}>
+                        <EmptyState
+                          message="No audit records registered."
+                          icon={<ReceiptLongOutlinedIcon />}
+                          minHeight={120}
+                        />
                       </TableCell>
                     </TableRow>
                   )}

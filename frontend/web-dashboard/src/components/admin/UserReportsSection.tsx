@@ -1,25 +1,31 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { Card, CardContent, Box } from "@mui/material";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import DonutLargeOutlinedIcon from "@mui/icons-material/DonutLargeOutlined";
+import CardHeading from "../common/CardHeading";
+import {
+  chartTooltipContentStyle,
+  chartTooltipItemStyle,
+  chartTooltipLabelStyle,
+} from "../charts/chartStyles";
 
 const UserReportsSection = () => {
   const data = [
-    { name: "Patients", value: 45, color: "#1976d2" },
-    { name: "Clinicians", value: 20, color: "#2e7d32" },
-    { name: "Caregivers", value: 25, color: "#ed6c02" },
-    { name: "Administrators", value: 10, color: "#9c27b0" }
+    { name: "Patients", value: 45, color: "#0284c7" },
+    { name: "Clinicians", value: 20, color: "#10b981" },
+    { name: "Caregivers", value: 25, color: "#f59e0b" },
+    { name: "Administrators", value: 10, color: "#12233b" }
   ];
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 3, height: "100%", display: "flex", flexDirection: "column" }}>
-      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            User Account Distribution
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Proportion of registered system roles across patients, medical clinicians, caregiver mappings, and administrators.
-          </Typography>
-        </Box>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+        <CardHeading
+          title="User Account Distribution"
+          subtitle="Proportion of registered system roles across patients, medical clinicians, caregiver mappings, and administrators."
+          icon={<DonutLargeOutlinedIcon />}
+          color="#0284c7"
+          sx={{ alignItems: "flex-start" }}
+        />
 
         <Box sx={{ width: "100%", height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -32,13 +38,25 @@ const UserReportsSection = () => {
                 outerRadius={80}
                 paddingAngle={5}
                 dataKey="value"
+                stroke="#ffffff"
+                strokeWidth={2}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
+              <Tooltip
+                contentStyle={chartTooltipContentStyle}
+                labelStyle={chartTooltipLabelStyle}
+                itemStyle={chartTooltipItemStyle}
+              />
+              <Legend
+                verticalAlign="bottom"
+                height={36}
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: 12, fontWeight: 600, color: "#475569" }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </Box>

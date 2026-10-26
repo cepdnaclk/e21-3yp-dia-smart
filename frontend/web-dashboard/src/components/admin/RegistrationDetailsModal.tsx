@@ -13,14 +13,19 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  Typography,
   Alert,
-  Box
+  Box,
+  Chip
 } from "@mui/material";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import EmptyState from "../common/EmptyState";
 import api from "../../services/api";
 import RegistrationDetailsViewDialog, { type FlattenedKit } from "./RegistrationDetailsViewDialog";
 
 import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+
+const idCellSx = { fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "nowrap" } as const;
 
 interface RegistrationDetailsModalProps {
   open: boolean;
@@ -125,52 +130,80 @@ const RegistrationDetailsModal: React.FC<RegistrationDetailsModalProps> = ({ ope
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600 }}>Registration Details Registry</DialogTitle>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            aria-hidden
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#0ea5e9",
+              bgcolor: "#e0f2fe",
+            }}
+          >
+            <AssignmentOutlinedIcon fontSize="small" />
+          </Box>
+          Registration Details Registry
+        </DialogTitle>
         <DialogContent dividers>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", p: 5 }}>
-              <CircularProgress />
+              <CircularProgress size={36} thickness={4} sx={{ color: "secondary.dark" }} />
             </Box>
           ) : kits.length === 0 && !error ? (
-            <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 5 }}>
-              No registered device kits found in the system.
-            </Typography>
+            <EmptyState
+              message="No registered device kits found in the system."
+              icon={<Inventory2OutlinedIcon />}
+              minHeight={200}
+            />
           ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead sx={{ bgcolor: "background.default" }}>
+            <TableContainer component={Paper} variant="outlined" sx={{ overflowX: "auto" }}>
+              <Table size="small" sx={{ minWidth: 960 }}>
+                <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Buyer Name</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>NIC / Passport</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Purchase Date</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Total Devices</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Outer ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Inner ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Pen ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Glucometer ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }} align="center">Actions</TableCell>
+                    <TableCell>Buyer Name</TableCell>
+                    <TableCell>NIC / Passport</TableCell>
+                    <TableCell>Purchase Date</TableCell>
+                    <TableCell>Total Devices</TableCell>
+                    <TableCell>Outer ID</TableCell>
+                    <TableCell>Inner ID</TableCell>
+                    <TableCell>Pen ID</TableCell>
+                    <TableCell>Glucometer ID</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {kits.map((kit, idx) => (
                     <TableRow key={idx} hover>
-                      <TableCell>{kit.buyerName}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: "text.primary" }}>{kit.buyerName}</TableCell>
                       <TableCell>{kit.nic}</TableCell>
-                      <TableCell>{kit.purchaseDate}</TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>{kit.purchaseDate}</TableCell>
                       <TableCell>{kit.numDevices}</TableCell>
-                      <TableCell>{kit.outerGatewayId || "-"}</TableCell>
-                      <TableCell>{kit.innerUnitId || "-"}</TableCell>
-                      <TableCell>{kit.penUnitId || "-"}</TableCell>
-                      <TableCell>{kit.glucoseMeterId || "-"}</TableCell>
-                      <TableCell>{kit.assignedPatientName ? "Assigned" : "Available"}</TableCell>
+                      <TableCell sx={idCellSx}>{kit.outerGatewayId || "-"}</TableCell>
+                      <TableCell sx={idCellSx}>{kit.innerUnitId || "-"}</TableCell>
+                      <TableCell sx={idCellSx}>{kit.penUnitId || "-"}</TableCell>
+                      <TableCell sx={idCellSx}>{kit.glucoseMeterId || "-"}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={kit.assignedPatientName ? "Assigned" : "Available"}
+                          color={kit.assignedPatientName ? "info" : "success"}
+                          variant="outlined"
+                        />
+                      </TableCell>
                       <TableCell align="center">
                         <Button 
                           size="small" 
                           variant="outlined" 
                           onClick={() => handleViewDetails(kit)}
+                          sx={{ whiteSpace: "nowrap" }}
                         >
                           View Details
                         </Button>
@@ -182,7 +215,7 @@ const RegistrationDetailsModal: React.FC<RegistrationDetailsModalProps> = ({ ope
             </TableContainer>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions>
           <Button onClick={onClose} variant="contained" disableElevation>
             Close
           </Button>

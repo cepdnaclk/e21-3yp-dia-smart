@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, Typography, Box, CircularProgress, LinearProgress, Chip } from "@mui/material";
 import ScaleIcon from "@mui/icons-material/Scale";
 import MedicationIcon from "@mui/icons-material/Medication";
+import { alpha } from "@mui/material/styles";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { caregiverService } from "../../services/caregiverService";
 
@@ -36,27 +40,36 @@ const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitor
   const isLow = reading ? reading.inventoryStatus === "LOW_INVENTORY" || reading.inventoryStatus === "CRITICAL_INVENTORY" : false;
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Insulin Cartridge Inventory
-        </Typography>
+        <CardHeading title="Insulin Cartridge Inventory" icon={<Inventory2OutlinedIcon />} color="#f59e0b" />
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4, flexGrow: 1, alignItems: "center" }}>
-            <CircularProgress size={32} />
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : !reading ? (
-          <Typography color="text.secondary" variant="body2" sx={{ py: 2 }}>
-            No cartridge inventory readings received from patient.
-          </Typography>
+          <EmptyState message="No cartridge inventory readings received from patient." icon={<MedicationIcon />} />
         ) : (
           <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <MedicationIcon color={isLow ? "error" : "primary"} fontSize="large" />
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    flexShrink: 0,
+                    borderRadius: 2.5,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    bgcolor: alpha(isLow ? "#ef4444" : "#0284c7", 0.1),
+                  }}
+                >
+                  <MedicationIcon color={isLow ? "error" : "primary"} fontSize="large" />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: "#12233b", lineHeight: 1.2 }}>
                     {reading.estimatedUnitsRemaining !== null && reading.estimatedUnitsRemaining !== undefined ? reading.estimatedUnitsRemaining.toFixed(0) : "—"} Units
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -77,20 +90,20 @@ const InventoryMonitoringCard = ({ patientId, refreshTrigger }: InventoryMonitor
                 variant="determinate"
                 value={percent}
                 color={isLow ? "error" : "success"}
-                sx={{ height: 10, borderRadius: 5 }}
+                sx={{ height: 10, borderRadius: 5, bgcolor: "#e2e8f0" }}
               />
             </Box>
 
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mt: 1, bgcolor: "action.hover", p: 1.5, borderRadius: 2 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mt: 1, bgcolor: "#f8fafc", border: "1px solid", borderColor: "divider", p: 1.5, borderRadius: 2.5 }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Cartridge State</Typography>
-                <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: "#12233b" }}>
                   {reading.cartridgePresent ? "Inserted" : "Missing"}
                 </Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Pen State</Typography>
-                <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: "#12233b" }}>
                   {reading.penPresent ? "Docked" : "Undocked"}
                 </Typography>
               </Box>

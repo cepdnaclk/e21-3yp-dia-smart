@@ -7,15 +7,19 @@ import {
 import {
   Typography,
   Stack,
-  Alert as MuiAlert,
   Box,
   Button,
+  Card,
   Pagination,
   Tab,
   Tabs,
 } from "@mui/material";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import DoneAllRoundedIcon from "@mui/icons-material/DoneAllRounded";
+import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 
 import AlertCard from "../../components/alerts/AlertCard";
+import EmptyState from "../../components/common/EmptyState";
 import PageError from "../../components/common/PageError";
 import PageLoading from "../../components/common/PageLoading";
 import PageTitle from "../../components/common/PageTitle";
@@ -190,10 +194,14 @@ const AlertsPage = () => {
       <Stack
         direction="row"
         spacing={1}
+        useFlexGap
+        sx={{ flexWrap: "wrap" }}
       >
         {normalizedStatus === "OPEN" && (
           <Button
             size="small"
+            variant="outlined"
+            startIcon={<CheckRoundedIcon />}
             onClick={() =>
               handleAcknowledge(
                 alert.alertId
@@ -211,6 +219,9 @@ const AlertsPage = () => {
         <Button
           size="small"
           color="success"
+          variant="contained"
+          disableElevation
+          startIcon={<DoneAllRoundedIcon />}
           onClick={() =>
             handleResolve(
               alert.alertId
@@ -239,7 +250,7 @@ const AlertsPage = () => {
     <>
       <PageTitle mb={2}>Alerts</PageTitle>
 
-      <Box sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, px: { xs: 0.5, sm: 1 } }}>
         <Tabs
           value={status}
           onChange={handleStatusChange}
@@ -247,19 +258,21 @@ const AlertsPage = () => {
           scrollButtons="auto"
           allowScrollButtonsMobile
           sx={{
-            borderBottom: 1,
-            borderColor: "divider",
+            minHeight: 52,
             "& .MuiTab-root": {
               textTransform: "none",
               fontWeight: 700,
               minWidth: "auto",
+              minHeight: 52,
               px: 2,
             },
             "& .MuiTabs-indicator": {
               backgroundColor: "#3ec1fa",
+              height: 3,
+              borderRadius: "3px 3px 0 0",
             },
             "& .MuiTab-root.Mui-selected": {
-              color: "#3ec1fa",
+              color: "#0284c7",
             },
           }}
         >
@@ -271,13 +284,15 @@ const AlertsPage = () => {
             />
           ))}
         </Tabs>
-      </Box>
+      </Card>
 
       <Stack spacing={2}>
         {alerts.length === 0 ? (
-          <MuiAlert severity="info">
-            No alerts available.
-          </MuiAlert>
+          <EmptyState
+            message="No alerts available."
+            icon={<NotificationsNoneRoundedIcon />}
+            minHeight={220}
+          />
         ) : (
           alerts.map((alert) => (
             <AlertCard

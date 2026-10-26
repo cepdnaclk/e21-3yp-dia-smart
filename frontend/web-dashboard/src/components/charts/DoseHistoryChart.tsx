@@ -8,6 +8,15 @@ import {
   CartesianGrid,
 } from "recharts";
 
+import {
+  chartAxisProps,
+  chartCursor,
+  chartGridProps,
+  chartTooltipContentStyle,
+  chartTooltipItemStyle,
+  chartTooltipLabelStyle,
+} from "./chartStyles";
+
 import type { DoseReading } from "../../types/analytics";
 
 interface Props {
@@ -28,46 +37,36 @@ const DoseHistoryChart = ({ data }: Props) => {
       <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -5, bottom: 0 }}>
         <defs>
           <linearGradient id="colorDose" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3ec1fa" stopOpacity={0.2} />
+            <stop offset="5%" stopColor="#3ec1fa" stopOpacity={0.24} />
             <stop offset="95%" stopColor="#3ec1fa" stopOpacity={0.0} />
           </linearGradient>
         </defs>
 
-        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+        <CartesianGrid {...chartGridProps} />
 
         <XAxis
           dataKey="time"
-          stroke="#94a3b8"
-          fontSize={11}
-          tickLine={false}
-          axisLine={false}
+          {...chartAxisProps}
           dy={10}
         />
 
         <YAxis
-          stroke="#94a3b8"
-          fontSize={11}
-          tickLine={false}
-          axisLine={false}
+          {...chartAxisProps}
           dx={-10}
         />
 
         <Tooltip
-          contentStyle={{
-            backgroundColor: "#12233b",
-            borderRadius: 8,
-            border: "none",
-            color: "#ffffff",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          }}
-          labelStyle={{ fontWeight: "bold", color: "#3ec1fa" }}
+          contentStyle={chartTooltipContentStyle}
+          labelStyle={chartTooltipLabelStyle}
+          itemStyle={chartTooltipItemStyle}
+          cursor={chartCursor}
         />
 
         <Area
           type="monotone"
           dataKey="dose"
           stroke="#3ec1fa"
-          strokeWidth={3}
+          strokeWidth={2.5}
           fillOpacity={1}
           fill="url(#colorDose)"
           activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2, fill: "#3ec1fa" }}
@@ -77,4 +76,4 @@ const DoseHistoryChart = ({ data }: Props) => {
   );
 };
 
-export default DoseHistoryChart;
+export default DoseHistoryChart;

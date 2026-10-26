@@ -3,6 +3,9 @@ import {
   CardContent,
   Typography,
 } from "@mui/material";
+import DevicesOtherRoundedIcon from "@mui/icons-material/DevicesOtherRounded";
+
+import CardHeading from "../common/CardHeading";
 
 interface DevicePlaceholderSectionProps {
   title: string;
@@ -16,12 +19,11 @@ const DevicePlaceholderSection = ({
   return (
     <Card>
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 1 }}
-        >
-          {title}
-        </Typography>
+        <CardHeading
+          title={title}
+          icon={<DevicesOtherRoundedIcon />}
+          sx={{ mb: 1.5 }}
+        />
 
         {/* TODO: Replace this placeholder with real device data UI in Milestone 4. */}
         <Typography color="text.secondary">

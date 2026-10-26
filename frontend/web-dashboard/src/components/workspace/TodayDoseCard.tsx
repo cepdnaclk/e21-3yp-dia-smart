@@ -10,6 +10,9 @@ import {
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { caregiverService } from "../../services/caregiverService";
 import type { ScheduleAdherenceResponse } from "../../types/analytics";
@@ -81,26 +84,26 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
   };
 
   return (
-    <Card sx={{ height: "100%", borderRadius: 4 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", p: 3 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: "#12233b" }}>
-            Today's Dose Adherence
-          </Typography>
-          <Button size="small" variant="text" sx={{ color: "#3ec1fa", fontWeight: 700 }}>
-            View Logs
-          </Button>
-        </Box>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <CardHeading
+          title="Today's Dose Adherence"
+          icon={<EventAvailableOutlinedIcon />}
+          color="#10b981"
+          action={
+            <Button size="small" variant="text" sx={{ color: "secondary.dark", fontWeight: 700 }}>
+              View Logs
+            </Button>
+          }
+        />
 
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6, flexGrow: 1, alignItems: "center" }}>
-            <CircularProgress size={32} sx={{ color: "#3ec1fa" }} />
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : doses.length === 0 ? (
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flexGrow: 1, py: 6 }}>
-            <Typography color="text.secondary" variant="body2">
-              No dosing schedules configured for today.
-            </Typography>
+          <Box sx={{ flexGrow: 1 }}>
+            <EmptyState message="No dosing schedules configured for today." icon={<AccessTimeIcon />} />
           </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0, flexGrow: 1, mt: 1 }}>
@@ -144,7 +147,8 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
                       alignItems: "center",
                       justifyContent: "center",
                       zIndex: 2,
-                      mr: 2,
+                      mr: { xs: 1.5, sm: 2 },
+                      flexShrink: 0,
                       boxShadow: "0 0 0 4px #fff",
                     }}
                   >
@@ -155,16 +159,20 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
                   <Box
                     sx={{
                       flexGrow: 1,
-                      backgroundColor: "#f8f9fa",
-                      borderRadius: 3,
-                      p: 2,
+                      minWidth: 0,
+                      backgroundColor: "#f8fafc",
+                      borderRadius: 2.5,
+                      p: { xs: 1.5, sm: 2 },
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      border: "1px solid #e2e8f0",
+                      flexWrap: "wrap",
+                      gap: 1.5,
+                      border: "1px solid",
+                      borderColor: "divider",
                     }}
                   >
-                    <Box>
+                    <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#12233b", mb: 0.5 }}>
                         {dose.scheduleLabel}
                       </Typography>
@@ -181,9 +189,10 @@ const TodayDoseCard = ({ patientId, refreshTrigger }: TodayDoseCardProps) => {
                     {/* Status Badge */}
                     <Box
                       sx={{
-                        px: 1.5,
+                        px: 1.25,
                         py: 0.5,
-                        borderRadius: 2,
+                        borderRadius: 999,
+                        flexShrink: 0,
                         backgroundColor: styles.bgColor,
                         color: styles.color,
                         fontSize: "0.75rem",

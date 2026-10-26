@@ -9,7 +9,26 @@ import {
   Divider,
   Box,
 } from "@mui/material";
+import OutboxRoundedIcon from "@mui/icons-material/OutboxRounded";
+import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import type { RelationshipRequestDto } from "../../types/careTeam";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
+
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case "PENDING":
+      return <HourglassTopRoundedIcon />;
+    case "ACCEPTED":
+      return <CheckCircleRoundedIcon />;
+    case "REJECTED":
+      return <CancelRoundedIcon />;
+    default:
+      return undefined;
+  }
+};
 
 interface RelationshipRequestsCardProps {
   requests: RelationshipRequestDto[];
@@ -32,17 +51,18 @@ const RelationshipRequestsCard = ({ requests }: RelationshipRequestsCardProps) =
   return (
     <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: 600 }}
-        >
-          Sent Requests
-        </Typography>
+        <CardHeading
+          title="Sent Requests"
+          icon={<OutboxRoundedIcon />}
+          color="#f59e0b"
+        />
 
         {requests.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 2 }}>
-            No sent relationship requests
-          </Typography>
+          <EmptyState
+            message="No sent relationship requests"
+            icon={<OutboxRoundedIcon />}
+            minHeight={140}
+          />
         ) : (
           <List disablePadding>
             {requests.map((req, idx) => (
@@ -56,17 +76,19 @@ const RelationshipRequestsCard = ({ requests }: RelationshipRequestsCardProps) =
                     alignItems: { xs: "flex-start", sm: "center" },
                     gap: 1,
                     py: 1,
+                    "& .MuiListItemText-secondary": { overflowWrap: "anywhere" },
                   }}
                 >
                   <ListItemText
                     primary={
                       <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1, mb: 0.5 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "#12233b" }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "#12233b", overflowWrap: "anywhere" }}>
                           {req.targetName} ({req.relationshipRole})
                         </Typography>
                         <Chip
                           label={req.status}
                           color={getStatusColor(req.status)}
+                          icon={getStatusIcon(req.status)}
                           size="small"
                           variant="outlined"
                           sx={{ textTransform: "uppercase", fontSize: "0.65rem", fontWeight: 700 }}

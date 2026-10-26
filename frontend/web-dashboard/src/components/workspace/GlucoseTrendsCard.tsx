@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, Typography, Box, CircularProgress } from "@mui/material";
+import { Card, CardContent, Box, CircularProgress } from "@mui/material";
+import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 import GlucoseChart from "../charts/GlucoseChart";
 import { analyticsService } from "../../services/analyticsService";
 import type { GlucoseReading } from "../../types/analytics";
@@ -37,23 +41,16 @@ const GlucoseTrendsCard = ({ patientId, refreshTrigger }: GlucoseTrendsCardProps
   }));
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: "medium" }}
-        >
-          Glucose Trends
-        </Typography>
+        <CardHeading title="Glucose Trends" icon={<WaterDropOutlinedIcon />} color="#ef4444" />
 
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160 }}>
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : chartData.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 2 }}>
-            No glucose records found
-          </Typography>
+          <EmptyState message="No glucose records found" icon={<ShowChartIcon />} />
         ) : (
           <GlucoseChart data={chartData} />
         )}

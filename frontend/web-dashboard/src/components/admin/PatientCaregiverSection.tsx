@@ -27,15 +27,30 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  Tooltip
+  Tooltip,
+  Chip
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import VolunteerActivismOutlinedIcon from "@mui/icons-material/VolunteerActivismOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { adminService } from "../../services/adminService";
 import type { AdminUserRecord, PatientAccessResponse } from "../../types/admin";
+
+const permBadgeSx = {
+  width: 26,
+  height: 26,
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
 
 interface PatientCaregiverSectionProps {
   caregivers: AdminUserRecord[];
@@ -179,16 +194,15 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
   };
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3, display: "flex", flexDirection: "column" }}>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Patient ↔ Caregiver Mappings
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage caregiver patient relations. Register caregiver profiles to grant view access to specific patient vitals.
-          </Typography>
-        </Box>
+        <CardHeading
+          title="Patient ↔ Caregiver Mappings"
+          subtitle="Manage caregiver patient relations. Register caregiver profiles to grant view access to specific patient vitals."
+          icon={<VolunteerActivismOutlinedIcon />}
+          color="#10b981"
+          sx={{ mb: 0, alignItems: "flex-start" }}
+        />
 
         {/* Caregiver Dropdown Select */}
         <FormControl fullWidth size="small">
@@ -213,8 +227,8 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
         {/* Mapped Patients Table */}
         {selectedCaregiverId ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "primary.main" }}>
                 Active Assigned Patients
               </Typography>
               <Button
@@ -222,7 +236,6 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
                 size="small"
                 startIcon={<AddIcon />}
                 onClick={handleOpenDialog}
-                sx={{ textTransform: "none", borderRadius: 2 }}
               >
                 Assign Patient
               </Button>
@@ -230,19 +243,19 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
 
             {loading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
-                <CircularProgress size={30} />
+                <CircularProgress size={30} thickness={4} sx={{ color: "secondary.dark" }} />
               </Box>
             ) : error ? (
               <Alert severity="error">{error}</Alert>
             ) : (
-              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-                <Table size="small">
-                  <TableHead sx={{ backgroundColor: "action.hover" }}>
+              <TableContainer component={Paper} variant="outlined" sx={{ overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 460 }}>
+                  <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: "bold" }}>Patient</TableCell>
-                      <TableCell sx={{ fontWeight: "bold" }}>Label</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: "bold" }}>Permissions</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: "bold" }}>Revoke</TableCell>
+                      <TableCell>Patient</TableCell>
+                      <TableCell>Label</TableCell>
+                      <TableCell align="center">Permissions</TableCell>
+                      <TableCell align="center">Revoke</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -251,37 +264,42 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
                       return (
                         <TableRow key={record.accessId} hover>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
                               {patientUser?.displayName || `Patient ID: ${record.patientId}`}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", overflowWrap: "anywhere" }}>
                               {patientUser?.email || ""}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            {record.relationshipLabel || "Caregiver"}
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={record.relationshipLabel || "Caregiver"}
+                              sx={{ color: "#12233b", bgcolor: "#f1f5f9", borderColor: "#e2e8f0" }}
+                            />
                           </TableCell>
                           <TableCell align="center">
                             <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
                               <Tooltip title="View Vitals">
-                                <Box sx={{ color: record.canView ? "success.main" : "text.disabled" }}>
+                                <Box sx={{ ...permBadgeSx, color: record.canView ? "success.main" : "text.disabled", bgcolor: record.canView ? "#d1fae5" : "#f1f5f9" }}>
                                   {record.canView ? <CheckIcon fontSize="small" /> : <CloseIcon fontSize="small" />}
                                 </Box>
                               </Tooltip>
                               <Tooltip title="Acknowledge Alerts">
-                                <Box sx={{ color: record.canAcknowledgeAlerts ? "success.main" : "text.disabled" }}>
+                                <Box sx={{ ...permBadgeSx, color: record.canAcknowledgeAlerts ? "success.main" : "text.disabled", bgcolor: record.canAcknowledgeAlerts ? "#d1fae5" : "#f1f5f9" }}>
                                   {record.canAcknowledgeAlerts ? <CheckIcon fontSize="small" /> : <CloseIcon fontSize="small" />}
                                 </Box>
                               </Tooltip>
                               <Tooltip title="Edit Prescriptions">
-                                <Box sx={{ color: record.canEditPrescriptions ? "success.main" : "text.disabled" }}>
+                                <Box sx={{ ...permBadgeSx, color: record.canEditPrescriptions ? "success.main" : "text.disabled", bgcolor: record.canEditPrescriptions ? "#d1fae5" : "#f1f5f9" }}>
                                   {record.canEditPrescriptions ? <CheckIcon fontSize="small" /> : <CloseIcon fontSize="small" />}
                                 </Box>
                               </Tooltip>
                             </Box>
                           </TableCell>
                           <TableCell align="center">
-                            <IconButton size="small" color="error" onClick={() => handleRevoke(record.accessId)}>
+                            <IconButton size="small" color="error" aria-label="Revoke" onClick={() => handleRevoke(record.accessId)}>
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </TableCell>
@@ -291,10 +309,12 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
 
                     {accessRecords.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            No active patients assigned to this caregiver.
-                          </Typography>
+                        <TableCell colSpan={4} sx={{ py: 2 }}>
+                          <EmptyState
+                            message="No active patients assigned to this caregiver."
+                            icon={<PersonSearchOutlinedIcon />}
+                            minHeight={120}
+                          />
                         </TableCell>
                       </TableRow>
                     )}
@@ -304,17 +324,36 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
             )}
           </Box>
         ) : (
-          <Typography variant="body2" color="text.disabled" sx={{ textAlign: "center", py: 4 }}>
-            Please select a caregiver to manage patient mapping configurations.
-          </Typography>
+          <EmptyState
+            message="Please select a caregiver to manage patient mapping configurations."
+            icon={<VolunteerActivismOutlinedIcon />}
+          />
         )}
       </CardContent>
 
       {/* Assign Patient Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>Assign Patient to Caregiver</DialogTitle>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            aria-hidden
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#10b981",
+              bgcolor: "#e0f2fe",
+            }}
+          >
+            <LinkOutlinedIcon fontSize="small" />
+          </Box>
+          Assign Patient to Caregiver
+        </DialogTitle>
         <form onSubmit={handleAssign}>
-          <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             {dialogError && <Alert severity="error">{dialogError}</Alert>}
 
             <FormControl fullWidth required size="small">
@@ -345,7 +384,19 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
               fullWidth
             />
 
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.25,
+                px: 1.5,
+                py: 1,
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "#f8fafc",
+              }}
+            >
               <FormControlLabel
                 control={
                   <Checkbox
@@ -381,12 +432,12 @@ const PatientCaregiverSection: React.FC<PatientCaregiverSectionProps> = ({
               />
             </Box>
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setDialogOpen(false)} disabled={dialogLoading}>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)} disabled={dialogLoading} color="inherit">
               Cancel
             </Button>
-            <Button type="submit" variant="contained" disabled={dialogLoading}>
-              {dialogLoading ? <CircularProgress size={24} /> : "Establish Mapping"}
+            <Button type="submit" variant="contained" disabled={dialogLoading} sx={{ minWidth: 150 }}>
+              {dialogLoading ? <CircularProgress size={22} color="inherit" /> : "Establish Mapping"}
             </Button>
           </DialogActions>
         </form>

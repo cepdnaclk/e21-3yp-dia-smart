@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   Card,
   CardContent,
@@ -16,6 +17,20 @@ import {
   Tab,
   Chip
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import TuneIcon from "@mui/icons-material/Tune";
+import TrackChangesIcon from "@mui/icons-material/TrackChanges";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
+import StackedLineChartIcon from "@mui/icons-material/StackedLineChart";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
+import MetricCard from "../common/MetricCard";
 import GlucoseChart from "../charts/GlucoseChart";
 import DoseHistoryChart from "../charts/DoseHistoryChart";
 import GlucoseDoseCorrelationChart from "../charts/GlucoseDoseCorrelationChart";
@@ -213,27 +228,63 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
 
   if (loading && !adherenceData) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
+        <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
       </Box>
     );
   }
 
+  const adherenceTile = (label: string, value: ReactNode, color: string) => (
+    <Box
+      sx={{
+        height: "100%",
+        p: 1.5,
+        bgcolor: "#ffffff",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2.5,
+        minWidth: 0,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontWeight: 600 }}>
+        {label}
+      </Typography>
+      <Typography variant="body1" sx={{ fontWeight: 800, color, fontSize: "1.15rem", mt: 0.25 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
       {/* Filters & Configuration Controls Panel */}
-      <Card elevation={1} sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-        <CardContent sx={{ display: "flex", flexWrap: "wrap", gap: 2.5, alignItems: "center" }}>
-          
+      <Card>
+        <CardContent sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
+          <Box
+            aria-hidden
+            sx={{
+              display: { xs: "none", sm: "flex" },
+              alignItems: "center",
+              justifyContent: "center",
+              width: 38,
+              height: 38,
+              borderRadius: 2,
+              color: "#0284c7",
+              bgcolor: alpha("#0284c7", 0.1),
+              flexShrink: 0,
+            }}
+          >
+            <TuneIcon sx={{ fontSize: 20 }} />
+          </Box>
+
           {/* Time Preset */}
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+          <FormControl size="small" sx={{ minWidth: 150, flex: { xs: "1 1 150px", sm: "0 0 auto" } }}>
             <InputLabel id="range-preset-label">Time Window</InputLabel>
             <Select
               labelId="range-preset-label"
               value={rangeOption}
               label="Time Window"
               onChange={(e) => handleRangeChange(e.target.value)}
-              sx={{ borderRadius: 2 }}
             >
               <MenuItem value="7">Last 7 Days</MenuItem>
               <MenuItem value="14">Last 14 Days</MenuItem>
@@ -252,7 +303,7 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                sx={{ flex: { xs: "1 1 150px", sm: "0 0 auto" } }}
               />
               <TextField
                 size="small"
@@ -261,20 +312,20 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                sx={{ flex: { xs: "1 1 150px", sm: "0 0 auto" } }}
               />
             </>
           )}
 
           {/* Custom Threshold Settings */}
-          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", ml: { md: "auto" } }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "center", ml: { md: "auto" } }}>
             <TextField
               size="small"
               label="Min Target"
               type="number"
               value={targetMinInput}
               onChange={(e) => setTargetMinInput(e.target.value)}
-              sx={{ width: 100, "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+              sx={{ width: 100 }}
             />
             <TextField
               size="small"
@@ -282,13 +333,13 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
               type="number"
               value={targetMaxInput}
               onChange={(e) => setTargetMaxInput(e.target.value)}
-              sx={{ width: 100, "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+              sx={{ width: 100 }}
             />
             <Button
               variant="outlined"
               size="medium"
               onClick={handleApplyThresholds}
-              sx={{ textTransform: "none", borderRadius: 2, borderColor: "#3ec1fa", color: "#0284c7" }}
+              sx={{ textTransform: "none", borderColor: "#3ec1fa", color: "#0284c7" }}
             >
               Apply Targets
             </Button>
@@ -305,113 +356,74 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
       {/* Clinical Metrics Insights Grid */}
       <Grid container spacing={2.5}>
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
-          <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
-                Time in Range (TIR)
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: timeInRange >= 70 ? "success.main" : "warning.main", my: 1 }}>
-                {timeInRange}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Target: &gt;70% ({targetMin}-{targetMax})
-              </Typography>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Time in Range (TIR)"
+            value={`${timeInRange}%`}
+            description={<>Target: &gt;70% ({targetMin}-{targetMax})</>}
+            icon={<TrackChangesIcon />}
+            tone={timeInRange >= 70 ? "success" : "warning"}
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
-          <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
-                Time Above Range (TAR)
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "error.main", my: 1 }}>
-                {timeAboveRange}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Hyperglycemia (&gt;{targetMax})
-              </Typography>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Time Above Range (TAR)"
+            value={`${timeAboveRange}%`}
+            description={<>Hyperglycemia (&gt;{targetMax})</>}
+            icon={<TrendingUpIcon />}
+            tone="error"
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
-          <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
-                Time Below Range (TBR)
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "warning.main", my: 1 }}>
-                {timeBelowRange}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Hypoglycemia (&lt;{targetMin})
-              </Typography>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Time Below Range (TBR)"
+            value={`${timeBelowRange}%`}
+            description={<>Hypoglycemia (&lt;{targetMin})</>}
+            icon={<TrendingDownIcon />}
+            tone="warning"
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
-          <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
-                Average Glucose
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#12233b", my: 1 }}>
-                {meanGlucose} mg/dL
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Estimated mean level
-              </Typography>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Average Glucose"
+            value={`${meanGlucose} mg/dL`}
+            description="Estimated mean level"
+            icon={<WaterDropOutlinedIcon />}
+            tone="primary"
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }}>
-          <Card sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
-            <CardContent sx={{ p: 2.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
-                Glycemic Variability
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: "#12233b", my: 1 }}>
-                {sdVariability} mg/dL
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Std Dev (SD) spikes
-              </Typography>
-            </CardContent>
-          </Card>
+          <MetricCard
+            label="Glycemic Variability"
+            value={`${sdVariability} mg/dL`}
+            description="Std Dev (SD) spikes"
+            icon={<StackedLineChartIcon />}
+            tone="info"
+          />
         </Grid>
       </Grid>
 
       {/* Adherence Rates */}
       {adherenceData && (
-        <Card elevation={1} sx={{ borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#f8fafc" }}>
-          <CardContent sx={{ p: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: "#1e293b" }}>
-              Adherence Summary ({startDate} to {endDate})
-            </Typography>
-            <Grid container spacing={2}>
+        <Card sx={{ bgcolor: "#f8fafc" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
+              <FactCheckOutlinedIcon aria-hidden sx={{ fontSize: 20, color: "#10b981" }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#12233b" }}>
+                Adherence Summary ({startDate} to {endDate})
+              </Typography>
+            </Box>
+            <Grid container spacing={1.5}>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <Typography variant="caption" color="text.secondary">Adherence Rate</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 800, color: "#0284c7" }}>
-                  {(adherenceData.adherenceRate * 100).toFixed(1)}%
-                </Typography>
+                {adherenceTile("Adherence Rate", `${(adherenceData.adherenceRate * 100).toFixed(1)}%`, "#0284c7")}
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <Typography variant="caption" color="text.secondary">On-Time / Total</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                  {adherenceData.onTime} / {adherenceData.totalScheduled}
-                </Typography>
+                {adherenceTile("On-Time / Total", <>{adherenceData.onTime} / {adherenceData.totalScheduled}</>, "#12233b")}
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <Typography variant="caption" color="text.secondary">Missed Doses</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 700, color: "error.main" }}>
-                  {adherenceData.missed}
-                </Typography>
+                {adherenceTile("Missed Doses", adherenceData.missed, "#dc2626")}
               </Grid>
               <Grid size={{ xs: 6, sm: 3 }}>
-                <Typography variant="caption" color="text.secondary">Late / Unscheduled</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 700, color: "warning.main" }}>
-                  {adherenceData.late} / {adherenceData.unscheduled}
-                </Typography>
+                {adherenceTile("Late / Unscheduled", <>{adherenceData.late} / {adherenceData.unscheduled}</>, "#b45309")}
               </Grid>
             </Grid>
           </CardContent>
@@ -419,30 +431,30 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
       )}
 
       {/* Visual Charts Tab panels */}
-      <Card elevation={2} sx={{ borderRadius: 3 }}>
-        <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2, pt: 1 }}>
+      <Card>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", px: { xs: 1, sm: 2 }, pt: 1 }}>
           <Tabs value={activeTab} onChange={(_e, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto">
-            <Tab label="Glucose & Insulin Correlation" sx={{ textTransform: "none", fontWeight: "bold" }} />
-            <Tab label="Glucose Trend" sx={{ textTransform: "none", fontWeight: "bold" }} />
-            <Tab label="Dose History" sx={{ textTransform: "none", fontWeight: "bold" }} />
+            <Tab label="Glucose & Insulin Correlation" sx={{ textTransform: "none", fontWeight: 700 }} />
+            <Tab label="Glucose Trend" sx={{ textTransform: "none", fontWeight: 700 }} />
+            <Tab label="Dose History" sx={{ textTransform: "none", fontWeight: 700 }} />
           </Tabs>
         </Box>
         <CardContent sx={{ py: 3 }}>
           {activeTab === 0 && (
             <Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                  Glucose & Insulin Correlation
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Chip size="small" label="Avg Glucose (Line)" sx={{ bgcolor: "#fee2e2", color: "#ef4444", fontWeight: 700 }} />
-                  <Chip size="small" label="Insulin Doses (Bar)" sx={{ bgcolor: "#e0f2fe", color: "#0284c7", fontWeight: 700 }} />
-                </Box>
-              </Box>
+              <CardHeading
+                title="Glucose & Insulin Correlation"
+                icon={<InsightsOutlinedIcon />}
+                color="#0284c7"
+                action={
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Chip size="small" label="Avg Glucose (Line)" sx={{ bgcolor: "#fee2e2", color: "#b91c1c", fontWeight: 700 }} />
+                    <Chip size="small" label="Insulin Doses (Bar)" sx={{ bgcolor: "#e0f2fe", color: "#0369a1", fontWeight: 700 }} />
+                  </Box>
+                }
+              />
               {combinedChartData.length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                  No telemetry records available inside this date window.
-                </Typography>
+                <EmptyState message="No telemetry records available inside this date window." icon={<InsightsOutlinedIcon />} minHeight={220} />
               ) : (
                 <GlucoseDoseCorrelationChart data={combinedChartData} targetMin={targetMin} targetMax={targetMax} />
               )}
@@ -451,13 +463,9 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
 
           {activeTab === 1 && (
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2 }}>
-                Glucose Trend Log
-              </Typography>
+              <CardHeading title="Glucose Trend Log" icon={<WaterDropOutlinedIcon />} color="#ef4444" />
               {glucoseChartData.length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                  No glucose records available inside this date window.
-                </Typography>
+                <EmptyState message="No glucose records available inside this date window." icon={<ShowChartIcon />} minHeight={220} />
               ) : (
                 <GlucoseChart data={glucoseChartData} />
               )}
@@ -466,13 +474,9 @@ const AdvancedAnalyticsView = ({ patientId }: AdvancedAnalyticsViewProps) => {
 
           {activeTab === 2 && (
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2 }}>
-                Insulin Dosage History
-              </Typography>
+              <CardHeading title="Insulin Dosage History" icon={<VaccinesOutlinedIcon />} color="#0284c7" />
               {filteredDoses.length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 6, textAlign: "center" }}>
-                  No insulin dose events recorded inside this date window.
-                </Typography>
+                <EmptyState message="No insulin dose events recorded inside this date window." icon={<VaccinesOutlinedIcon />} minHeight={220} />
               ) : (
                 <DoseHistoryChart data={filteredDoses} />
               )}

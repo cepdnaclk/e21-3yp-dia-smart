@@ -1,54 +1,66 @@
 import { Card, CardContent, Typography, Box, List, ListItem, Chip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import NotificationImportantOutlinedIcon from "@mui/icons-material/NotificationImportantOutlined";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 import type { Alert } from "../../types/alert";
 
 interface TodayAlertsProps {
   alerts: Alert[];
 }
 
+const ACCENT = "#ef4444";
+
 const TodayAlerts: React.FC<TodayAlertsProps> = ({ alerts }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Today's Alerts
-        </Typography>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column" }}>
+        <CardHeading title="Today's Alerts" icon={<NotificationImportantOutlinedIcon />} color={ACCENT} />
 
-        <List sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 0 }}>
+        <List sx={{ display: "flex", flexDirection: "column", gap: 1.25, p: 0 }}>
           {alerts.map((alert) => (
             <ListItem
               key={alert.alertId}
               sx={{
                 p: 1.5,
-                bgcolor: "error.light",
-                color: "error.dark",
+                bgcolor: alpha(ACCENT, 0.05),
+                border: "1px solid",
+                borderColor: alpha(ACCENT, 0.18),
+                borderLeft: `3px solid ${ACCENT}`,
                 borderRadius: 2,
-                flexDirection: "column",
                 alignItems: "flex-start",
-                gap: 0.5,
-                opacity: 0.95
+                gap: 1.25,
               }}
             >
-              <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                  {alert.title}
+              <ErrorOutlineRoundedIcon sx={{ color: ACCENT, fontSize: 20, mt: 0.25, flexShrink: 0 }} />
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0, flexGrow: 1 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.primary", overflowWrap: "anywhere" }}>
+                    {alert.title}
+                  </Typography>
+                  <Chip
+                    label={alert.severity}
+                    size="small"
+                    color="error"
+                    sx={{ fontSize: 10, fontWeight: 700, height: 20 }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+                  {alert.message}
                 </Typography>
-                <Chip
-                  label={alert.severity}
-                  size="small"
-                  color="error"
-                  sx={{ fontSize: 10, fontWeight: "bold", height: 20 }}
-                />
               </Box>
-              <Typography variant="caption" sx={{ color: "error.dark" }}>
-                {alert.message}
-              </Typography>
             </ListItem>
           ))}
 
           {alerts.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 3 }}>
-              No critical patient warnings registered today.
-            </Typography>
+            <EmptyState
+              message="No critical patient warnings registered today."
+              icon={<VerifiedOutlinedIcon sx={{ color: "#10b981" }} />}
+              minHeight={140}
+            />
           )}
         </List>
       </CardContent>

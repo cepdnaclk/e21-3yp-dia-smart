@@ -9,6 +9,9 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Avatar,
+  Box,
+  Typography,
 } from "@mui/material";
 
 import PageTitle from "../../components/common/PageTitle";
@@ -36,8 +39,12 @@ const PatientsPage = () => {
     <>
       <PageTitle>Patients</PageTitle>
 
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{ borderRadius: 3, overflowX: "auto", boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)" }}
+      >
+        <Table sx={{ minWidth: 560 }}>
           <TableHead>
             <TableRow>
               <TableCell>Patient</TableCell>
@@ -50,25 +57,36 @@ const PatientsPage = () => {
 
           <TableBody>
             {patients.map((patient) => (
-              <TableRow key={patient.id}>
+              <TableRow key={patient.id} hover>
                 <TableCell>
-                  {patient.name}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Avatar
+                      sx={{ width: 34, height: 34, fontSize: "0.8rem", fontWeight: 700, bgcolor: "#e0f2fe", color: "#0284c7" }}
+                    >
+                      {String(patient.name ?? "").trim().charAt(0).toUpperCase() || "?"}
+                    </Avatar>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
+                      {patient.name}
+                    </Typography>
+                  </Box>
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ color: "text.secondary" }}>
                   {patient.age}
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
                   {patient.glucose}
                 </TableCell>
 
-                <TableCell>
+                <TableCell sx={{ fontVariantNumeric: "tabular-nums" }}>
                   {patient.inventory} Units
                 </TableCell>
 
                 <TableCell>
                   <Chip
+                    size="small"
+                    sx={{ fontWeight: 600 }}
                     label={patient.status}
                     color={
                       patient.status === "Stable"

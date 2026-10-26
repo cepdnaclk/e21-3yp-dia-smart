@@ -144,12 +144,12 @@ const AssignedPatientsPage = () => {
           onClick={() => setDialogOpen(true)}
           sx={{
             textTransform: "none",
-            borderRadius: 3,
             backgroundColor: "#12233b",
             color: "#ffffff",
             fontWeight: 700,
             py: 1,
             px: 3,
+            width: { xs: "100%", sm: "auto" },
             "&:hover": { backgroundColor: "#1b3559" }
           }}
         >
@@ -171,12 +171,12 @@ const AssignedPatientsPage = () => {
         fullWidth
         slotProps={{
           paper: {
-            sx: { borderRadius: 4, p: 1 }
+            sx: { p: 1 }
           }
         }}
       >
         <form onSubmit={handleAssignPatientSubmit}>
-          <DialogTitle sx={{ fontWeight: "bold", pb: 1 }}>
+          <DialogTitle sx={{ pb: 1 }}>
             Assign New Patient
           </DialogTitle>
           <DialogContent>
@@ -245,7 +245,6 @@ const AssignedPatientsPage = () => {
               disabled={submitLoading}
               sx={{
                 textTransform: "none",
-                borderRadius: 2.5,
                 fontWeight: 700,
                 backgroundColor: "#12233b",
                 "&:hover": { backgroundColor: "#1b3559" }

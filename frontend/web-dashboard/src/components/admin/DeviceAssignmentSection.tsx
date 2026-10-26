@@ -21,7 +21,11 @@ import {
   Box,
   CircularProgress
 } from "@mui/material";
+import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined";
+import DevicesOtherOutlinedIcon from "@mui/icons-material/DevicesOtherOutlined";
 import api from "../../services/api";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 interface Buyer {
   fullName: string;
@@ -74,23 +78,23 @@ const DeviceAssignmentSection = () => {
   useAutoRefresh(() => fetchDevices(true), 5000);
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Device Provisioning & Assignments
-        </Typography>
-        
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Track which devices are assigned to which patients and view original purchase information.
-        </Typography>
-        
+        <CardHeading
+          title="Device Provisioning & Assignments"
+          subtitle="Track which devices are assigned to which patients and view original purchase information."
+          icon={<AssignmentIndOutlinedIcon />}
+          color="#0ea5e9"
+          sx={{ alignItems: "flex-start" }}
+        />
+
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-            <CircularProgress />
+            <CircularProgress size={36} thickness={4} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : (
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 560 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Device ID</TableCell>
@@ -102,16 +106,18 @@ const DeviceAssignmentSection = () => {
               </TableHead>
               <TableBody>
                 {devices.map((device) => (
-                  <TableRow key={device.deviceId}>
-                    <TableCell>{device.deviceUid}</TableCell>
-                    <TableCell>{device.deviceType}</TableCell>
+                  <TableRow key={device.deviceId} hover>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "nowrap" }}>
+                      {device.deviceUid}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>{device.deviceType}</TableCell>
                     <TableCell>{device.buyer?.fullName || "Unknown"}</TableCell>
                     <TableCell>{device.patientDisplayName || "Not Assigned"}</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={device.patientId ? "Assigned" : "Available"} 
-                        color={device.patientId ? "primary" : "default"} 
-                        size="small" 
+                      <Chip
+                        label={device.patientId ? "Assigned" : "Available"}
+                        color={device.patientId ? "info" : "success"}
+                        size="small"
                         variant="outlined"
                       />
                     </TableCell>
@@ -119,7 +125,9 @@ const DeviceAssignmentSection = () => {
                 ))}
                 {devices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">No devices found.</TableCell>
+                    <TableCell colSpan={5} sx={{ py: 2 }}>
+                      <EmptyState message="No devices found." icon={<DevicesOtherOutlinedIcon />} minHeight={120} />
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -128,17 +136,35 @@ const DeviceAssignmentSection = () => {
         )}
 
         <Dialog open={!!selectedDevice} onClose={() => setSelectedDevice(null)} maxWidth="md" fullWidth>
-          <DialogTitle>Device Assignment Details</DialogTitle>
+          <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              aria-hidden
+              sx={{
+                width: 38,
+                height: 38,
+                borderRadius: 2,
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0ea5e9",
+                bgcolor: "#e0f2fe",
+              }}
+            >
+              <AssignmentIndOutlinedIcon fontSize="small" />
+            </Box>
+            Device Assignment Details
+          </DialogTitle>
           <DialogContent dividers>
             {selectedDevice && (
-              <Grid container spacing={4}>
+              <Grid container spacing={{ xs: 3, md: 4 }}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="h6" color="primary" gutterBottom>
+                  <Typography variant="subtitle1" component="h3" color="primary" gutterBottom sx={{ fontWeight: 700 }}>
                     Buyer Information
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
                   {selectedDevice.buyer ? (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, "& strong": { color: "text.primary", fontWeight: 600 }, overflowWrap: "anywhere" }}>
                       <Typography><strong>Name:</strong> {selectedDevice.buyer.fullName}</Typography>
                       <Typography><strong>NIC / Passport:</strong> {selectedDevice.buyer.nic}</Typography>
                       <Typography><strong>Contact:</strong> {selectedDevice.buyer.contactNumber}</Typography>
@@ -149,13 +175,13 @@ const DeviceAssignmentSection = () => {
                     <Typography color="text.secondary">No buyer information available.</Typography>
                   )}
                 </Grid>
-                
+
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="h6" color="primary" gutterBottom>
+                  <Typography variant="subtitle1" component="h3" color="primary" gutterBottom sx={{ fontWeight: 700 }}>
                     Patient Information
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1, "& strong": { color: "text.primary", fontWeight: 600 }, overflowWrap: "anywhere" }}>
                     <Typography>
                       <strong>Assigned Patient:</strong> {selectedDevice.patientDisplayName ? selectedDevice.patientDisplayName : "Not Assigned"}
                     </Typography>
@@ -168,7 +194,7 @@ const DeviceAssignmentSection = () => {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setSelectedDevice(null)}>Close</Button>
+            <Button onClick={() => setSelectedDevice(null)} variant="contained">Close</Button>
           </DialogActions>
         </Dialog>
       </CardContent>

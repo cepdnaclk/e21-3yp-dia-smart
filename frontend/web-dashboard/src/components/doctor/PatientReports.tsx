@@ -23,6 +23,10 @@ import {
 import DownloadIcon from "@mui/icons-material/Download";
 import PrintIcon from "@mui/icons-material/Print";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+
+import CardHeading from "../common/CardHeading";
 
 import { doctorService } from "../../services/doctorService";
 import type { Alert } from "../../types/alert";
@@ -34,6 +38,20 @@ interface PatientReportsProps {
   endDate: string;
   patientName: string;
 }
+
+/** Small icon badge shown beside each report name (presentational only). */
+const reportBadgeSx = {
+  width: 34,
+  height: 34,
+  borderRadius: 2,
+  flexShrink: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  bgcolor: "#e0f2fe",
+  color: "#0284c7",
+  "& .MuiSvgIcon-root": { fontSize: 18 },
+};
 
 const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientReportsProps) => {
   const [loading, setLoading] = useState(false);
@@ -253,42 +271,48 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
   };
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium" }}>
-          Patient Reports
-        </Typography>
-
-        {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
+        <CardHeading
+          title="Patient Reports"
+          icon={<DescriptionOutlinedIcon />}
+          color="#0284c7"
+          action={loading ? <CircularProgress size={20} sx={{ color: "secondary.dark" }} /> : undefined}
+        />
 
         {/* Desktop Table View */}
-        <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: "none", md: "block" }, borderRadius: 2 }}>
+        <TableContainer component={Paper} variant="outlined" sx={{ display: { xs: "none", md: "block" }, borderRadius: 2, overflowX: "auto" }}>
           <Table>
-            <TableHead sx={{ bgcolor: "action.hover" }}>
+            <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Report Name</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Description</TableCell>
-                <TableCell align="right" sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                <TableCell>Report Name</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {reports.map((report) => (
                 <TableRow key={report.id} hover>
-                  <TableCell sx={{ fontWeight: "medium" }}>{report.name}</TableCell>
-                  <TableCell>{report.description}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Box aria-hidden sx={reportBadgeSx}>
+                        <ArticleOutlinedIcon />
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
+                        {report.name}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ color: "text.secondary" }}>{report.description}</TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                      <IconButton size="small" color="primary" onClick={() => handleViewReport(report.id, report.name)} title="Preview Report">
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.5 }}>
+                      <IconButton size="small" color="primary" onClick={() => handleViewReport(report.id, report.name)} title="Preview Report" aria-label="Preview Report">
                         <VisibilityIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="secondary" onClick={() => handlePrintReport(report.id, report.name)} title="Print PDF">
+                      <IconButton size="small" color="secondary" onClick={() => handlePrintReport(report.id, report.name)} title="Print PDF" aria-label="Print PDF">
                         <PrintIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="success" onClick={() => handleDownloadCSV(report.id, report.name)} title="Download CSV">
+                      <IconButton size="small" color="success" onClick={() => handleDownloadCSV(report.id, report.name)} title="Download CSV" aria-label="Download CSV">
                         <DownloadIcon fontSize="small" />
                       </IconButton>
                     </Box>
@@ -302,11 +326,16 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
         {/* Mobile Card List View */}
         <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 2 }}>
           {reports.map((report) => (
-            <Card key={report.id} variant="outlined" sx={{ borderRadius: 3, border: "1px solid #e2e8f0" }}>
+            <Card key={report.id} variant="outlined" sx={{ boxShadow: "none" }}>
               <Box sx={{ p: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#12233b", mb: 1 }}>
-                  {report.name}
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                  <Box aria-hidden sx={reportBadgeSx}>
+                    <ArticleOutlinedIcon />
+                  </Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#12233b", lineHeight: 1.3, overflowWrap: "anywhere" }}>
+                    {report.name}
+                  </Typography>
+                </Box>
 
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem", mb: 2, lineHeight: 1.4 }}>
                   {report.description}
@@ -314,18 +343,18 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
 
                 <Divider sx={{ mb: 1.5 }} />
 
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                     Report Actions
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <IconButton size="small" color="primary" onClick={() => handleViewReport(report.id, report.name)} title="Preview Report">
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
+                    <IconButton size="small" color="primary" onClick={() => handleViewReport(report.id, report.name)} title="Preview Report" aria-label="Preview Report">
                       <VisibilityIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="secondary" onClick={() => handlePrintReport(report.id, report.name)} title="Print PDF">
+                    <IconButton size="small" color="secondary" onClick={() => handlePrintReport(report.id, report.name)} title="Print PDF" aria-label="Print PDF">
                       <PrintIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="success" onClick={() => handleDownloadCSV(report.id, report.name)} title="Download CSV">
+                    <IconButton size="small" color="success" onClick={() => handleDownloadCSV(report.id, report.name)} title="Download CSV" aria-label="Download CSV">
                       <DownloadIcon fontSize="small" />
                     </IconButton>
                   </Box>
@@ -336,9 +365,9 @@ const PatientReports = ({ patientId, startDate, endDate, patientName }: PatientR
         </Box>
 
         <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ fontWeight: "bold" }}>{viewTitle}</DialogTitle>
+          <DialogTitle>{viewTitle}</DialogTitle>
           <DialogContent dividers>
-            <Typography component="pre" variant="body2" sx={{ whiteSpace: "pre-wrap", fontFamily: "monospace", bgcolor: "action.hover", p: 2, borderRadius: 2 }}>
+            <Typography component="pre" variant="body2" sx={{ whiteSpace: "pre-wrap", fontFamily: "monospace", bgcolor: "#f8fafc", border: "1px solid", borderColor: "divider", p: 2, borderRadius: 2, m: 0, overflowWrap: "anywhere" }}>
               {viewContent}
             </Typography>
           </DialogContent>

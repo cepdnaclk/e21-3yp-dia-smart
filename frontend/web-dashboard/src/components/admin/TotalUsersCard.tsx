@@ -1,4 +1,5 @@
-import { Card, CardContent, Typography } from "@mui/material";
+import MetricCard from "../common/MetricCard";
+import GroupsIcon from "@mui/icons-material/Groups";
 
 interface TotalUsersCardProps {
   count: number;
@@ -6,19 +7,13 @@ interface TotalUsersCardProps {
 
 const TotalUsersCard: React.FC<TotalUsersCardProps> = ({ count }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Total Registered Users
-        </Typography>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main" }}>
-          {count}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Total registered users across patients, clinicians, caregivers, and administrators.
-        </Typography>
-      </CardContent>
-    </Card>
+    <MetricCard
+      label="Total Registered Users"
+      value={count}
+      description="Total registered users across patients, clinicians, caregivers, and administrators."
+      icon={<GroupsIcon />}
+      tone="primary"
+    />
   );
 };
 

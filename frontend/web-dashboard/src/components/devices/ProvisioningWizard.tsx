@@ -15,6 +15,8 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
+import SettingsInputAntennaRoundedIcon from "@mui/icons-material/SettingsInputAntennaRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import {
   DeviceRegistrationStep,
   WifiConfigStep,
@@ -424,27 +426,72 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
   const renderStepper = () => {
     if (isMobile) {
       return (
-        <Box sx={{ py: 1, px: 2, bgcolor: "action.hover", borderRadius: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+        <Box
+          sx={{
+            py: 1.5,
+            px: 2,
+            bgcolor: "#f0f9ff",
+            border: "1px solid #e0f2fe",
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "primary.main" }}>
             Step {activeStep + 1} of {steps.length}: {steps[activeStep]}
           </Typography>
           <LinearProgress
             variant="determinate"
             value={((activeStep + 1) / steps.length) * 100}
-            sx={{ mt: 1, height: 6, borderRadius: 3 }}
+            sx={{
+              mt: 1.25,
+              height: 6,
+              borderRadius: 3,
+              bgcolor: "#e0f2fe",
+              "& .MuiLinearProgress-bar": {
+                borderRadius: 3,
+                background: "linear-gradient(90deg, #3ec1fa 0%, #0284c7 100%)",
+              },
+            }}
           />
         </Box>
       );
     }
 
     return (
-      <Stepper activeStep={activeStep} alternativeLabel>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
+      <Box
+        sx={{
+          overflowX: "auto",
+          py: 2,
+          px: 1,
+          bgcolor: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: 3,
+        }}
+      >
+        <Stepper
+          activeStep={activeStep}
+          alternativeLabel
+          sx={{
+            minWidth: 640,
+            "& .MuiStepLabel-label": {
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              mt: 1,
+            },
+            "& .MuiStepLabel-label.Mui-active": {
+              color: "primary.main",
+              fontWeight: 700,
+            },
+            "& .MuiStepIcon-root.Mui-active": { color: "#0284c7" },
+            "& .MuiStepIcon-root.Mui-completed": { color: "#10b981" },
+          }}
+        >
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Box>
     );
   };
 
@@ -474,20 +521,48 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
     isWorking;
 
   return (
-    <Card sx={{ width: "100%", borderRadius: 3, boxShadow: 3, overflow: "hidden" }}>
-      <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: "primary.main", color: "primary.contrastText" }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Dia-Smart Setup Wizard
-        </Typography>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 0.5 }}>
-          Follow these steps to connect and configure your IoT device kit.
-        </Typography>
+    <Card sx={{ width: "100%", overflow: "hidden" }}>
+      <Box
+        sx={{
+          p: { xs: 2, md: 3 },
+          background: "linear-gradient(135deg, #12233b 0%, #1b3559 60%, #0b5f8a 100%)",
+          color: "primary.contrastText",
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Box
+          aria-hidden
+          sx={{
+            width: 48,
+            height: 48,
+            flexShrink: 0,
+            borderRadius: 3,
+            display: { xs: "none", sm: "flex" },
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "rgba(62, 193, 250, 0.18)",
+            color: "#3ec1fa",
+            border: "1px solid rgba(62, 193, 250, 0.35)",
+          }}
+        >
+          <SettingsInputAntennaRoundedIcon />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, fontSize: { xs: "1.2rem", sm: "1.5rem" } }}>
+            Dia-Smart Setup Wizard
+          </Typography>
+          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.75)", mt: 0.5 }}>
+            Follow these steps to connect and configure your IoT device kit.
+          </Typography>
+        </Box>
       </Box>
 
       <Box sx={{ p: { xs: 2, md: 3 } }}>
         {renderStepper()}
 
-        <Box sx={{ my: 4, minHeight: "260px" }}>{renderStepContent()}</Box>
+        <Box sx={{ my: { xs: 3, md: 4 }, minHeight: "260px" }}>{renderStepContent()}</Box>
 
         <Divider sx={{ my: 2 }} />
 
@@ -497,6 +572,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
             onClick={handleBack}
             variant="outlined"
             size="large"
+            startIcon={<ArrowBackRoundedIcon />}
             sx={{ minHeight: "48px", minWidth: "100px" }}
           >
             Back
@@ -507,6 +583,7 @@ export const ProvisioningWizard: React.FC<ProvisioningWizardProps> = ({
             onClick={handleNext}
             variant="contained"
             size="large"
+            disableElevation
             sx={{ minHeight: "48px", minWidth: "120px" }}
           >
             {isWorking ? (

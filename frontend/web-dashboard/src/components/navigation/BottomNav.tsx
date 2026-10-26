@@ -1,4 +1,5 @@
 import { BottomNavigation, BottomNavigationAction, Paper, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useNavigate, useLocation } from "react-router-dom";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WarningIcon from "@mui/icons-material/Warning";
@@ -9,6 +10,7 @@ import ConstructionIcon from "@mui/icons-material/Construction";
 
 import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../types/roles";
+import { brand } from "../../theme/theme";
 
 interface BottomNavProps {
   onDrawerToggle: () => void;
@@ -76,11 +78,13 @@ const BottomNav = ({ onDrawerToggle }: BottomNavProps) => {
         right: 0,
         zIndex: 1000,
         borderRadius: 0,
-        borderTop: "1px solid #e2e8f0",
+        borderTop: `1px solid ${brand.slate200}`,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        backgroundColor: "#12233b",
+        backgroundColor: alpha("#ffffff", 0.94),
+        backdropFilter: "saturate(180%) blur(12px)",
+        boxShadow: "0 -4px 20px rgba(15, 23, 42, 0.06)",
       }}
-      elevation={3}
+      elevation={0}
     >
       <BottomNavigation
         showLabels
@@ -88,14 +92,35 @@ const BottomNav = ({ onDrawerToggle }: BottomNavProps) => {
         onChange={handleNavChange}
         sx={{
           height: 64,
-          backgroundColor: "#12233b",
+          backgroundColor: "transparent",
           "& .MuiBottomNavigationAction-root": {
-            color: "rgba(255, 255, 255, 0.6)",
+            color: brand.slate500,
             minWidth: 0,
             padding: "6px 0",
+            transition: "color 0.15s ease",
+          },
+          "& .MuiBottomNavigationAction-root .MuiSvgIcon-root": {
+            px: 2,
+            py: 0.25,
+            boxSizing: "content-box",
+            borderRadius: 999,
+            transition: "background-color 0.2s ease",
+          },
+          "& .MuiBottomNavigationAction-label": {
+            fontWeight: 600,
+            fontSize: "0.72rem",
+            mt: 0.25,
           },
           "& .MuiBottomNavigationAction-root.Mui-selected": {
-            color: "#3ec1fa",
+            color: brand.navy,
+          },
+          "& .MuiBottomNavigationAction-root.Mui-selected .MuiSvgIcon-root": {
+            backgroundColor: alpha(brand.sky, 0.18),
+            color: brand.skyStrong,
+          },
+          "& .MuiBottomNavigationAction-root.Mui-selected .MuiBottomNavigationAction-label": {
+            fontSize: "0.72rem",
+            fontWeight: 700,
           },
         }}
       >

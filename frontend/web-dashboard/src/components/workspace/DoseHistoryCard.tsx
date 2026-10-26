@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, Typography, Box, CircularProgress } from "@mui/material";
+import { Card, CardContent, Box, CircularProgress } from "@mui/material";
+import VaccinesOutlinedIcon from "@mui/icons-material/VaccinesOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 import DoseHistoryChart from "../charts/DoseHistoryChart";
 import { analyticsService } from "../../services/analyticsService";
 import type { DoseReading } from "../../types/analytics";
@@ -32,23 +35,16 @@ const DoseHistoryCard = ({ patientId, refreshTrigger }: DoseHistoryCardProps) =>
   }, [patientId, refreshTrigger]);
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 2 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: "medium" }}
-        >
-          Dose History
-        </Typography>
+        <CardHeading title="Dose History" icon={<VaccinesOutlinedIcon />} color="#0284c7" />
 
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160 }}>
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : readings.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 2 }}>
-            No dosing records found
-          </Typography>
+          <EmptyState message="No dosing records found" icon={<VaccinesOutlinedIcon />} />
         ) : (
           <DoseHistoryChart data={readings} />
         )}

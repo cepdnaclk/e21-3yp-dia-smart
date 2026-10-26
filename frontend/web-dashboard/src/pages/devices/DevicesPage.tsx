@@ -16,7 +16,21 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import type { ReactNode } from "react";
+import DevicesOtherRoundedIcon from "@mui/icons-material/DevicesOtherRounded";
+import SensorsRoundedIcon from "@mui/icons-material/SensorsRounded";
+import SensorsOffRoundedIcon from "@mui/icons-material/SensorsOffRounded";
+import MemoryRoundedIcon from "@mui/icons-material/MemoryRounded";
+import RouterRoundedIcon from "@mui/icons-material/RouterRounded";
+import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import LinkOffRoundedIcon from "@mui/icons-material/LinkOffRounded";
+import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
 
+import CardHeading from "../../components/common/CardHeading";
+import EmptyState from "../../components/common/EmptyState";
+import MetricCard from "../../components/common/MetricCard";
 import PageError from "../../components/common/PageError";
 import PageLoading from "../../components/common/PageLoading";
 import PageTitle from "../../components/common/PageTitle";
@@ -67,6 +81,65 @@ const normalizeDeviceType = (
   return normalized;
 };
 
+/** Shared tile styling for label/value pairs inside the details grid. */
+const detailGridSx = {
+  "& > .MuiGrid-root": {
+    px: 1.75,
+    py: 1.5,
+    borderRadius: 2,
+    border: "1px solid #e2e8f0",
+    backgroundColor: "#f8fafc",
+    minWidth: 0,
+    overflowWrap: "anywhere",
+  },
+  "& > .MuiGrid-root > .MuiTypography-body2:first-of-type": {
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    mb: 0.5,
+  },
+  "& > .MuiGrid-root > .MuiTypography-body1": {
+    fontWeight: 600,
+    color: "#1e293b",
+  },
+} as const;
+
+const DetailSectionTitle = ({ icon, children }: { icon: ReactNode; children: ReactNode }) => (
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 1 }}>
+    <Box
+      aria-hidden
+      sx={{
+        display: "flex",
+        color: "#0284c7",
+        "& .MuiSvgIcon-root": { fontSize: 20 },
+      }}
+    >
+      {icon}
+    </Box>
+    <Typography sx={{ fontWeight: 700, color: "primary.main" }}>{children}</Typography>
+  </Box>
+);
+
+const DeviceStatusChip = ({ online, label }: { online?: boolean; label: string }) => {
+  const upper = label.toUpperCase();
+  const icon = online || upper === "ONLINE"
+    ? <SensorsRoundedIcon />
+    : upper === "OFFLINE"
+      ? <SensorsOffRoundedIcon />
+      : <HelpOutlineRoundedIcon />;
+  return (
+    <Chip
+      color={online ? "success" : "default"}
+      variant={online ? "filled" : "outlined"}
+      icon={icon}
+      label={label}
+      size="small"
+      sx={{ fontWeight: 700, flexShrink: 0 }}
+    />
+  );
+};
+
 const DeviceDetailsContent = ({
   selectedDevice,
   deviceDiagnostics,
@@ -81,10 +154,41 @@ const DeviceDetailsContent = ({
 
   return (
   <Stack spacing={2}>
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <Typography sx={{ fontWeight: 600 }}>
-        {selectedDevice.deviceName ?? selectedDevice.deviceUid}
-      </Typography>
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 1.5,
+        p: 1.75,
+        borderRadius: 2,
+        background: "linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%)",
+        border: "1px solid #e0f2fe",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 36,
+            height: 36,
+            flexShrink: 0,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#ffffff",
+            color: "#0284c7",
+            boxShadow: "0 1px 3px rgba(15, 23, 42, 0.08)",
+          }}
+        >
+          <MemoryRoundedIcon sx={{ fontSize: 20 }} />
+        </Box>
+        <Typography sx={{ fontWeight: 700, color: "primary.main", overflowWrap: "anywhere", minWidth: 0 }}>
+          {selectedDevice.deviceName ?? selectedDevice.deviceUid}
+        </Typography>
+      </Box>
       {isOuterUnit && onUpdateWifi && (
         <Button
           variant="outlined"
@@ -97,7 +201,7 @@ const DeviceDetailsContent = ({
       )}
     </Box>
 
-    <Grid container spacing={2}>
+    <Grid container spacing={1.5} sx={detailGridSx}>
       <Grid size={{ xs: 12, md: 6 }}>
         <Typography color="text.secondary" variant="body2">
           Device Name
@@ -146,21 +250,30 @@ const DeviceDetailsContent = ({
       </Grid>
     </Grid>
 
-    <Typography sx={{ fontWeight: 600 }}>Connection Information</Typography>
-    <Grid container spacing={2}>
+    <DetailSectionTitle icon={<RouterRoundedIcon />}>Connection Information</DetailSectionTitle>
+    <Grid container spacing={1.5} sx={detailGridSx}>
       <Grid size={{ xs: 12, md: 6 }}>
         <Typography color="text.secondary" variant="body2">
           Online / Offline
         </Typography>
-        <Typography>
-          {deviceDiagnostics?.online !== undefined
-            ? deviceDiagnostics.online
-                ? "Online"
-                : "Offline"
-            : selectedDevice.online
-              ? "Online"
-              : "Offline"}
-        </Typography>
+        <Box sx={{ pt: 0.25 }}>
+          <DeviceStatusChip
+            online={
+              deviceDiagnostics?.online !== undefined
+                ? deviceDiagnostics.online
+                : selectedDevice.online
+            }
+            label={
+              deviceDiagnostics?.online !== undefined
+                ? deviceDiagnostics.online
+                    ? "Online"
+                    : "Offline"
+                : selectedDevice.online
+                  ? "Online"
+                  : "Offline"
+            }
+          />
+        </Box>
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
         <Typography color="text.secondary" variant="body2">
@@ -196,8 +309,8 @@ const DeviceDetailsContent = ({
       </Grid>
     </Grid>
 
-    <Typography sx={{ fontWeight: 600 }}>Diagnostics</Typography>
-    <Grid container spacing={2}>
+    <DetailSectionTitle icon={<FactCheckRoundedIcon />}>Diagnostics</DetailSectionTitle>
+    <Grid container spacing={1.5} sx={detailGridSx}>
       <Grid size={{ xs: 12, md: 6 }}>
         <Typography color="text.secondary" variant="body2">
           Current Error Messages
@@ -363,7 +476,7 @@ const DevicesPage = () => {
 
       {showSetupWizard ? (
         <Stack spacing={3}>
-          <Alert severity="info">
+          <Alert severity="info" icon={<InfoOutlinedIcon />}>
             No devices are connected to your account. Please connect your Dia-Smart devices to begin monitoring.
           </Alert>
 
@@ -375,42 +488,30 @@ const DevicesPage = () => {
         </Stack>
       ) : (
         <Stack spacing={3}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" variant="body2">
-                    Total Registered Devices
-                  </Typography>
-                  <Typography variant="h4">
-                    {summaryStats.total}
-                  </Typography>
-                </CardContent>
-              </Card>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <MetricCard
+                label="Total Registered Devices"
+                value={summaryStats.total}
+                icon={<DevicesOtherRoundedIcon />}
+                tone="info"
+              />
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" variant="body2">
-                    Connected Devices
-                  </Typography>
-                  <Typography variant="h4">
-                    {summaryStats.connected}
-                  </Typography>
-                </CardContent>
-              </Card>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <MetricCard
+                label="Connected Devices"
+                value={summaryStats.connected}
+                icon={<SensorsRoundedIcon />}
+                tone="success"
+              />
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Card>
-                <CardContent>
-                  <Typography color="text.secondary" variant="body2">
-                    Offline Devices
-                  </Typography>
-                  <Typography variant="h4">
-                    {summaryStats.offline}
-                  </Typography>
-                </CardContent>
-              </Card>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <MetricCard
+                label="Offline Devices"
+                value={summaryStats.offline}
+                icon={<SensorsOffRoundedIcon />}
+                tone="warning"
+              />
             </Grid>
           </Grid>
 
@@ -418,15 +519,33 @@ const DevicesPage = () => {
             <Grid size={{ xs: 12, md: 5 }}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Registered Devices
-                  </Typography>
-                  <Stack spacing={2}>
+                  <CardHeading
+                    title="Registered Devices"
+                    icon={<DevicesOtherRoundedIcon />}
+                  />
+                  <Stack spacing={1.5}>
                     {devices.map((device) => (
                       <Card
                         key={device.deviceId}
                         variant="outlined"
-                        sx={{ cursor: "pointer" }}
+                        sx={{
+                          cursor: "pointer",
+                          boxShadow: "none",
+                          borderRadius: 3,
+                          borderColor:
+                            selectedDevice?.deviceId === device.deviceId
+                              ? "#3ec1fa"
+                              : "divider",
+                          backgroundColor:
+                            selectedDevice?.deviceId === device.deviceId
+                              ? "#f0f9ff"
+                              : "#ffffff",
+                          transition: "border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease",
+                          "&:hover": {
+                            borderColor: "#3ec1fa",
+                            boxShadow: "0 6px 16px rgba(2, 132, 199, 0.08)",
+                          },
+                        }}
                         onClick={() => {
                           setSelectedDevice(device);
                           if (role === "ADMIN") {
@@ -434,25 +553,24 @@ const DevicesPage = () => {
                           }
                         }}
                       >
-                        <CardContent>
-                          <Stack spacing={1}>
-                            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                              <Typography sx={{ fontWeight: 600 }}>
+                        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 }, "@media (min-width:600px)": { p: 2, "&:last-child": { pb: 2 } } }}>
+                          <Stack spacing={0.75}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.5 }}>
+                              <Typography sx={{ fontWeight: 700, color: "primary.main", minWidth: 0, overflowWrap: "anywhere" }}>
                                 {device.deviceName ?? device.deviceUid}
                               </Typography>
-                              <Chip
-                                color={device.online ? "success" : "default"}
+                              <DeviceStatusChip
+                                online={device.online}
                                 label={device.status ?? "UNKNOWN"}
-                                size="small"
                               />
                             </Box>
                             <Typography color="text.secondary" variant="body2">
                               Type: {device.deviceType ?? "Unknown"}
                             </Typography>
-                            <Typography color="text.secondary" variant="body2">
+                            <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: "anywhere" }}>
                               Device ID: {device.deviceUid}
                             </Typography>
-                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                            <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, pt: 1.25, flexWrap: "wrap", borderTop: "1px solid #f1f5f9" }}>
                               {normalizeDeviceType(device.deviceType) === "OUTER_UNIT" && (
                                 <Button
                                   variant="outlined"
@@ -469,6 +587,7 @@ const DevicesPage = () => {
                               <Button
                                 color="error"
                                 size="small"
+                                startIcon={<LinkOffRoundedIcon />}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   setDisconnectTarget(device);
@@ -489,9 +608,10 @@ const DevicesPage = () => {
             <Grid size={{ xs: 12, md: 7 }}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Device Details
-                  </Typography>
+                  <CardHeading
+                    title="Device Details"
+                    icon={<MemoryRoundedIcon />}
+                  />
 
                   {selectedDevice ? (
                     <DeviceDetailsContent
@@ -500,9 +620,10 @@ const DevicesPage = () => {
                       onUpdateWifi={(device) => setWifiUpdateTarget(device)}
                     />
                   ) : (
-                    <Typography color="text.secondary">
-                      Select a device to view detailed information.
-                    </Typography>
+                    <EmptyState
+                      message="Select a device to view detailed information."
+                      icon={<TouchAppRoundedIcon />}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -511,18 +632,41 @@ const DevicesPage = () => {
         </Stack>
       )}
 
-      <Dialog open={Boolean(disconnectTarget)} onClose={() => setDisconnectTarget(null)}>
-        <DialogTitle>Disconnect device</DialogTitle>
+      <Dialog
+        open={Boolean(disconnectTarget)}
+        onClose={() => setDisconnectTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <Box
+            aria-hidden
+            sx={{
+              width: 36,
+              height: 36,
+              flexShrink: 0,
+              borderRadius: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "#fee2e2",
+              color: "#b91c1c",
+            }}
+          >
+            <LinkOffRoundedIcon sx={{ fontSize: 20 }} />
+          </Box>
+          Disconnect device
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
             Disconnecting this device will stop healthcare monitoring for this patient.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDisconnectTarget(null)}>
+          <Button variant="outlined" color="inherit" onClick={() => setDisconnectTarget(null)}>
             Cancel
           </Button>
-          <Button color="error" onClick={handleDisconnectConfirm} disabled={disconnecting}>
+          <Button color="error" variant="contained" disableElevation onClick={handleDisconnectConfirm} disabled={disconnecting}>
             {disconnecting ? "Disconnecting..." : "Disconnect"}
           </Button>
         </DialogActions>
@@ -549,7 +693,7 @@ const DevicesPage = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+          <Button variant="outlined" onClick={() => setDetailsDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 

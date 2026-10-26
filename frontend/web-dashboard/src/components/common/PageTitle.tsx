@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 interface PageTitleProps {
   children: string;
@@ -10,12 +10,39 @@ const PageTitle = ({
   mb = 3,
 }: PageTitleProps) => {
   return (
-    <Typography
-      variant="h4"
-      sx={{ mb }}
+    <Box
+      sx={{
+        mb,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        minWidth: 0,
+      }}
     >
-      {children}
-    </Typography>
+      <Box
+        aria-hidden
+        sx={{
+          width: 5,
+          alignSelf: "stretch",
+          minHeight: 28,
+          borderRadius: 999,
+          background: "linear-gradient(180deg, #3ec1fa 0%, #0284c7 100%)",
+          flexShrink: 0,
+        }}
+      />
+      <Typography
+        variant="h4"
+        component="h1"
+        sx={{
+          color: "primary.main",
+          fontSize: { xs: "1.45rem", sm: "1.75rem" },
+          overflowWrap: "anywhere",
+          minWidth: 0,
+        }}
+      >
+        {children}
+      </Typography>
+    </Box>
   );
 };
 

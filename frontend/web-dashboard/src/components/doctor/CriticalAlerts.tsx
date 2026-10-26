@@ -23,6 +23,11 @@ import {
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
+
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { doctorService } from "../../services/doctorService";
 import type { Alert } from "../../types/alert";
@@ -93,27 +98,25 @@ const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ alerts, patients, onRef
   const activeAlerts = alerts.filter((a) => a.status !== "RESOLVED");
 
   return (
-    <Card elevation={2} sx={{ borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Critical Medical & Vitals Alerts
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Outstanding high-risk alerts retrieved from CGM sensors and smart insulin pumps. Review and coordinate care plans immediately.
-          </Typography>
-        </Box>
+    <Card>
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <CardHeading
+          title="Critical Medical & Vitals Alerts"
+          subtitle="Outstanding high-risk alerts retrieved from CGM sensors and smart insulin pumps. Review and coordinate care plans immediately."
+          icon={<WarningAmberRoundedIcon />}
+          color="#ef4444"
+        />
 
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-          <Table size="small">
-            <TableHead sx={{ backgroundColor: "action.hover" }}>
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: "auto" }}>
+          <Table size="small" sx={{ minWidth: 760 }}>
+            <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Severity</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Patient</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Alert Description</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Timestamp</TableCell>
-                <TableCell align="center" sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                <TableCell>Severity</TableCell>
+                <TableCell>Patient</TableCell>
+                <TableCell>Alert Description</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Timestamp</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -130,14 +133,14 @@ const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ alerts, patients, onRef
                         sx={{ fontWeight: "bold", textTransform: "uppercase" }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "medium" }}>
+                    <TableCell sx={{ fontWeight: 600, color: "text.primary" }}>
                       {patientName}
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                    <TableCell sx={{ maxWidth: 320 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
                         {alert.title}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
                         {alert.message}
                       </Typography>
                     </TableCell>
@@ -149,11 +152,11 @@ const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ alerts, patients, onRef
                         color={alert.status === "ACKNOWLEDGED" ? "primary" : "default"}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap", color: "text.secondary" }}>
                       {new Date(alert.createdAt).toLocaleString()}
                     </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+                    <TableCell align="right">
+                      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, flexWrap: "wrap" }}>
                         {alert.status === "OPEN" && (
                           <Button
                             variant="outlined"
@@ -183,10 +186,12 @@ const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ alerts, patients, onRef
 
               {activeAlerts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      All alerts have been resolved. Excellent work!
-                    </Typography>
+                  <TableCell colSpan={6} sx={{ py: 2, borderBottom: 0 }}>
+                    <EmptyState
+                      message="All alerts have been resolved. Excellent work!"
+                      icon={<TaskAltIcon sx={{ color: "#10b981" }} />}
+                      minHeight={120}
+                    />
                   </TableCell>
                 </TableRow>
               )}
@@ -197,7 +202,7 @@ const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ alerts, patients, onRef
 
       {/* Resolution Note Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>Resolve Patient Alert</DialogTitle>
+        <DialogTitle>Resolve Patient Alert</DialogTitle>
         <form onSubmit={handleResolve}>
           <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {error && <MuiAlert severity="error">{error}</MuiAlert>}

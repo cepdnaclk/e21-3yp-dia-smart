@@ -25,6 +25,10 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 import type { AdminUserRecord } from "../../types/admin";
 
 interface UserDirectorySectionProps {
@@ -111,44 +115,38 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
   };
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3, display: "flex", flexDirection: "column" }}>
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 2 }}>
         
         {/* Header Title & Button */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 1 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: "bold", color: "text.primary" }}>
-              {title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {description}
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={onAddClick}
-            sx={{ textTransform: "none", borderRadius: 2, fontWeight: "medium" }}
-          >
-            {addButtonLabel}
-          </Button>
-        </Box>
+        <CardHeading
+          title={title}
+          subtitle={description}
+          icon={<PeopleAltOutlinedIcon />}
+          color="#0284c7"
+          sx={{ mb: 0, alignItems: "flex-start" }}
+          action={
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={onAddClick}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {addButtonLabel}
+            </Button>
+          }
+        />
 
         {/* Search Bar & Status Filter */}
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <TextField
             size="small"
             placeholder="Search by name, email, or phone..."
             value={searchQuery}
             onChange={handleSearchChange}
-            sx={{
-              flexGrow: 1,
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              }
-            }}
+            sx={{ flex: "1 1 220px", minWidth: 0 }}
             slotProps={{
               input: {
                 startAdornment: (
@@ -159,7 +157,7 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
               }
             }}
           />
-          <FormControl size="small" sx={{ minWidth: 160 }}>
+          <FormControl size="small" sx={{ flex: "0 1 200px", minWidth: 160 }}>
             <InputLabel id="status-filter-label">Status Filter</InputLabel>
             <Select
               labelId="status-filter-label"
@@ -170,7 +168,6 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
                 setStatusFilter(e.target.value);
                 setPage(0);
               }}
-              sx={{ borderRadius: 2 }}
             >
               <MenuItem value="ALL">All Statuses</MenuItem>
               <MenuItem value="PENDING">Pending Approval (Inactive)</MenuItem>
@@ -180,14 +177,14 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
         </Box>
 
         {/* Users Table */}
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: "auto", border: "1px solid", borderColor: "divider" }}>
+        <TableContainer component={Paper} variant="outlined" sx={{ overflowX: "auto" }}>
           <Table size="small" aria-label={`${title} table`} sx={{ minWidth: 500 }}>
-            <TableHead sx={{ backgroundColor: "action.hover" }}>
+            <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Contact</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Last Login</TableCell>
-                <TableCell align="center" sx={{ fontWeight: "bold" }}>Status</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Contact</TableCell>
+                <TableCell>Last Login</TableCell>
+                <TableCell align="center">Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -195,8 +192,8 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
                 <TableRow key={user.userId} hover>
                   <TableCell>
                     <Box sx={{ display: "flex", flexDirection: "column" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
                           {user.displayName}
                         </Typography>
                         {!user.active && (
@@ -205,7 +202,7 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
                             size="small"
                             color="warning"
                             variant="outlined"
-                            sx={{ height: 18, fontSize: "0.65rem", fontWeight: 700, px: 0.5 }}
+                            sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700, borderColor: "#f59e0b", bgcolor: "#fffbeb" }}
                           />
                         )}
                       </Box>
@@ -219,7 +216,7 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
                       {user.contactNumber || "—"}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>
                     <Typography variant="caption" color="text.secondary">
                       {formatDate(user.lastLoginAt)}
                     </Typography>
@@ -239,10 +236,12 @@ const UserDirectorySection: React.FC<UserDirectorySectionProps> = ({
 
               {filteredUsers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No accounts found.
-                    </Typography>
+                  <TableCell colSpan={4} sx={{ py: 2 }}>
+                    <EmptyState
+                      message="No accounts found."
+                      icon={<PersonSearchOutlinedIcon />}
+                      minHeight={120}
+                    />
                   </TableCell>
                 </TableRow>
               )}

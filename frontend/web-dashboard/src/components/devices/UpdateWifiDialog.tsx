@@ -200,15 +200,41 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={isPolling || isSubmitting ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <WifiIcon color="primary" />
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#e0f2fe",
+            color: "#0284c7",
+          }}
+        >
+          <WifiIcon sx={{ fontSize: 20 }} />
+        </Box>
         Update Wi-Fi Credentials
       </DialogTitle>
 
       <DialogContent dividers>
         <Stack spacing={2.5}>
           {outerDevice && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                overflowWrap: "anywhere",
+                "& strong": { color: "#12233b" },
+              }}
+            >
               Updating Wi-Fi network settings for Outer Unit Base Station:{" "}
               <strong>{outerDevice.deviceName ?? outerDevice.deviceUid}</strong>
             </Typography>
@@ -260,18 +286,18 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
 
           {isPolling && (
             <Stack spacing={2} sx={{ py: 3, alignItems: "center" }}>
-              <CircularProgress size={48} />
-              <Typography variant="h6">Dispatching & Connecting...</Typography>
+              <CircularProgress size={48} sx={{ color: "#0284c7" }} />
+              <Typography variant="h6" sx={{ color: "primary.main", fontWeight: 700 }}>Dispatching & Connecting...</Typography>
               <Typography variant="body2" color="text.secondary" align="center">
                 The updated Wi-Fi credentials have been sent over AWS IoT MQTT. The Outer Unit and Inner Unit are now connecting to the new network.
               </Typography>
 
               <Box sx={{ width: "100%", mt: 1 }}>
-                <LinearProgress />
+                <LinearProgress sx={{ height: 6, borderRadius: 3, bgcolor: "#e0f2fe" }} />
               </Box>
 
               {configStatus && (
-                <Stack spacing={0.5} sx={{ width: "100%", bgcolor: "action.hover", p: 2, borderRadius: 2 }}>
+                <Stack spacing={0.75} sx={{ width: "100%", bgcolor: "#f8fafc", border: "1px solid #e2e8f0", p: 2, borderRadius: 2, "& strong": { color: "#12233b" } }}>
                   <Typography variant="caption" color="text.secondary">
                     Outer Unit Status: <strong>{configStatus.outerUnitStatus}</strong>
                   </Typography>
@@ -288,8 +314,22 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
 
           {isSuccess && (
             <Stack spacing={2} sx={{ py: 3, alignItems: "center" }}>
-              <CheckCircleIcon color="success" sx={{ fontSize: 64 }} />
-              <Typography variant="h6" color="success.main">
+              <Box
+                aria-hidden
+                sx={{
+                  width: 84,
+                  height: 84,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "#d1fae5",
+                  boxShadow: "0 0 0 8px #ecfdf5",
+                }}
+              >
+                <CheckCircleIcon color="success" sx={{ fontSize: 52 }} />
+              </Box>
+              <Typography variant="h6" sx={{ color: "#047857", fontWeight: 700 }}>
                 Wi-Fi Updated Successfully!
               </Typography>
               <Typography variant="body2" color="text.secondary" align="center">
@@ -302,12 +342,12 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
 
       <DialogActions>
         {isSuccess ? (
-          <Button onClick={onClose} variant="contained" color="success">
+          <Button onClick={onClose} variant="contained" color="success" disableElevation>
             Done
           </Button>
         ) : (
           <>
-            <Button onClick={onClose} disabled={isSubmitting || isPolling}>
+            <Button onClick={onClose} variant="outlined" color="inherit" disabled={isSubmitting || isPolling}>
               Cancel
             </Button>
             {!isPolling && (
@@ -315,6 +355,7 @@ export const UpdateWifiDialog: React.FC<UpdateWifiDialogProps> = ({
                 type="submit"
                 form="update-wifi-form"
                 variant="contained"
+                disableElevation
                 disabled={!isFormValid || isSubmitting}
                 startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <WifiIcon />}
               >

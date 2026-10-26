@@ -27,6 +27,10 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import AlarmOffOutlinedIcon from "@mui/icons-material/AlarmOffOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { useAuth } from "../../context/AuthContext";
 import { doseScheduleService } from "../../services/doseScheduleService";
@@ -204,33 +208,34 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
   };
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Dose Schedule
-          </Typography>
-          {isDoctor && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreate}
-              sx={{ textTransform: "none", borderRadius: 2 }}
-            >
-              Add Schedule
-            </Button>
-          )}
-        </Box>
+        <CardHeading
+          title="Dose Schedule"
+          icon={<ScheduleOutlinedIcon />}
+          color="#0284c7"
+          sx={{ mb: 0 }}
+          action={
+            isDoctor && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreate}
+                sx={{ textTransform: "none" }}
+              >
+                Add Schedule
+              </Button>
+            )
+          }
+        />
 
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160 }}>
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : schedules.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-            No dosing schedules configured for this patient
-          </Typography>
+          <EmptyState message="No dosing schedules configured for this patient" icon={<AlarmOffOutlinedIcon />} />
         ) : (
           <List disablePadding sx={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
             {schedules.map((sched) => (
@@ -239,19 +244,23 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
                 disableGutters
                 sx={{
                   px: 1.5,
-                  py: 1,
-                  bgcolor: "action.hover",
-                  borderRadius: 2,
+                  py: 1.25,
+                  bgcolor: "#f8fafc",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2.5,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2
+                  flexWrap: "wrap",
+                  gap: 1.5
                 }}
               >
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Box sx={{ flex: "1 1 180px", minWidth: 0 }}>
                   <ListItemText
-                    primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{sched.scheduleLabel}</Typography>}
-                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{`Target: ${sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5)} (Window: ${sched.windowStart ? sched.windowStart.substring(0, 5) : "—"} to ${sched.windowEnd ? sched.windowEnd.substring(0, 5) : "—"}) • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}</Typography>}
+                    sx={{ m: 0 }}
+                    primary={<Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#12233b", overflowWrap: "anywhere" }}>{sched.scheduleLabel}</Typography>}
+                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block", overflowWrap: "anywhere" }}>{`Target: ${sched.targetTime ? sched.targetTime.substring(0, 5) : sched.scheduledTime.substring(0, 5)} (Window: ${sched.windowStart ? sched.windowStart.substring(0, 5) : "—"} to ${sched.windowEnd ? sched.windowEnd.substring(0, 5) : "—"}) • Dosage: ${sched.doseUnits} Units • Days: [${sched.daysOfWeek}]`}</Typography>}
                   />
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
@@ -263,10 +272,10 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
                   />
                   {isDoctor && (
                     <>
-                      <IconButton size="small" color="primary" onClick={() => handleOpenEdit(sched)}>
+                      <IconButton size="small" color="primary" aria-label="Edit dose schedule" onClick={() => handleOpenEdit(sched)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(sched.scheduleId)}>
+                      <IconButton size="small" color="error" aria-label="Deactivate dose schedule" onClick={() => handleDelete(sched.scheduleId)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </>
@@ -280,7 +289,7 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>New Dose Schedule</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: "#12233b" }}>New Dose Schedule</DialogTitle>
         <form onSubmit={handleCreateSubmit}>
           <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             {error && <Alert severity="error">{error}</Alert>}
@@ -315,7 +324,7 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
-            <Box sx={{ display: "flex", gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
               <TextField
                 label="Window Start"
                 type="time"
@@ -364,7 +373,7 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>Edit Dose Schedule</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: "#12233b" }}>Edit Dose Schedule</DialogTitle>
         <form onSubmit={handleEditSubmit}>
           <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             {error && <Alert severity="error">{error}</Alert>}
@@ -384,7 +393,7 @@ const DoseScheduleCard = ({ patientId, refreshTrigger }: DoseScheduleCardProps) 
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
-            <Box sx={{ display: "flex", gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
               <TextField
                 label="Window Start"
                 type="time"

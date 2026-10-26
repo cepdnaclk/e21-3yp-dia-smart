@@ -84,7 +84,7 @@ const DashboardPage = () => {
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: "secondary.dark" }} />
       </Box>
     );
   }

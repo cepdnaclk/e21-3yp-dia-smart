@@ -1,5 +1,8 @@
-import { Card, CardContent, Typography, List, ListItem, ListItemText, Box, Divider } from "@mui/material";
+import { Card, CardContent, Typography, List, ListItem, Box, Chip } from "@mui/material";
+import HistoryIcon from "@mui/icons-material/History";
 import type { AuditLogRecord } from "../../types/admin";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 interface RecentActivityCardProps {
   logs: AuditLogRecord[];
@@ -7,53 +10,97 @@ interface RecentActivityCardProps {
 
 const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ logs }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Recent Activity & Audit Logs
-        </Typography>
+    <Card sx={{ height: "100%" }}>
+      <CardContent sx={{ display: "flex", flexDirection: "column" }}>
+        <CardHeading
+          title="Recent Activity & Audit Logs"
+          icon={<HistoryIcon />}
+          color="#12233b"
+        />
 
-        <List sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 0 }}>
-          {logs.map((log) => (
-            <Box key={log.auditLogId}>
-              <ListItem sx={{ p: 0, alignItems: "flex-start", gap: 2 }}>
+        <List sx={{ display: "flex", flexDirection: "column", p: 0 }}>
+          {logs.map((log, index) => {
+            const isLast = index === logs.length - 1;
+            return (
+              <ListItem
+                key={log.auditLogId}
+                sx={{ p: 0, alignItems: "stretch", gap: { xs: 1.5, sm: 2 } }}
+              >
+                {/* Timeline rail */}
                 <Box
+                  aria-hidden
                   sx={{
-                    px: 1.5,
-                    py: 0.5,
-                    bgcolor: "action.selected",
-                    borderRadius: 1,
-                    fontSize: 11,
-                    fontWeight: "bold",
-                    color: "text.secondary",
-                    minWidth: 70,
-                    textAlign: "center"
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    pt: 0.75,
+                    flexShrink: 0,
                   }}
                 >
-                  {log.actionType}
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: "#3ec1fa",
+                      boxShadow: "0 0 0 3px rgba(62, 193, 250, 0.18)",
+                    }}
+                  />
+                  {!isLast && (
+                    <Box sx={{ flexGrow: 1, width: 2, mt: 0.75, bgcolor: "divider", borderRadius: 1 }} />
+                  )}
                 </Box>
-                <ListItemText
-                  primary={
-                    <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+
+                <Box
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    pb: isLast ? 0 : 2.25,
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    alignItems: "flex-start",
+                    gap: { xs: 0.75, sm: 1.5 },
+                  }}
+                >
+                  <Chip
+                    label={log.actionType}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      minWidth: 70,
+                      flexShrink: 0,
+                      fontSize: 11,
+                      color: "#12233b",
+                      bgcolor: "#f1f5f9",
+                      borderColor: "#e2e8f0",
+                    }}
+                  />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 600, color: "text.primary", overflowWrap: "anywhere" }}
+                    >
                       Modified {log.entityType} (Entity ID: {log.entityId || "N/A"})
                     </Typography>
-                  }
-                  secondary={
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="p"
+                      sx={{ mt: 0.25, overflowWrap: "anywhere" }}
+                    >
                       Date: {new Date(log.createdAt).toLocaleString()} • IP: {log.ipAddress || "Localhost"}
                     </Typography>
-                  }
-                  sx={{ m: 0 }}
-                />
+                  </Box>
+                </Box>
               </ListItem>
-              <Divider sx={{ mt: 1.5 }} />
-            </Box>
-          ))}
+            );
+          })}
 
           {logs.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: "center" }}>
-              No recent audit logs registered in system datastore.
-            </Typography>
+            <EmptyState
+              message="No recent audit logs registered in system datastore."
+              icon={<HistoryIcon />}
+            />
           )}
         </List>
       </CardContent>

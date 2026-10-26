@@ -23,6 +23,10 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import CardHeading from "../common/CardHeading";
+import EmptyState from "../common/EmptyState";
 
 import { useAuth } from "../../context/AuthContext";
 import { prescriptionsService } from "../../services/prescriptionsService";
@@ -149,33 +153,34 @@ const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps
   };
 
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
+    <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            Prescriptions
-          </Typography>
-          {isDoctor && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={handleOpenCreate}
-              sx={{ textTransform: "none", borderRadius: 2 }}
-            >
-              Add Prescription
-            </Button>
-          )}
-        </Box>
+        <CardHeading
+          title="Prescriptions"
+          icon={<MedicationOutlinedIcon />}
+          color="#0284c7"
+          sx={{ mb: 0 }}
+          action={
+            isDoctor && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreate}
+                sx={{ textTransform: "none" }}
+              >
+                Add Prescription
+              </Button>
+            )
+          }
+        />
 
         {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160 }}>
+            <CircularProgress size={28} sx={{ color: "secondary.dark" }} />
           </Box>
         ) : prescriptions.length === 0 ? (
-          <Typography color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
-            No active prescriptions for this patient
-          </Typography>
+          <EmptyState message="No active prescriptions for this patient" icon={<DescriptionOutlinedIcon />} />
         ) : (
           <List disablePadding sx={{ maxHeight: 300, overflowY: "auto", display: "flex", flexDirection: "column", gap: 1 }}>
             {prescriptions.map((pres) => (
@@ -184,19 +189,23 @@ const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps
                 disableGutters
                 sx={{
                   px: 1.5,
-                  py: 1,
-                  bgcolor: "action.hover",
-                  borderRadius: 2,
+                  py: 1.25,
+                  bgcolor: "#f8fafc",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2.5,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 2
+                  flexWrap: "wrap",
+                  gap: 1.5
                 }}
               >
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                <Box sx={{ flex: "1 1 180px", minWidth: 0 }}>
                   <ListItemText
-                    primary={<Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>{pres.prescriptionName}</Typography>}
-                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{`Regimen: ${new Date(pres.startDate).toLocaleDateString()} - ${new Date(pres.endDate).toLocaleDateString()} ${pres.notes ? `• ${pres.notes}` : ""}`}</Typography>}
+                    sx={{ m: 0 }}
+                    primary={<Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#12233b", overflowWrap: "anywhere" }}>{pres.prescriptionName}</Typography>}
+                    secondary={<Typography variant="caption" color="text.secondary" sx={{ display: "block", overflowWrap: "anywhere" }}>{`Regimen: ${new Date(pres.startDate).toLocaleDateString()} - ${new Date(pres.endDate).toLocaleDateString()} ${pres.notes ? `• ${pres.notes}` : ""}`}</Typography>}
                   />
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
@@ -208,10 +217,10 @@ const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps
                   />
                   {isDoctor && (
                     <>
-                      <IconButton size="small" color="primary" onClick={() => handleOpenEdit(pres)}>
+                      <IconButton size="small" color="primary" aria-label="Edit prescription" onClick={() => handleOpenEdit(pres)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(pres.prescriptionId)}>
+                      <IconButton size="small" color="error" aria-label="Deactivate prescription" onClick={() => handleDelete(pres.prescriptionId)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </>
@@ -225,7 +234,7 @@ const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>New Prescription</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: "#12233b" }}>New Prescription</DialogTitle>
         <form onSubmit={handleCreateSubmit}>
           <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             {error && <Alert severity="error">{error}</Alert>}
@@ -276,7 +285,7 @@ const PrescriptionsCard = ({ patientId, refreshTrigger }: PrescriptionsCardProps
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>Edit Prescription</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, color: "#12233b" }}>Edit Prescription</DialogTitle>
         <form onSubmit={handleEditSubmit}>
           <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
             {error && <Alert severity="error">{error}</Alert>}

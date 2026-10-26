@@ -5,11 +5,12 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../../components/navigation/Sidebar";
 import Topbar from "../../components/navigation/Topbar";
 import BottomNav from "../../components/navigation/BottomNav";
+import { SIDEBAR_WIDTH } from "../../theme/theme";
 
 const layoutStyles = {
   display: "flex",
   minHeight: "100vh",
-  backgroundColor: "#f8f9fa",
+  backgroundColor: "background.default",
 };
 
 const DashboardLayout = () => {
@@ -35,20 +36,23 @@ const DashboardLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          pt: { xs: 4, sm: 3 },
-          px: { xs: 2, sm: 3 },
-          width: { xs: "100%", md: `calc(100% - 260px)` }, // accounts for sidebar width on desktop
+          pt: { xs: 2, sm: 3, lg: 4 },
+          px: { xs: 2, sm: 3, lg: 4 },
+          width: { xs: "100%", md: `calc(100% - ${SIDEBAR_WIDTH}px)` }, // accounts for sidebar width on desktop
           minWidth: 0,
-          pb: isMobile ? "calc(160px + env(safe-area-inset-bottom, 0px))" : "24px", // adds buffer at the bottom for bottom navigation on mobile with safe area support
+          pb: isMobile ? "calc(160px + env(safe-area-inset-bottom, 0px))" : "40px", // adds buffer at the bottom for bottom navigation on mobile with safe area support
           transition: theme.transitions.create(["margin", "width"], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
         }}
       >
-        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)", mb: { xs: 2, sm: 0 } }} />
+        <Toolbar sx={{ pt: "env(safe-area-inset-top, 0px)", mb: { xs: 1, sm: 0 } }} />
 
-        <Outlet />
+        {/* Centered content column keeps wide screens readable */}
+        <Box sx={{ width: "100%", maxWidth: 1480, mx: "auto", minWidth: 0 }}>
+          <Outlet />
+        </Box>
       </Box>
 
       {/* Conditionally render BottomNav only on Mobile/Tablet viewports */}
@@ -58,4 +62,3 @@ const DashboardLayout = () => {
 };
 
 export default DashboardLayout;
-

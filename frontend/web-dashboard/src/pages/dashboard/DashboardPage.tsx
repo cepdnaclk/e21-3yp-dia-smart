@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { Grid, Typography, Box, Button, Card, CardContent } from "@mui/material";
+import { Grid, Typography, Box, Button, Card, CardContent, CircularProgress } from "@mui/material";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import VaccinesIcon from "@mui/icons-material/Vaccines";
+import InsightsIcon from "@mui/icons-material/Insights";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { Link } from "react-router-dom";
 
 import StatCard from "../../components/common/StatCard";
 import PageTitle from "../../components/common/PageTitle";
+import CardHeading from "../../components/common/CardHeading";
+import EmptyState from "../../components/common/EmptyState";
 import GlucoseChart from "../../components/charts/GlucoseChart";
 import DoseHistoryChart from "../../components/charts/DoseHistoryChart";
 import { dashboardService } from "../../services/dashboardService";
@@ -106,6 +112,10 @@ const getLastDoseStatus = (data: DashboardData) => {
   return { text: getRelativeTime(data.lastDoseInjectedAt), color: "#64748b" };
 };
 
+const EmptyChartState = ({ message }: { message: string }) => (
+  <EmptyState message={message} minHeight={300} />
+);
+
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [glucoseHistory, setGlucoseHistory] = useState<{ date: string; glucose: number }[]>([]);
@@ -150,7 +160,12 @@ const DashboardPage = () => {
   useAutoRefresh(loadDashboard, 2000);
 
   if (!dashboardData) {
-    return <Typography sx={{ p: 4 }}>Loading...</Typography>;
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5, minHeight: "40vh", p: 4 }}>
+        <CircularProgress size={22} thickness={5} sx={{ color: "secondary.dark" }} />
+        <Typography color="text.secondary" sx={{ fontWeight: 500 }}>Loading...</Typography>
+      </Box>
+    );
   }
 
   const patientId = getSafePatientId();
@@ -205,15 +220,16 @@ const DashboardPage = () => {
       {/* Simple Daily Telemetry Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card elevation={2} sx={{ borderRadius: 3 }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
-              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2, color: "#12233b" }}>
-                Glucose Trends
-              </Typography>
+              <CardHeading
+                title="Glucose Trends"
+                subtitle="Recorded blood glucose readings (mg/dL)"
+                icon={<ShowChartIcon />}
+                color="#ef4444"
+              />
               {glucoseHistory.length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-                  No glucose trend records available.
-                </Typography>
+                <EmptyChartState message="No glucose trend records available." />
               ) : (
                 <GlucoseChart data={glucoseHistory} />
               )}
@@ -222,15 +238,16 @@ const DashboardPage = () => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <Card elevation={2} sx={{ borderRadius: 3 }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
-              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 2, color: "#12233b" }}>
-                Insulin Dosage History
-              </Typography>
+              <CardHeading
+                title="Insulin Dosage History"
+                subtitle="Injected insulin doses (units)"
+                icon={<VaccinesIcon />}
+                color="#0284c7"
+              />
               {doseHistory.length === 0 ? (
-                <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-                  No insulin dose events recorded.
-                </Typography>
+                <EmptyChartState message="No insulin dose events recorded." />
               ) : (
                 <DoseHistoryChart data={doseHistory} />
               )}
@@ -244,31 +261,74 @@ const DashboardPage = () => {
         <Grid size={{ xs: 12 }}>
           <Box
             sx={{
-              p: 3,
-              bgcolor: "#f1f5f9",
+              p: { xs: 2.5, sm: 3.5 },
               borderRadius: 4,
-              border: "1px solid #e2e8f0",
+              position: "relative",
+              overflow: "hidden",
+              color: "#ffffff",
+              background: "linear-gradient(120deg, #12233b 0%, #1b3559 60%, #0b4a6f 100%)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               flexWrap: "wrap",
-              gap: 2
+              gap: 2.5
             }}
           >
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: "bold", color: "#12233b" }}>
-                Need deeper insights?
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Configure personalized targets, calculate Time in Range (TIR), and analyze dose-glucose correlations.
-              </Typography>
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                right: -60,
+                top: -80,
+                width: 260,
+                height: 260,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(62,193,250,0.28) 0%, transparent 70%)",
+                pointerEvents: "none",
+              }}
+            />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, position: "relative", minWidth: 0, flex: "1 1 320px" }}>
+              <Box
+                aria-hidden
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 3,
+                  flexShrink: 0,
+                  display: { xs: "none", sm: "flex" },
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "rgba(62,193,250,0.16)",
+                  color: "#3ec1fa",
+                }}
+              >
+                <InsightsIcon />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#ffffff" }}>
+                  Need deeper insights?
+                </Typography>
+                <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.75)" }}>
+                  Configure personalized targets, calculate Time in Range (TIR), and analyze dose-glucose correlations.
+                </Typography>
+              </Box>
             </Box>
             <Button
               component={Link}
               to="/analytics"
               variant="contained"
-              color="primary"
-              sx={{ textTransform: "none", borderRadius: 2, fontWeight: "bold" }}
+              endIcon={<ArrowForwardIcon />}
+              sx={{
+                position: "relative",
+                textTransform: "none",
+                borderRadius: 2.5,
+                fontWeight: 700,
+                px: 2.5,
+                py: 1.1,
+                bgcolor: "#3ec1fa",
+                color: "#12233b",
+                "&:hover": { bgcolor: "#7dd6fc" },
+              }}
             >
               View Advanced Analytics
             </Button>

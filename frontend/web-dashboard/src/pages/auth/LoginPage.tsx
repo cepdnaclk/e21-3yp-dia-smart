@@ -20,7 +20,13 @@ import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../types/roles";
 import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 import { patientAccessService } from "../../services/patientAccessService";
-import logo from "../../assets/logo/diasmart-logo.png";
+import { BrandWordmark } from "../../components/common/BrandLogo";
+import {
+  authBackdropSx,
+  authCardSx,
+  authLinkButtonSx,
+  authPrimaryButtonSx,
+} from "../../components/common/authStyles";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -59,29 +65,15 @@ const LoginPage = () => {
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#f8f9fa",
-        px: 2,
-      }}
-    >
-      <Card sx={{ width: "100%", maxWidth: 440, borderRadius: 4, p: 1 }}>
+    <Box sx={authBackdropSx}>
+      <Card sx={{ ...authCardSx, maxWidth: 440 }}>
         <CardContent sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           {/* Logo and Header */}
-          <Box
-            component="img"
-            src={logo}
-            alt="Dia-Smart Logo"
-            sx={{ width: 64, height: 64, borderRadius: 2, mb: 2 }}
-          />
+          <BrandWordmark width={{ xs: 180, sm: 210 }} sx={{ mb: 1, mt: -1 }} />
 
           <Typography
             variant="h5"
-            sx={{ fontWeight: 800, color: "#12233b", mb: 0.5 }}
+            sx={{ fontWeight: 800, color: "#12233b", mb: 0.5, textAlign: "center" }}
           >
             Welcome to Dia-Smart
           </Typography>
@@ -141,7 +133,7 @@ const LoginPage = () => {
               variant="text"
               size="small"
               onClick={() => navigate("/forgot-password")}
-              sx={{ color: "#3ec1fa", fontWeight: 700 }}
+              sx={authLinkButtonSx}
             >
               Forgot Password?
             </Button>
@@ -152,18 +144,7 @@ const LoginPage = () => {
             variant="contained"
             fullWidth
             size="large"
-            sx={{
-              mt: 3,
-              py: 1.5,
-              borderRadius: 3,
-              backgroundColor: "#12233b",
-              fontWeight: 700,
-              fontSize: "1rem",
-              textTransform: "none",
-              "&:hover": {
-                backgroundColor: "#1b3559",
-              },
-            }}
+            sx={{ ...authPrimaryButtonSx, mt: 3 }}
             onClick={handleLogin}
             disabled={loading}
           >

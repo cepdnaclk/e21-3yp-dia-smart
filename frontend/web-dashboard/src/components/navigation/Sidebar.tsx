@@ -1,3 +1,4 @@
+
 import {
   Drawer,
   List,
@@ -10,7 +11,9 @@ import {
   Box,
   Typography,
   Divider,
+  Avatar,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -23,11 +26,13 @@ import { adminNavigation } from "../../config/navigation/adminNavigation";
 import type { NavigationItem } from "../../config/navigation/navigationTypes";
 import { useAuth } from "../../context/AuthContext";
 import { UserRole } from "../../types/roles";
-import logo from "../../assets/logo/diasmart-logo.png";
+import { BrandIcon } from "../common/BrandLogo";
+import { brand, SIDEBAR_WIDTH } from "../../theme/theme";
+import { getRoleDisplay } from "./roleMeta";
 
 import { DEFAULT_ROLE_ROUTES } from "../../config/routes/roleRoutes";
 
-const drawerWidth = 260;
+const drawerWidth = SIDEBAR_WIDTH;
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -38,6 +43,60 @@ const isActiveNavigationItem = (
   item: NavigationItem,
   pathname: string
 ) => pathname === item.route;
+
+const sectionLabelStyles = {
+  px: 2,
+  pt: 1,
+  pb: 1,
+  display: "block",
+  color: "rgba(255, 255, 255, 0.42)",
+  fontSize: "0.68rem",
+};
+
+const navItemStyles = {
+  position: "relative",
+  borderRadius: 2,
+  mb: 0.5,
+  py: 1.1,
+  px: 1.75,
+  color: "rgba(255, 255, 255, 0.72)",
+  transition: "background-color 0.15s ease, color 0.15s ease",
+  "& .MuiListItemIcon-root": {
+    color: "rgba(255, 255, 255, 0.6)",
+    transition: "color 0.15s ease",
+  },
+  "&.Mui-selected": {
+    background: `linear-gradient(90deg, ${alpha(brand.sky, 0.2)} 0%, ${alpha(brand.sky, 0.08)} 100%)`,
+    color: "#ffffff",
+    "& .MuiListItemIcon-root": {
+      color: brand.sky,
+    },
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      left: -8,
+      top: 8,
+      bottom: 8,
+      width: 3,
+      borderRadius: "0 3px 3px 0",
+      backgroundColor: brand.sky,
+    },
+    "&:hover": {
+      backgroundColor: alpha(brand.sky, 0.22),
+    },
+  },
+  "&:hover": {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    color: "#ffffff",
+    "& .MuiListItemIcon-root": {
+      color: "#ffffff",
+    },
+  },
+  "&.Mui-focusVisible": {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    boxShadow: `inset 0 0 0 2px ${alpha(brand.sky, 0.6)}`,
+  },
+};
 
 const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate();
@@ -67,9 +126,17 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
   };
 
   const navItems = getNavigationItems();
+  const roleDisplay = getRoleDisplay(role);
 
   const drawerContent = (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", backgroundColor: "#12233b" }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: `linear-gradient(180deg, ${brand.navy} 0%, ${brand.navyDark} 100%)`,
+      }}
+    >
       {/* Drawer Header / Logo */}
       <Toolbar
         onClick={handleLogoClick}
@@ -77,35 +144,82 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
           display: "flex",
           alignItems: "center",
           gap: 1.5,
-          px: 2,
+          px: 2.5,
           pt: "env(safe-area-inset-top, 0px)",
           cursor: "pointer",
           "&:hover": {
-            opacity: 0.95
+            opacity: 0.92
           }
         }}
       >
-        <Box
-          component="img"
-          src={logo}
-          alt="Dia-Smart Logo"
-          sx={{ width: 36, height: 36, borderRadius: 1 }}
-        />
-        <Typography
-          variant="h6"
+        <BrandIcon size={38} tile />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              color: "#ffffff",
+              letterSpacing: "0.2px",
+              lineHeight: 1.2,
+            }}
+          >
+            Dia-Smart
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ color: alpha(brand.sky, 0.85), fontWeight: 600, display: "block", lineHeight: 1.2 }}
+          >
+            Smart Insulin Care
+          </Typography>
+        </Box>
+      </Toolbar>
+
+      {/* Signed-in role identity */}
+      <Box
+        sx={{
+          mx: 2,
+          mt: 1,
+          mb: 2,
+          p: 1.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          borderRadius: 2.5,
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+        }}
+      >
+        <Avatar
           sx={{
-            fontWeight: 700,
-            color: "#ffffff",
-            letterSpacing: "0.5px",
+            width: 34,
+            height: 34,
+            fontSize: "0.85rem",
+            fontWeight: 800,
+            bgcolor: brand.sky,
+            color: brand.navy,
           }}
         >
-          Dia-Smart
-        </Typography>
-      </Toolbar>
-      <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", mb: 1 }} />
+          {roleDisplay.title.charAt(0)}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ color: "#ffffff", fontWeight: 700, lineHeight: 1.25 }} noWrap>
+            {roleDisplay.portal}
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "success.main" }} />
+            <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.55)", fontWeight: 500 }} noWrap>
+              Signed in as {roleDisplay.title}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Navigation List */}
-      <List sx={{ px: 1, flexGrow: 1 }}>
+      <List sx={{ px: 1.5, py: 0, flexGrow: 1, overflowY: "auto" }}>
+        <Typography variant="overline" sx={sectionLabelStyles}>
+          Menu
+        </Typography>
+
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActiveNavigationItem(item, location.pathname);
@@ -114,37 +228,15 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
             <ListItemButton
               key={item.id}
               selected={active}
+              aria-current={active ? "page" : undefined}
               onClick={() => {
                 navigate(item.route);
                 if (isMobile) onClose();
               }}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                py: 1.25,
-                px: 2,
-                color: "rgba(255, 255, 255, 0.7)",
-                "&.Mui-selected": {
-                  backgroundColor: "rgba(62, 193, 250, 0.12)",
-                  color: "#3ec1fa",
-                  "& .MuiListItemIcon-root": {
-                    color: "#3ec1fa",
-                  },
-                  "&:hover": {
-                    backgroundColor: "rgba(62, 193, 250, 0.18)",
-                  },
-                },
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.04)",
-                  color: "#ffffff",
-                  "& .MuiListItemIcon-root": {
-                    color: "#ffffff",
-                  },
-                },
-              }}
+              sx={navItemStyles}
             >
-              <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
-                <Icon />
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <Icon sx={{ fontSize: 21 }} />
               </ListItemIcon>
 
               <ListItemText
@@ -158,30 +250,22 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
           );
         })}
 
-        <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5 }} />
+        <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.08)", my: 1.5, mx: 1 }} />
+
+        <Typography variant="overline" sx={sectionLabelStyles}>
+          Account
+        </Typography>
 
         <ListItemButton
+          selected={location.pathname === "/settings"}
           onClick={() => {
             navigate("/settings");
             if (isMobile) onClose();
           }}
-          sx={{
-            borderRadius: 2,
-            mb: 0.5,
-            py: 1.25,
-            px: 2,
-            color: "rgba(255, 255, 255, 0.7)",
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.04)",
-              color: "#ffffff",
-              "& .MuiListItemIcon-root": {
-                color: "#ffffff",
-              },
-            },
-          }}
+          sx={navItemStyles}
         >
-          <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
-            <SettingsIcon />
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <SettingsIcon sx={{ fontSize: 21 }} />
           </ListItemIcon>
           <ListItemText
             primary={
@@ -199,22 +283,18 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
             if (isMobile) onClose();
           }}
           sx={{
-            borderRadius: 2,
-            mb: 0.5,
-            py: 1.25,
-            px: 2,
-            color: "rgba(255, 255, 255, 0.7)",
+            ...navItemStyles,
             "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.04)",
-              color: "#ffffff",
+              backgroundColor: alpha("#ef4444", 0.12),
+              color: "#fecaca",
               "& .MuiListItemIcon-root": {
-                color: "#ffffff",
+                color: "#fca5a5",
               },
             },
           }}
         >
-          <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>
-            <LogoutIcon />
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <LogoutIcon sx={{ fontSize: 21 }} />
           </ListItemIcon>
           <ListItemText
             primary={
@@ -227,7 +307,14 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
       </List>
 
       {/* Optional footer area in the drawer */}
-      <Box sx={{ p: 2, textAlign: "center" }}>
+      <Box
+        sx={{
+          px: 2.5,
+          py: 2,
+          pb: "calc(16px + env(safe-area-inset-bottom, 0px))",
+          borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+        }}
+      >
         <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.4)" }}>
           Version 1.0.0
         </Typography>
@@ -238,6 +325,7 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
   return (
     <Box
       component="nav"
+      aria-label="Main navigation"
       sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
     >
       {/* Mobile temporary drawer */}
@@ -252,6 +340,7 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
             width: drawerWidth,
             boxSizing: "border-box",
             borderRight: "none",
+            backgroundColor: brand.navy,
           },
         }}
       >
@@ -267,7 +356,8 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
-            borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRight: "none",
+            backgroundColor: brand.navy,
           },
         }}
       >
@@ -278,4 +368,3 @@ const Sidebar = ({ mobileOpen, onClose }: SidebarProps) => {
 };
 
 export default Sidebar;
-

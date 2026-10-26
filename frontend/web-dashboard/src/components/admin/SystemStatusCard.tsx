@@ -1,4 +1,7 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
+
+import MetricCard from "../common/MetricCard";
 
 interface SystemStatusCardProps {
   status: string;
@@ -6,22 +9,28 @@ interface SystemStatusCardProps {
 
 const SystemStatusCard: React.FC<SystemStatusCardProps> = ({ status }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          System Status
-        </Typography>
+    <MetricCard
+      label="System Status"
+      tone="success"
+      icon={<MonitorHeartIcon />}
+      value={
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "success.main" }} />
-          <Typography variant="h5" sx={{ fontWeight: "bold", color: "success.main" }}>
+          <Box
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              bgcolor: "success.main",
+              boxShadow: "0 0 0 4px rgba(16, 185, 129, 0.18)",
+            }}
+          />
+          <Typography variant="h5" component="span" sx={{ fontWeight: 800, color: "success.dark" }}>
             {status}
           </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary">
-          Overall system health monitoring cloud server service status, datastore latency, and device API integrations.
-        </Typography>
-      </CardContent>
-    </Card>
+      }
+      description="Overall system health monitoring cloud server service status, datastore latency, and device API integrations."
+    />
   );
 };
 

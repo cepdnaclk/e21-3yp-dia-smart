@@ -1,4 +1,5 @@
-import { Card, CardContent, Typography } from "@mui/material";
+import MetricCard from "../common/MetricCard";
+import DevicesIcon from "@mui/icons-material/Devices";
 
 interface RegisteredDevicesCardProps {
   count: number;
@@ -6,19 +7,13 @@ interface RegisteredDevicesCardProps {
 
 const RegisteredDevicesCard: React.FC<RegisteredDevicesCardProps> = ({ count }) => {
   return (
-    <Card elevation={2} sx={{ height: "100%", borderRadius: 3 }}>
-      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Registered Devices
-        </Typography>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: "primary.main" }}>
-          {count}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Total registered dosing units, inventory scales, and storage monitoring sensors currently online.
-        </Typography>
-      </CardContent>
-    </Card>
+    <MetricCard
+      label="Registered Devices"
+      value={count}
+      description="Total registered dosing units, inventory scales, and storage monitoring sensors currently online."
+      icon={<DevicesIcon />}
+      tone="info"
+    />
   );
 };
 

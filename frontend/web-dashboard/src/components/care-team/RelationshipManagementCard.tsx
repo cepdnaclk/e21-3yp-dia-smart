@@ -13,8 +13,44 @@ import {
   CircularProgress,
   Box,
   Divider,
+  InputAdornment,
 } from "@mui/material";
+import GroupAddRoundedIcon from "@mui/icons-material/GroupAddRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import MedicalServicesRoundedIcon from "@mui/icons-material/MedicalServicesRounded";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import { careTeamService } from "../../services/careTeamService";
+import CardHeading from "../common/CardHeading";
+
+const resultListSx = {
+  overflowY: "auto",
+  maxHeight: 200,
+  "& .MuiListItem-root": {
+    px: 1,
+    borderRadius: 2,
+    transition: "background-color 0.15s ease",
+    "&:hover": { bgcolor: "#f8fafc" },
+  },
+  "& .MuiListItemText-primary": {
+    fontWeight: 600,
+    color: "#12233b",
+  },
+  "& .MuiListItemText-root": {
+    pr: 11,
+    minWidth: 0,
+    overflowWrap: "anywhere",
+  },
+} as const;
+
+const searchAdornment = {
+  input: {
+    startAdornment: (
+      <InputAdornment position="start">
+        <SearchRoundedIcon fontSize="small" sx={{ color: "#94a3b8" }} />
+      </InputAdornment>
+    ),
+  },
+};
 
 interface RelationshipManagementCardProps {
   onShowAlert: (message: string, severity: "success" | "error") => void;
@@ -102,21 +138,38 @@ const RelationshipManagementCard = ({
   return (
     <Card sx={{ height: "100%" }}>
       <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <Typography
-          variant="h6"
-          sx={{ mb: 2, fontWeight: 600 }}
-        >
-          Relationship Management
-        </Typography>
+        <CardHeading
+          title="Relationship Management"
+          icon={<GroupAddRoundedIcon />}
+        />
 
         <Tabs
           value={tabValue}
           onChange={(_, val) => setTabValue(val)}
-          sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+          sx={{
+            mb: 2.5,
+            minHeight: 44,
+            p: 0.5,
+            borderRadius: 2.5,
+            bgcolor: "#f1f5f9",
+            "& .MuiTabs-indicator": { display: "none" },
+            "& .MuiTab-root": {
+              minHeight: 36,
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              color: "#64748b",
+            },
+            "& .MuiTab-root.Mui-selected": {
+              bgcolor: "#ffffff",
+              color: "#12233b",
+              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.1)",
+            },
+          }}
           variant="fullWidth"
         >
-          <Tab label="Search Doctor" />
-          <Tab label="Search Caregiver" />
+          <Tab icon={<MedicalServicesRoundedIcon fontSize="small" />} iconPosition="start" label="Search Doctor" />
+          <Tab icon={<PersonRoundedIcon fontSize="small" />} iconPosition="start" label="Search Caregiver" />
         </Tabs>
 
         {tabValue === 0 && (
@@ -129,6 +182,7 @@ const RelationshipManagementCard = ({
               value={doctorQuery}
               onChange={(e) => setDoctorQuery(e.target.value)}
               sx={{ mb: 2 }}
+              slotProps={searchAdornment}
             />
             {loadingDoctors && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -139,13 +193,14 @@ const RelationshipManagementCard = ({
               <Typography
                 color="text.secondary"
                 align="center"
-                sx={{ py: 2 }}
+                variant="body2"
+                sx={{ py: 2, px: 2, borderRadius: 2, border: "1px dashed", borderColor: "divider", bgcolor: "#f8fafc", mb: 1 }}
               >
                 No doctors found
               </Typography>
             )}
             <List
-              sx={{ overflowY: "auto", maxHeight: 200 }}
+              sx={resultListSx}
               disablePadding
             >
               {doctorResults.map((doc, idx) => (
@@ -157,7 +212,9 @@ const RelationshipManagementCard = ({
                       <Button
                         variant="contained"
                         size="small"
+                        disableElevation
                         disabled={sendingId !== null}
+                        sx={{ minWidth: 84 }}
                         onClick={() => handleSendRequest(doc.userId, "DOCTOR")}
                       >
                         {sendingId === doc.userId ? (
@@ -192,6 +249,7 @@ const RelationshipManagementCard = ({
               value={caregiverQuery}
               onChange={(e) => setCaregiverQuery(e.target.value)}
               sx={{ mb: 2 }}
+              slotProps={searchAdornment}
             />
             {loadingCaregivers && (
               <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -202,13 +260,14 @@ const RelationshipManagementCard = ({
               <Typography
                 color="text.secondary"
                 align="center"
-                sx={{ py: 2 }}
+                variant="body2"
+                sx={{ py: 2, px: 2, borderRadius: 2, border: "1px dashed", borderColor: "divider", bgcolor: "#f8fafc", mb: 1 }}
               >
                 No caregivers found
               </Typography>
             )}
             <List
-              sx={{ overflowY: "auto", maxHeight: 200 }}
+              sx={resultListSx}
               disablePadding
             >
               {caregiverResults.map((cg, idx) => (
@@ -220,7 +279,9 @@ const RelationshipManagementCard = ({
                       <Button
                         variant="contained"
                         size="small"
+                        disableElevation
                         disabled={sendingId !== null}
+                        sx={{ minWidth: 84 }}
                         onClick={() => handleSendRequest(cg.userId, "CAREGIVER")}
                       >
                         {sendingId === cg.userId ? (
